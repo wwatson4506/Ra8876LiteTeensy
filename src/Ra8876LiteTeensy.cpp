@@ -11,7 +11,6 @@
  * 	  	      : For Teensy 3.x and T4
  *                    : By Warren Watson
  *                    : 06/07/2018 - 11/31/2019
- *                    : By Warren Watson
  *                    : Copyright (c) 2017-2019 Warren Watson.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
