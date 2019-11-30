@@ -1,15 +1,39 @@
 //**************************************************************//
 //**************************************************************//
 /*
-File Name : Ra8876_Lite.cpp                                   
-Author    : RAiO Application Team                             
-Edit Date : 09/13/2017
-Version   : v2.0  1.modify bte_DestinationMemoryStartAddr bug 
-                  2.modify ra8876SdramInitial Auto_Refresh
-                  3.modify ra8876PllInitial 
-Modified  : 06/07/2018 - 09/03/2019
-* 			For Teensy 3.x and T4
-*/
+ * Ra8876LiteTeensy.cpp
+ * Modified Version of: File Name : Ra8876_Lite.cpp                                   
+ *			Author    : RAiO Application Team                             
+ *			Edit Date : 09/13/2017
+ *			Version   : v2.0  1.modify bte_DestinationMemoryStartAddr bug 
+ *                 			  2.modify ra8876SdramInitial Auto_Refresh
+ *                 			  3.modify ra8876PllInitial 
+ * 	  	      : For Teensy 3.x and T4
+ *                    : By Warren Watson
+ *                    : 06/07/2018 - 11/31/2019
+ *                    : By Warren Watson
+ *                    : Copyright (c) 2017-2019 Warren Watson.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
 //**************************************************************//
 
 #include "Ra8876_Lite.h"
