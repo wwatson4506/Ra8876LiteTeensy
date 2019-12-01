@@ -45,7 +45,9 @@ Pin 20 BLITE --------------------------------> Pin 14 BL_CONTROL (VDD 3.3V)
 -------------------------------------------------------------
 
 *** Touch Screen was only tested on the T36 with the TallDog breakout board. ***
-                     TOUCH SCREEN
+*** Resistive touch panel uses XPT2046. Used a modified version of XPT2046.  ***
+ 
+                       TOUCH SCREEN
 -------------------------------------------------------------
 Pin 31 /CS1  --------------------------------> Pin 32 TP_/CS
 Pin 32 SCK2  --------------------------------> Pin 35 TP_SLCK
