@@ -36,7 +36,7 @@ void setup() {
 	initVT100();
 	fontLoadMEM((char *)font8x16);
 	setFontSize(1,false);
-    setTextAt(0,0);
+	setTextAt(0,0);
 	tft_cls(myColors[0]);
 	tft_slcls(myColors[0]);
 	tft_slprint(0,myColors[13],myColors[0],"Example of User Defined Characters. 8x16 font size. Uses tftRawWrite() function.");
