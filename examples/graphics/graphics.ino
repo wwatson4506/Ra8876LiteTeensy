@@ -294,6 +294,25 @@ void fillEllipse(void)
 	//timeOn(); // Turn on time/date display on status line
 }
 
+// Draw random Lines
+void drawlines(void) {
+	uint16_t x0, y0, x1, y1, c;
+
+	for(int i=0; i < interations; i++) {
+		x0 = (uint16_t)random(1,1023);
+		y0 = (uint16_t)random(1,575);
+		x1 = (uint16_t)random(1,1023);
+		y1 = (uint16_t)random(1,575);
+		c = (uint16_t)random(21);
+		if(x0 > getGwidth()) x0 = getGwidth();
+		if(y0 > getGheight()) y0 = getGheight();
+		if(x1 > getGwidth()) x1 = getGwidth();
+		if(y1 > getGheight()) y1 = getGheight();
+		drawLine(x0,y0,x1,y1,myColors[c]);
+	}
+	tft_slcls(myColors[11]);
+}
+
 int i = 0;
 void setup() {
 	tft_init();
@@ -367,6 +386,11 @@ void loop() {
 	tft_slprint(0,myColors[1],myColors[11],"Filled Ellipses");
 	interations = 4000;
 	fillEllipse();
+	tft_cls(myColors[11]);
+	delay(10);
+	tft_slprint(0,myColors[1],myColors[11],"Lines");
+	interations = 100000;
+	drawlines();
 	tft_cls(myColors[11]);
 	delay(10);
 }
