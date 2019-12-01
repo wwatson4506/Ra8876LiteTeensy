@@ -64,7 +64,7 @@ void rectangles(uint16_t thickness) {
 		}
 	}
 	tft_slcls(myColors[11]);
-	timeOn();
+	//timeOn(); // Turn on time/date display on status line
 }
 
 // Draw random filled rectangle boxes
@@ -79,7 +79,7 @@ void filledRectangles(void) {
 		fillRect(x0,y0,x1,y1,myColors[c+1]);
 	}
 	tft_slcls(myColors[11]);
-	timeOn();
+	//timeOn(); // Turn on time/date display on status line
 }
 
 // Draw random round rectangle boxes
@@ -129,7 +129,7 @@ void rRectangles(uint16_t thickness) {
 		}
 	}
 	tft_slcls(myColors[11]);
-	timeOn();
+	//timeOn(); // Turn on time/date display on status line
 }
 
 // Draw random filled round rectangle boxes
@@ -162,7 +162,7 @@ void filledRRectangles(void) {
 		fillRoundRect(x0, y0, x1, y1, xr, yr, myColors[c]);
 	}
 	tft_slcls(myColors[11]);
-	timeOn();
+	//timeOn(); // Turn on time/date display on status line
 }
 
 // Draw random circles
@@ -194,7 +194,7 @@ void drawcircles(uint16_t thickness) {
 		drawCircle(x0, y0, r, myColors[c]);
 	}
 	tft_slcls(myColors[11]);
-	timeOn();
+	//timeOn(); // Turn on time/date display on status line
 }
 
 // Draw random filled circles
@@ -216,7 +216,7 @@ void fillcircles(void) {
 		fillCircle(x0, y0, r, myColors[c]);
 	}
 	tft_slcls(myColors[11]);
-	timeOn();
+	//timeOn();
 }
 
 // Draw random unfilled tritangles
@@ -233,7 +233,7 @@ void drawTriangle(void) {
 		drawTriangle(x0,y0,x1,y1,x2,y2,myColors[c+1]);
 	}
 	tft_slcls(myColors[11]);
-	timeOn();
+	//timeOn(); // Turn on time/date display on status line
 }
 
 // Draw random filled triangles
@@ -250,7 +250,7 @@ void fillTriangle(void) {
 		fillTriangle(x0,y0,x1,y1,x2,y2,myColors[c+1]);
 	}
 	tft_slcls(myColors[11]);
-	timeOn();
+	//timeOn(); // Turn on time/date display on status line
 }
 
 // Draw random unfilled ellipses
@@ -275,7 +275,7 @@ void drawEllipse(void)
 		drawEllipse(x0, y0, xr, yr, myColors[color]);
 	}
 	tft_slcls(myColors[11]);
-	timeOn();
+	//timeOn(); // Turn on time/date display on status line
 }
 
 // Draw random filled ellipses
@@ -300,7 +300,7 @@ void fillEllipse(void)
 		fillEllipse(x0, y0, xr, yr, myColors[color]);
 	}
 	tft_slcls(myColors[11]);
-	timeOn();
+	//timeOn(); // Turn on time/date display on status line
 }
 
 int i = 0;
@@ -310,7 +310,7 @@ void setup() {
     setTextAt(0,0);
 	tft_cls(myColors[11]);
 	setFontSize(1,false);
-	timeOn();
+	timeOn(); // Turn on time/date display on status line
 }
 
 void loop() {
