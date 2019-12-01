@@ -10,6 +10,7 @@ The TFT panel I have is setup for:
  - 10.1" Resistive Touch Controller
  - SD Card Pin interface
  - ER3304-1 Font Chip
+ 
 The current Price is about $74.00 not including shipping.
 
 Teensy connections are through a 4 wire SPI port. Other interface options are available.
