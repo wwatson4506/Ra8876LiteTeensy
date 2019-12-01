@@ -1,4 +1,6 @@
 // vt100Demo.ino
+// Same as the scroll.ino example but uses
+// VT100 command strings to scroll up and down.
 #include "Arduino.h"
 #include "Ra8876_Lite.h"
 #include "tft.h"
@@ -63,15 +65,13 @@ void loop() {
 	while(j++ < 10) {
 		for(i = 0; i < 21; i++) {
 			VideoPrintString(SCROLLDN);
-//			delay(50);
 		}
 		for(i = 0; i < 21; i++) {
 			VideoPrintString(SCROLLUP);
-//			delay(50);
 		}
 	}
 	j = 0;
+	// Delay to show internal character set.
 	delay(2000);
-
 }
 	
