@@ -1,5 +1,6 @@
-// T4 treedee.ino example
+// treedee.ino example
 // Taken from sumotoy's RA8875 library
+// and modified for use with the RA8876.
 #include "Arduino.h"
 #include "Ra8876_Lite.h"
 #include "tft.h"
@@ -64,10 +65,9 @@ uint16_t ccolor = myColors[ch];
 void setup() {
 	tft_init();
 	initVT100();
-    setTextAt(0,0);
+	setTextAt(0,0);
 	tft_cls(myColors[11]);
 	setFontSize(1,false);
-	// timeOn();
 	tft_slcls(myColors[11]);
 	tft_slprint(0,myColors[1],myColors[11],"Sumotoy's treedee sketch on the T4.");
 }
@@ -109,7 +109,7 @@ void loop() {
   drawLine(p2x[7], p2y[7], p2x[4], p2y[4], ccolor);
   drawLine(p2x[3], p2y[3], p2x[7], p2y[7], ccolor);
   delay(speed); // Wanna see how fast this runs a 34MHZ? modify 'speed' above! (Or comment out)
-// Uncomment for colors
+// Uncomment for random colored frames
 //  if (ch >= 22) {
 //    ch = 1;
 //    ccolor = myColors[ch];
