@@ -1,4 +1,7 @@
 // scroll.ino
+// Simple example of Scrolling text down and up
+// on the RA8876. The method used is kind of slow
+// and needs to be optimized.
 #include "Arduino.h"
 #include "Ra8876_Lite.h"
 #include "tft.h"
@@ -35,7 +38,7 @@ int color = 1;
 void setup() {
 	tft_init();
 	initVT100();
-    setTextAt(0,0);
+	setTextAt(0,0);
 	tft_cls(myColors[11]);
 	setFontSize(1,false);
 }
@@ -57,14 +60,12 @@ void loop() {
 	while(j++ < 10) {
 		for(i = 0; i < 21; i++) {
 			scroll_down();
-//			delay(50);
 		}
 		for(i = 0; i < 21; i++) {
 			scroll_up();
-//			delay(50);
 		}
 	}
 	j = 0;
 	delay(2000);
 }
-	
+
