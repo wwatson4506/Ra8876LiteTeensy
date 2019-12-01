@@ -88,7 +88,7 @@ mirroring, working with transparency  etc...
 
 The RA8876.pdf manual is a little hard to use but seems complete.
 
-The (Mountain Hung) Senior Engineer is very helpfull and respond quickly to emails.
+Mountain Hung the Senior Engineer at RAIO is very helpfull and respond quickly to emails.
 His Email Address:
 mountain@raio.com.tw
 
