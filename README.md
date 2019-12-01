@@ -39,21 +39,30 @@ https://github.com/sumotoy/RA8875/wiki/Fix-compatibility-with-other-SPI-devices
 https://www.buydisplay.com/download/interfacing/ER-TFTM101-1_RTP_Interfacing.pdf
 
 TEENSY 36/40                                  ER-TFTM101-1
--------------------------------------------------------------
-Pin 10 /CS   --------------------------------> Pin 5  /SCS
-Pin 13 SCK   --------------------------------> Pin 8  SCLK
-Pin 11 MOSI  --------------------------------> Pin 7  SDI
-Pin 12 MISO  <-------------------------------- Pin 6  SDO
-Pin 21 RESET --------------------------------> Pin 11 /RESET
-Pin 20 BLITE --------------------------------> Pin 14 BL_CONTROL (VDD 3.3V)
--------------------------------------------------------------
-                    TOUCH SCREEN
-Pin 31 /CS1  --------------------------------> Pin 32 TP_/CS
-Pin 32 SCK2  --------------------------------> Pin 35 TP_SLCK
-Pin 0  MOSI1 --------------------------------> Pin 34 TP_DIN
-Pin 1  MISO1 --------------------------------> Pin 36 TP_DOUT
-Pin 24 TSINT <-------------------------------- Pin 33 TS_PEN
---------------------------------------------------------------
+
+Pin 10 /CS------------------------------------>Pin 5  /SCS
+
+Pin 13 SCK------------------------------------>Pin 8  SCLK
+
+Pin 11 MOSI----------------------------------->Pin 7  SDI
+
+Pin 12 MISO<-----------------------------------Pin 6  SDO
+
+Pin 21 RESET---------------------------------->Pin 11 RESET
+
+Pin 20 BLITE-----------------------------------Pin 14 BL_CONTROL (VDD 3.3V)
+
+                   TOUCH SCREEN
+
+Pin 31 /CS1---------------------------------->Pin 32 TP_/CS
+
+Pin 32 SCK2---------------------------------->Pin 35 TP_SLCK
+
+Pin 0  MOSI1--------------------------------->Pin 34 TP_DIN
+
+Pin 1  MISO1<---------------------------------Pin 36 TP_DOUT
+
+Pin 24 TSINT<---------------------------------Pin 33 TS_PEN
 
 ER-TFTM101-1 Ground Pins are 1,2,13,31,39,40. These should all be connectd
 to Teensy Grounds.
