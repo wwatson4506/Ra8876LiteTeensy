@@ -5,7 +5,8 @@ https://www.buydisplay.com/default/serial-spi-i2c-10-1-inch-tft-lcd-module-disla
 
 Tested and working with PJRC Teensy's T36 and T40.
 
-And possibly with modification for TechToy's HDMI Shield Here:
+And possibly with modification for TechToy's HDMI Shield.
+Not Tested.
 
 http://www.techtoys.com.hk/BoardsKits/HDMIshield/HDMIshield.htm
 
