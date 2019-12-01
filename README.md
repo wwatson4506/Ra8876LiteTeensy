@@ -33,6 +33,7 @@ Check out Sumotoy's WEB page for a solution to this problem.
 https://github.com/sumotoy/RA8875/wiki/Fix-compatibility-with-other-SPI-devices
 
 *** CONNECTING THE TEENSY TO THE ER-TFTM101-1 ***
+
 40 pin connector pinouts can be found here: https://www.buydisplay.com/download/interfacing/ER-TFTM101-1_RTP_Interfacing.pdf
 
 More info to come. Working on Docs. Check out the files for more info till then.
