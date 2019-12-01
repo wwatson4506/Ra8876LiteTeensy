@@ -10,7 +10,7 @@ https://www.buydisplay.com/default/serial-spi-i2c-10-1-inch-tft-lcd-module-disla
 Documentation and drivers for this device can be found
 at the bottom of the BuyDisplay WEB page for this display.
 
-The TFT panel I have is setup for:
+The TFT panel I have was ordered setup with:
  - SPI 4 wire 40 pin interface
  - 5V Power Supply
  - 10.1" Resistive Touch Controller
