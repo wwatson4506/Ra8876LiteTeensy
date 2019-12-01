@@ -5,7 +5,8 @@
 #include "vt100.h"
 #include <math.h>
 
-
+// This example is a modified version of Sumotoy's guages example
+// from his RA8875 driver. Modified to work with the RA8876 TFT controller.
 
 // Array of RA8876 Basic Colors
 PROGMEM uint16_t myColors[] = {
@@ -55,10 +56,9 @@ void setup() {
 //	while(!Serial);
 	tft_init();
 	initVT100();
-    setTextAt(0,0);
+	setTextAt(0,0);
 	tft_cls(myColors[11]);
 	setFontSize(1,false);
-
 	for (uint8_t i = 0; i < 6; i++) {
 		drawGauge(posx[i], posy[i], radius[i]);
 	}
@@ -69,13 +69,7 @@ void setup() {
 void loop(void) {
   for (uint8_t i = 0; i < 6; i++) {
     curVal[i] = random(255);
-    //curVal[i] =255;
     drawNeedle(i,myColors[11]);
-    //delay(1000);
-    /*
-    curVal[i] = map(analogRead(analogIn[i]), 0, 1024, 1, 255);
-    drawNeedle(i,RA8875_BLACK);
-    */
   }
 }
 
@@ -84,7 +78,6 @@ void drawGauge(uint16_t x, uint16_t y, uint16_t r) {
   drawCircle(x, y, r, myColors[1]); //draw instrument container
   faceHelper(x, y, r, 150, 390, 1.3); //draw major ticks
   if (r > 15) faceHelper(x, y, r, 165, 375, 1.1); //draw minor ticks
-
 }
 
 void faceHelper(uint16_t x, uint16_t y, uint16_t r, int from, int to, float dev) {
@@ -126,8 +119,7 @@ void drawNeedle(uint8_t index, uint16_t bcolor) {
   }
   oldVal[index] = curVal[index];
   }
-  //oldVal[index] = curVal[index];
-}
+ }
 
 void drawPointerHelper(uint8_t index,int16_t val, uint16_t x, uint16_t y, uint16_t r, uint16_t color) {
   float dsec;
