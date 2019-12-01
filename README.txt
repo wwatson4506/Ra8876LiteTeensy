@@ -56,7 +56,7 @@ Pin 24 TSINT <-------------------------------- Pin 33 TS_PEN
 
 ER-TFTM101-1 Ground Pins are 1,2,13,31,39,40. These should all be connectd
 to Teensy Grounds.
-ER-TFTM101-1 Power Pins (VDD is 5V or 3.3v depanding on how it was configured
+ER-TFTM101-1 Power Pins (VDD is 5V or 3.3v depending on how it was configured
 when ordered) are 3,4,37,38 and all should be connected together.
 
 More info to come. Working on Docs. Check out the files for more info till then.
