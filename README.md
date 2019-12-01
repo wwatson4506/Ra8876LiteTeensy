@@ -22,7 +22,7 @@ chip if using more than one device on the same SPI port. Check out Sumotoy's WEB
 https://github.com/sumotoy/RA8875/wiki/Fix-compatibility-with-other-SPI-devices
 
 Documentation and drivers for this device can be found
-at the bottom of the WEB page.
+at the bottom of the BuyDisplay WEB page for this display.
 
 
 More info to come. Working on Docs. Check out the files for more info till then.
