@@ -44,8 +44,8 @@ Pin 21 RESET --------------------------------> Pin 11 /RESET
 Pin 20 BLITE --------------------------------> Pin 14 BL_CONTROL (VDD 3.3V)
 -------------------------------------------------------------
 
-*** Touch Screen was only tested on the T36 with the TallDog breakout board. ***
-*** Resistive touch panel uses XPT2046. Used a modified version of XPT2046.  ***
+*** Touch Screen was only tested on the T36 with the TallDog breakout board.    ***
+*** Resistive touch panel uses XPT2046. Used a modified version of XPT2046.cpp  ***
  
                        TOUCH SCREEN
 -------------------------------------------------------------
