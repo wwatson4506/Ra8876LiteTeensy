@@ -59,4 +59,45 @@ to Teensy Grounds.
 ER-TFTM101-1 Power Pins (VDD is 5V or 3.3v depending on how it was configured
 when ordered) are 3,4,37,38 and all should be connected together.
 
-More info to come. Working on Docs. Check out the files for more info till then.
+*** EXAMPLES ***
+
+graphics.ino - Demonstrates the RA8876 accelerated graphics engine.
+             - Rectangles, Rectangles with line thickness, Filled Rectangles.
+             - Round Rectangles, Round Rectangles with different line thickness,
+               Filled Round Rectangles.
+             - Circles, Circles with line thickness, Filled Circles.
+             - Ellipses, Ellipses with line thickness, Filled Ellipses.
+             - Lines.
+guages.ino   - This is Sumotoy's RA8875 guages example ported to the RA8876.
+piptest.ino  - Picuture In Picture demo. See comments in file.
+scroll.ino   - Demo of scrolling a text screen up and then down. It's kind of
+             - slow and there is probably a better way of scrolling.
+treedee.ino  - This is Sumotoy's RA8875 treedee example ported to the RA8876.
+UserDefinedFonts.ino - This is an example of user defined characters on the RA8876.
+                     - In this example the font is compiled into the program and
+                     - then loaded from flash memory into CGRAM. If in tft.h file
+                     - #define USE_FF_FONTLOAD is set from 0 to 1 then the fontload()
+                     - function will be enabled. This allows fonts to be loaded from
+                     - disk. Currently fontload() is setup to use FatFS but can be changed
+                     - to use SDFat or SD. The fontload() function is loacated in tft.cpp.
+vt100Demo.ino - This is basically the same as scroll.ino but uses VT100 string command to
+              - demonstrate text scrolling.
+
+There are a lot things the RA8876 can do that I have not tried yet such as screen rotation,
+mirroring, working with transparency  etc...
+
+The RA8876.pdf manual is a little hard to use but seems complete.
+
+The (Mountain Hung) Senior Engineer is very helpfull and respond quickly to emails.
+His Email Address:
+mountain@raio.com.tw
+
+Check out the source files for more info:
+- Ra8876LiteTeensy.cpp A heavily modified version of the original Ra8876Lite.cpp file.
+- tft.cpp Is basically wrapper functions for Ra8876LiteTeensy.cpp.
+- vt100.c Is a modified version of a VT100 terminal program by Geoff Graham, April 2014.
+
+Again, this is WIP and is probably just a starting point for those who have better programming
+than mine:)
+
+
