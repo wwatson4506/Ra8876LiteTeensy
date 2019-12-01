@@ -1,11 +1,13 @@
 Ra8876LiteTeeensy WIP
 
-Teensy RA8876 Driver using BuyDisplay's ER-TFTM101-1 10.1 inch lcd module tft display w/touch and possibly
-with modification for TechToy's HDMI Shield.
+Teensy RA8876 Driver using BuyDisplay's ER-TFTM101-1 10.1 inch lcd module tft display w/touch
+https://www.buydisplay.com/default/serial-spi-i2c-10-1-inch-tft-lcd-module-dislay-w-ra8876-optl-touch-panel
+Tested and working with PJRC Teensy's T36 and T40.
+And possibly with modification for TechToy's HDMI Shield.
+Here:
+http://www.techtoys.com.hk/BoardsKits/HDMIshield/HDMIshield.htm
 
 Tested and working with PJRC Teensy's T36 and T40.
-
-https://www.buydisplay.com/default/serial-spi-i2c-10-1-inch-tft-lcd-module-dislay-w-ra8876-optl-touch-panel
 
 Documentation and drivers for this device can be found
 at the bottom of the BuyDisplay WEB page for this display.
