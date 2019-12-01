@@ -22,8 +22,8 @@ The current Price is about $74.00 not including shipping.
 Teensy connections are through a 4 wire SPI port. Other interface options are available.
 The RA8876 TFT controller has the same MISO tri-state problem as the RA8875 has. It needs a 74HCT125 or similar
 chip if using more than one device on the same SPI port.
-Check out Sumotoy's WEB page for a solution to this problem.
 
+Check out Sumotoy's WEB page for a solution to this problem.
 https://github.com/sumotoy/RA8875/wiki/Fix-compatibility-with-other-SPI-devices
 
 More info to come. Working on Docs. Check out the files for more info till then.
