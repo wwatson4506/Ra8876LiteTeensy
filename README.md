@@ -3,7 +3,7 @@ Ra8876LiteTeeensy WIP
 Teensy RA8876 Driver using BuyDisplay's ER-TFTM101-1 10.1 inch lcd module tft display w/touch
 https://www.buydisplay.com/default/serial-spi-i2c-10-1-inch-tft-lcd-module-dislay-w-ra8876-optl-touch-panel
 
-RAIO documentation can be found here:
+RAIO RA8876 support documentation can be found here:
 http://www.raio.com.tw/en/Support_RA887677.html
 
 Tested and working with PJRC Teensy's T36 and T40.
