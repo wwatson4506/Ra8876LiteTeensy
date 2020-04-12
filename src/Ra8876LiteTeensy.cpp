@@ -1695,7 +1695,7 @@ void Ra8876_Lite::buildTextScreen(void)
 	}
 	genitopCharacterRomParameter(RA8876_SERIAL_FLASH_SELECT0,RA8876_SPI_DIV4,RA8876_GT30L32S4W,
 					  RA8876_ASCII, RA8876_GT_FIXED_WIDTH);
-	Text_Cursor_H_V(_cursorXsize,_cursorYsize); 		// Block cusror
+//	Text_Cursor_H_V(_cursorXsize,_cursorYsize); 		// Block cusror
 	textColor(_TXTForeColor,_TXTBackColor);
 }
 
