@@ -1,12 +1,14 @@
 // guages.ino
 #include "Arduino.h"
 #include "Ra8876_Lite.h"
-#include "tft.h"
-#include "vt100.h"
+#include "RA8876_t3.h"
+
+//#include "vt100.h"
 #include <math.h>
 
 // This example is a modified version of Sumotoy's guages example
 // from his RA8875 driver. Modified to work with the RA8876 TFT controller.
+RA8876_t3 tft = RA8876_t3(10, 8, 11, 13, 12);
 
 // Array of RA8876 Basic Colors
 PROGMEM uint16_t myColors[] = {
@@ -54,16 +56,16 @@ void setup() {
 	
 //	Serial.begin(115200);
 //	while(!Serial);
-	tft_init();
-	initVT100();
-	setTextAt(0,0);
-	tft_cls(myColors[11]);
-	setFontSize(1,false);
+	tft.init();
+	//initVT100();
+	tft.setTextAt(0,0);
+	tft.tft_cls(myColors[11]);
+	tft.setFontSize(1,false);
 	for (uint8_t i = 0; i < 6; i++) {
 		drawGauge(posx[i], posy[i], radius[i]);
 	}
-	tft_slcls(myColors[11]);
-	tft_slprint(0,myColors[1],myColors[11],"Sumotoy's guages sketch on the T4");
+	tft.tft_slcls(myColors[11]);
+	tft.tft_slprint(0,myColors[1],myColors[11],"Sumotoy's guages sketch on the T4");
 }
 
 void loop(void) {
@@ -75,7 +77,7 @@ void loop(void) {
 
 
 void drawGauge(uint16_t x, uint16_t y, uint16_t r) {
-  drawCircle(x, y, r, myColors[1]); //draw instrument container
+  tft.drawCircle(x, y, r, myColors[1]); //draw instrument container
   faceHelper(x, y, r, 150, 390, 1.3); //draw major ticks
   if (r > 15) faceHelper(x, y, r, 165, 375, 1.1); //draw minor ticks
 }
@@ -91,7 +93,7 @@ void faceHelper(uint16_t x, uint16_t y, uint16_t r, int from, int to, float dev)
     ny = (uint16_t)(1 + y + (sin(dsec) * rdev));
     w =  (uint16_t)(1 + x + (cos(dsec) * r));
     h =  (uint16_t)(1 + y + (sin(dsec) * r));
-    drawLine(nx, ny, w, h, myColors[1]);
+    tft.drawLine(nx, ny, w, h, myColors[1]);
   }
 }
 
@@ -147,6 +149,6 @@ void drawPointerHelper(uint8_t index,int16_t val, uint16_t x, uint16_t y, uint16
   Serial.print("\n");
   }
   */
-  drawLine(x, y, w, h, color);
-  fillCircle(x, y, 2, color);
+  tft.drawLine(x, y, w, h, color);
+  tft.fillCircle(x, y, 2, color);
 }

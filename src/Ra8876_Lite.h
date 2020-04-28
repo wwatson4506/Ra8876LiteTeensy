@@ -893,6 +893,7 @@ uint16_t	_scrollXL,_scrollXR,_scrollYT,_scrollYB;
 uint16_t	_TXTForeColor;
 uint16_t	_TXTBackColor;
 
+
 Ra8876_Lite(int CSp, int RSTp, int mosi_pin, int sclk_pin, int miso_pin);
 /* Initialize RA8876 */
 boolean Ra8876_begin(void);

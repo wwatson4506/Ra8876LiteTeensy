@@ -1,8 +1,8 @@
 // graphics.ino
 #include "Arduino.h"
 #include "Ra8876_Lite.h"
-#include "tft.h"
-#include "vt100.h"
+#include "RA8876_t3.h"
+RA8876_t3 tft = RA8876_t3(10, 8, 11, 13, 12);
 
 // Array of Simple RA8876 Basic Colors
 PROGMEM uint16_t myColors[] = {
@@ -43,16 +43,16 @@ void rectangles(uint16_t thickness) {
 		x1 = (uint16_t)random(512,1023);
 		y1 = (uint16_t)random(288,575);
 		c = (uint16_t)random(21);
-		if(x0 > getGwidth()) x0 = getGwidth();
-		if(y0 > getGheight()) y0 = getGheight();
-		if(x1 > getGwidth()) x1 = getGwidth();
-		if(y1 > getGheight()) y1 = getGheight();
+		if(x0 > tft.width()) x0 = tft.width();
+		if(y0 > tft.height()) y0 = tft.height();
+		if(x1 > tft.width()) x1 = tft.width();
+		if(y1 > tft.height()) y1 = tft.height();
 		if(thickness > 0) {
 			for(j = 1; j <= thickness; j++) {
-				drawRect(x0,y0,x1,y1,myColors[c]);
-				if(x0 <= getGwidth())
+				tft.drawRect(x0,y0,x1,y1,myColors[c]);
+				if(x0 <= tft.width())
 					x0++;
-				if(y0 <= getGheight())
+				if(y0 <= tft.height())
 					y0++;
 				if(x1 > 0)
 					x1--;
@@ -60,10 +60,10 @@ void rectangles(uint16_t thickness) {
 					y1--;
 			}
 		} else {
-			drawRect(x0,y0,x1,y1,myColors[c]);
+			tft.drawRect(x0,y0,x1,y1,myColors[c]);
 		}
 	}
-	tft_slcls(myColors[11]);
+	tft.tft_slcls(myColors[11]);
 }
 
 // Draw random filled rectangle boxes
@@ -75,9 +75,9 @@ void filledRectangles(void) {
 		x1 = (uint16_t)random(1023);
 		y1 = (uint16_t)random(575);
 		c = (uint16_t)random(21);
-		fillRect(x0,y0,x1,y1,myColors[c+1]);
+		tft.fillRect(x0,y0,x1,y1,myColors[c+1]);
 	}
-	tft_slcls(myColors[11]);
+	tft.tft_slcls(myColors[11]);
 }
 
 // Draw random round rectangle boxes
@@ -94,10 +94,10 @@ void rRectangles(uint16_t thickness) {
 		yr = 20; // Minor Radius - Major and Minor radiuses by at
 				 //				 - least half of xr and yr.
 		c = (uint16_t)random(21);
-		if(x0 > getGwidth()) x0 = getGwidth();
-		if(y0 > getGheight()) y0 = getGheight();
-		if(x1 > getGwidth()) x1 = getGwidth();
-		if(y1 > getGheight()) y1 = getGheight();
+		if(x0 > tft.width()) x0 = tft.width();
+		if(y0 > tft.height()) y0 = tft.height();
+		if(x1 > tft.width()) x1 = tft.width();
+		if(y1 > tft.height()) y1 = tft.height();
 		// Make sure major radius (xr) is less than x1 - x0
 		// Must be xr * 2 + 1 less than x1 - x0
 		// RA8876.pdf section 12.6 page 62
@@ -108,10 +108,10 @@ void rRectangles(uint16_t thickness) {
 			yr = (y1 - y0) / 2 - 1;
 		if(thickness > 0) {
 			for(j = 1; j <= thickness; j++) {
-				drawRoundRect(x0,y0,x1,y1,xr,yr,myColors[c]);
-				if(x0 <= getGwidth())
+				tft.drawRoundRect(x0,y0,x1,y1,xr,yr,myColors[c]);
+				if(x0 <= tft.width())
 					x0++;
-				if(y0 <= getGheight())
+				if(y0 <= tft.height())
 					y0++;
 				if(x1 > 0)
 					x1--;
@@ -123,10 +123,10 @@ void rRectangles(uint16_t thickness) {
 					yr--;
 			}
 		} else {
-			drawRoundRect(x0,y0,x1,y1,xr,yr,myColors[c]);
+			tft.drawRoundRect(x0,y0,x1,y1,xr,yr,myColors[c]);
 		}
 	}
-	tft_slcls(myColors[11]);
+	tft.tft_slcls(myColors[11]);
 }
 
 // Draw random filled round rectangle boxes
@@ -143,10 +143,10 @@ void filledRRectangles(void) {
 		c = (uint16_t)random(21);
 
 		// Keep x,y within 1024x576 boundries
-		if(x0 > getGwidth()) x0 = getGwidth();
-		if(y0 > getGheight()) y0 = getGheight();
-		if(x1 > getGwidth()) x1 = getGwidth();
-		if(y1 > getGheight()) y1 = getGheight();
+		if(x0 > tft.width()) x0 = tft.width();
+		if(y0 > tft.height()) y0 = tft.height();
+		if(x1 > tft.width()) x1 = tft.width();
+		if(y1 > tft.height()) y1 = tft.height();
 		
 		// Make sure major radius (xr) is less than x1 - x0
 		// Must be xr * 2 + 1 less than x1 - x0
@@ -156,9 +156,9 @@ void filledRRectangles(void) {
 		// Same for minor radius (yr)
 		if((yr * 2 + 1) >= (y1 - y0))
 			yr = (y1 - y0) / 2 - 1;
-		fillRoundRect(x0, y0, x1, y1, xr, yr, myColors[c]);
+		tft.fillRoundRect(x0, y0, x1, y1, xr, yr, myColors[c]);
 	}
-	tft_slcls(myColors[11]);
+	tft.tft_slcls(myColors[11]);
 }
 
 // Draw random circles
@@ -174,22 +174,22 @@ void drawcircles(uint16_t thickness) {
 			x0 += (uint16_t)r;
 		if(y0-r <= 0)
 			y0 += (uint16_t)r;
-		if(x0+r >=  getGwidth())
-			x0 = (uint16_t)(getGwidth() - r);
-		if(y0+r >= getGheight())
-			y0 = (uint16_t)(getGheight() - r);
+		if(x0+r >=  tft.width())
+			x0 = (uint16_t)(tft.width() - r);
+		if(y0+r >= tft.height())
+			y0 = (uint16_t)(tft.height() - r);
 		if(thickness > 0) {
 			for(j = 1; j <= thickness; j++) {
-				drawCircle(x0, y0, r, myColors[c]);
+				tft.drawCircle(x0, y0, r, myColors[c]);
 				if(r > 0)
 					r--;
 			}
 		} else {
-		drawCircle(x0, y0, r, myColors[c]);
+		tft.drawCircle(x0, y0, r, myColors[c]);
 		}
-		drawCircle(x0, y0, r, myColors[c]);
+		tft.drawCircle(x0, y0, r, myColors[c]);
 	}
-	tft_slcls(myColors[11]);
+	tft.tft_slcls(myColors[11]);
 }
 
 // Draw random filled circles
@@ -204,17 +204,17 @@ void fillcircles(void) {
 			x0 += (uint16_t)r;
 		if(y0-r <= 0)
 			y0 += (uint16_t)r;
-		if(x0+r >=  getGwidth())
-			x0 = (uint16_t)(getGwidth() - r);
-		if(y0+r >= getGheight())
-			y0 = (uint16_t)(getGheight() - r);
-		fillCircle(x0, y0, r, myColors[c]);
+		if(x0+r >=  tft.width())
+			x0 = (uint16_t)(tft.width() - r);
+		if(y0+r >= tft.height())
+			y0 = (uint16_t)(tft.height() - r);
+		tft.fillCircle(x0, y0, r, myColors[c]);
 	}
-	tft_slcls(myColors[11]);
+	tft.tft_slcls(myColors[11]);
 }
 
 // Draw random unfilled tritangles
-void drawTriangle(void) {
+void drawTriangles(void) {
 	uint16_t x0, y0, x1, y1, x2, y2, c;
 	for(int i=0; i < interations; i++) {
 		x0 = (uint16_t)random(1023);
@@ -224,13 +224,13 @@ void drawTriangle(void) {
 		x2 = (uint16_t)random(1023);
 		y2 = (uint16_t)random(575);
 		c = (uint16_t)random(21);
-		drawTriangle(x0,y0,x1,y1,x2,y2,myColors[c+1]);
+		tft.drawTriangle(x0,y0,x1,y1,x2,y2,myColors[c+1]);
 	}
-	tft_slcls(myColors[11]);
+	tft.tft_slcls(myColors[11]);
 }
 
 // Draw random filled triangles
-void fillTriangle(void) {
+void fillTriangles(void) {
 	uint16_t x0, y0, x1, y1, x2, y2, c;
 	for(int i=0; i < interations; i++) {
 		x0 = (uint16_t)random(1023);
@@ -240,13 +240,13 @@ void fillTriangle(void) {
 		x2 = (uint16_t)random(1023);
 		y2 = (uint16_t)random(575);
 		c = (uint16_t)random(21);
-		fillTriangle(x0,y0,x1,y1,x2,y2,myColors[c+1]);
+		tft.fillTriangle(x0,y0,x1,y1,x2,y2,myColors[c+1]);
 	}
-	tft_slcls(myColors[11]);
+	tft.tft_slcls(myColors[11]);
 }
 
 // Draw random unfilled ellipses
-void drawEllipse(void)
+void drawEllipses(void)
 {
 	int16_t  x0, y0, xr, yr;
 	uint16_t color;
@@ -260,17 +260,17 @@ void drawEllipse(void)
 			x0 += (uint16_t)xr;
 		if(y0-yr <= 0)
 			y0 += (uint16_t)yr;
-		if(x0+xr >=  getGwidth())
-			x0 = (uint16_t)(getGwidth() - xr);
-		if(y0+yr >= getGheight())
-			y0 = (uint16_t)(getGheight() - yr);
-		drawEllipse(x0, y0, xr, yr, myColors[color]);
+		if(x0+xr >=  tft.width())
+			x0 = (uint16_t)(tft.width() - xr);
+		if(y0+yr >= tft.height())
+			y0 = (uint16_t)(tft.height() - yr);
+		tft.drawEllipse(x0, y0, xr, yr, myColors[color]);
 	}
-	tft_slcls(myColors[11]);
+	tft.tft_slcls(myColors[11]);
 }
 
 // Draw random filled ellipses
-void fillEllipse(void)
+void fillEllipses(void)
 {
 	int16_t  x0, y0, xr, yr;
 	uint16_t color;
@@ -284,13 +284,13 @@ void fillEllipse(void)
 			x0 += (uint16_t)xr;
 		if(y0-yr <= 0)
 			y0 += (uint16_t)yr;
-		if(x0+xr >=  getGwidth())
-			x0 = (uint16_t)(getGwidth() - xr);
-		if(y0+yr >= getGheight())
-			y0 = (uint16_t)(getGheight() - yr);
-		fillEllipse(x0, y0, xr, yr, myColors[color]);
+		if(x0+xr >=  tft.width())
+			x0 = (uint16_t)(tft.width() - xr);
+		if(y0+yr >= tft.height())
+			y0 = (uint16_t)(tft.height() - yr);
+		tft.fillEllipse(x0, y0, xr, yr, myColors[color]);
 	}
-	tft_slcls(myColors[11]);
+	tft.tft_slcls(myColors[11]);
 	//timeOn(); // Turn on time/date display on status line
 }
 
@@ -304,94 +304,94 @@ void drawlines(void) {
 		x1 = (uint16_t)random(1,1023);
 		y1 = (uint16_t)random(1,575);
 		c = (uint16_t)random(21);
-		if(x0 > getGwidth()) x0 = getGwidth();
-		if(y0 > getGheight()) y0 = getGheight();
-		if(x1 > getGwidth()) x1 = getGwidth();
-		if(y1 > getGheight()) y1 = getGheight();
-		drawLine(x0,y0,x1,y1,myColors[c]);
+		if(x0 > tft.width()) x0 = tft.width();
+		if(y0 > tft.height()) y0 = tft.height();
+		if(x1 > tft.width()) x1 = tft.width();
+		if(y1 > tft.height()) y1 = tft.height();
+		tft.drawLine(x0,y0,x1,y1,myColors[c]);
 	}
-	tft_slcls(myColors[11]);
+	tft.tft_slcls(myColors[11]);
 }
 
 int i = 0;
 void setup() {
-	tft_init();
-	initVT100();
-    setTextAt(0,0);
-	tft_cls(myColors[11]);
-	setFontSize(1,false);
+	tft.init();
+	//initVT100();
+    tft.setTextAt(0,0);
+	tft.fillScreen(myColors[11]);
+	tft.setFontSize(1,false);
 }
 
 void loop() {
-	tft_slprint(0,myColors[1],myColors[11],"Rectangles");
+	tft.tft_slprint(0,myColors[1],myColors[11],"Rectangles");
 	interations = 30000;
 	rectangles(0);
-	tft_cls(myColors[11]);
+	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft_slprint(0,myColors[1],myColors[11],"Rectangles 10 pixel line thickness");
+	tft.tft_slprint(0,myColors[1],myColors[11],"Rectangles 10 pixel line thickness");
 	interations = 4000;
 	rectangles(10);
-	tft_cls(myColors[11]);
+	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft_slprint(0,myColors[1],myColors[11],"Filled Rectangles");
+	tft.tft_slprint(0,myColors[1],myColors[11],"Filled Rectangles");
 	interations = 4000;
 	filledRectangles();
-	tft_cls(myColors[11]);
+	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft_slprint(0,myColors[1],myColors[11],"Round Rectangles");
+	tft.tft_slprint(0,myColors[1],myColors[11],"Round Rectangles");
 	interations = 30000;
 	rRectangles(0);
-	tft_cls(myColors[11]);
+	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft_slprint(0,myColors[1],myColors[11],"Round Rectangles 10 pixel line thickness");
+	tft.tft_slprint(0,myColors[1],myColors[11],"Round Rectangles 10 pixel line thickness");
 	interations = 4000;
 	rRectangles(10);
-	tft_cls(myColors[11]);
+	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft_slprint(0,myColors[1],myColors[11],"Filled Round Rectangles");
+	tft.tft_slprint(0,myColors[1],myColors[11],"Filled Round Rectangles");
 	interations = 4000;
 	filledRRectangles();
-	tft_cls(myColors[11]);
+	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft_slprint(0,myColors[1],myColors[11],"Circles");
+	tft.tft_slprint(0,myColors[1],myColors[11],"Circles");
 	interations = 30000;
 	drawcircles(0);
-	tft_cls(myColors[11]);
+	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft_slprint(0,myColors[1],myColors[11],"Circles 10 pixel circle thickness");
+	tft.tft_slprint(0,myColors[1],myColors[11],"Circles 10 pixel circle thickness");
 	interations = 4000;
 	drawcircles(10);
-	tft_cls(myColors[11]);
+	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft_slprint(0,myColors[1],myColors[11],"Filled Circles");
+	tft.tft_slprint(0,myColors[1],myColors[11],"Filled Circles");
 	interations = 4000;
 	fillcircles();
-	tft_cls(myColors[11]);
+	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft_slprint(0,myColors[1],myColors[11],"Triangles");
+	tft.tft_slprint(0,myColors[1],myColors[11],"Triangles");
 	interations = 30000;
-	drawTriangle();
-	tft_cls(myColors[11]);
+	drawTriangles();
+	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft_slprint(0,myColors[1],myColors[11],"Filled Triangles");
+	tft.tft_slprint(0,myColors[1],myColors[11],"Filled Triangles");
 	interations = 4000;
-	fillTriangle();
-	tft_cls(myColors[11]);
+	fillTriangles();
+	tft.fillScreen(myColors[11]);
 	delay(10);
 	interations = 30000;
-	tft_slprint(0,myColors[1],myColors[11],"Ellipses");
-	drawEllipse();
-	tft_cls(myColors[11]);
+	tft.tft_slprint(0,myColors[1],myColors[11],"Ellipses");
+	drawEllipses();
+	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft_slprint(0,myColors[1],myColors[11],"Filled Ellipses");
+	tft.tft_slprint(0,myColors[1],myColors[11],"Filled Ellipses");
 	interations = 4000;
-	fillEllipse();
-	tft_cls(myColors[11]);
+	fillEllipses();
+	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft_slprint(0,myColors[1],myColors[11],"Lines");
+	tft.tft_slprint(0,myColors[1],myColors[11],"Lines");
 	interations = 100000;
 	drawlines();
-	tft_cls(myColors[11]);
+	tft.fillScreen(myColors[11]);
 	delay(10);
 }
 	
