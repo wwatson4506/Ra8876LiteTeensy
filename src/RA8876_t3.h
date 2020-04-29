@@ -121,6 +121,30 @@ struct Gbuttons {
   char     label[10];
 };
 
+//https://i.pinimg.com/736x/4b/50/12/4b5012fc9d868d0394da7fa8217d7f92.jpg
+#define BLACK		0x0000
+#define WHITE		0xffff
+#define RED			0xf800
+#define LIGHTRED	0xfc10
+#define CRIMSON		0x8000
+#define GREEN		0x07e0
+#define PALEGREEN	0x87f0
+#define DARKGREEN	0x0400
+#define BLUE		0x001f
+#define LIGHTBLUE	0x051f
+#define SKYBLUE		0x841f
+#define DARKBLUE	0x0010
+#define YELLOW		0xffe0
+#define LIGHTYELLOW	0xfff0
+#define DARKYELLOW	0x8400 // mustard
+#define CYAN		0x07ff
+#define LIGHTCYAN	0x87ff
+#define DARKCYAN	0x0410
+#define MAGENTA		0xf81f
+#define VIOLET		0xfc1f
+#define BLUEVIOLET	0x8010
+#define ORCHID		0xA145 
+
 class RA8876_t3 : public Ra8876_Lite
 {
 public:
@@ -146,17 +170,15 @@ public:
 	void setBackGroundColor(uint16_t color);
 	void setTextColorFG(uint16_t fgc, uint16_t bgc);
 	int16_t getTextX(void);
-	//uint16_t leftmarg(void);
-	//uint16_t topmarg(void);
-	//uint16_t rightmarg(void);
-	//uint16_t bottommarg(void);
+
 	void setMargins(uint16_t xl, uint16_t yt, uint16_t xr, uint16_t yb);
 	void setTMargins(uint16_t xl, uint16_t yt, uint16_t xr, uint16_t yb);
 	void setPromptSize(uint16_t ps);
 	uint8_t fontLoad(char *fontfile);
 	uint8_t fontLoadMEM(char *fontsrc);
 	void setFontSource(uint8_t source);
-	boolean setFontSize(uint8_t scale, boolean runflag);
+	boolean setFontSize(uint8_t scale, boolean runflag=false);
+	void setTextSize(uint8_t scale, boolean runflag=false) { setFontSize(scale, runflag);}
 	void setTextAt(int16_t x, int16_t y);
 	int16_t getTextY(void);
 	int16_t getTwidth(void);
@@ -179,7 +201,7 @@ public:
 	void fillEllipse(int16_t xCenter, int16_t yCenter, int16_t longAxis, int16_t shortAxis, uint16_t color);
 	void fillTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color);
 	void cursorInit(void);
-
+	void setCursor(uint16_t x, uint16_t y);
 	void gCursorSet(boolean gcursoronoff, uint8_t gcursortype, uint8_t gcursorcolor1, uint8_t gcursorcolor2);
 	void gcursorxy(uint16_t gcx, uint16_t gcy);
 	void initButton(struct Gbuttons *button, uint16_t x, uint16_t y, uint8_t w, uint8_t h,
@@ -202,8 +224,6 @@ public:
 	void putPicture_16bppData8(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const unsigned char *data);
 
 	void scrollUp(void);
-	void drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color);
-
 	
 	void displayTime(void );
 	void timeOn(void);

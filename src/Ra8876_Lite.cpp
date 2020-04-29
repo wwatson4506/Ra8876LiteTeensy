@@ -2215,6 +2215,13 @@ void Ra8876_Lite::drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color)
 	h < 2 ? drawPixel(x,y,color) : drawLine(x, y, x, (y+h)-1, color);
 }
 
+void Ra8876_Lite::drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color)
+{
+	if (w < 1) w = 1;
+	w < 2 ? drawPixel(x,y,color) : drawLine(x, y, (x+w)-1, y, color);
+}
+
+
 //**************************************************************//
 // Draw a rectangle:
 // x0,y0 is upper left start

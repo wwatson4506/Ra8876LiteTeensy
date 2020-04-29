@@ -353,6 +353,11 @@ void RA8876_t3:: cursorInit(void)
 	Enable_Text_Cursor_Blinking();	// Turn blinking cursor on
 }
 
+void RA8876_t3:: setCursor(uint16_t x, uint16_t y)
+{
+	setTextCursor(x, y);
+}
+
 //Set Graphic Mode Margins (pixel based)
 void RA8876_t3:: setMargins(uint16_t xl, uint16_t yt, uint16_t xr, uint16_t yb) {
 	_scrollXL = xl;

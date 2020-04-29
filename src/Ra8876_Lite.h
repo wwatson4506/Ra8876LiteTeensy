@@ -1057,6 +1057,7 @@ void scrollDown(void);
 /*draw function*/
 void drawLine(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color);
 void drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color);
+void drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color);
 void drawSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color);
 void drawSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color);
 void drawCircleSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru16 yr, ru16 color);
