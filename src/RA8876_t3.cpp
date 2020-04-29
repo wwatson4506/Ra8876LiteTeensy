@@ -135,34 +135,34 @@ boolean RA8876_t3::init(void) {
 	currentPage = 999; // Don't repeat screen page 1 init.
 	selectScreen(PAGE1_START_ADDR);	// Init page 1 screen
 	fillScreen(COLOR65K_DARKBLUE);     // Not sure why we need to clear the screen twice
-	tft_slcls(COLOR65K_DARKBLUE);
+	fillStatusLine(COLOR65K_DARKBLUE);
 	selectScreen(PAGE2_START_ADDR);	// Init page 2 screen
 	fillScreen(COLOR65K_DARKBLUE);
-	tft_slcls(COLOR65K_DARKBLUE);
+	fillStatusLine(COLOR65K_DARKBLUE);
 	selectScreen(PAGE3_START_ADDR);	// Init page 3 screen
 	fillScreen(COLOR65K_DARKBLUE);
-	tft_slcls(COLOR65K_DARKBLUE);
+	fillStatusLine(COLOR65K_DARKBLUE);
 	selectScreen(PAGE4_START_ADDR);	// Init page 4 screen
 	fillScreen(COLOR65K_DARKBLUE);
-	tft_slcls(COLOR65K_DARKBLUE);
+	fillStatusLine(COLOR65K_DARKBLUE);
 	selectScreen(PAGE5_START_ADDR);	// Init page 5 screen
 	fillScreen(COLOR65K_DARKBLUE);
-	tft_slcls(COLOR65K_DARKBLUE);
+	fillStatusLine(COLOR65K_DARKBLUE);
 	selectScreen(PAGE6_START_ADDR);	// Init page 6 screen
 	fillScreen(COLOR65K_DARKBLUE);
-	tft_slcls(COLOR65K_DARKBLUE);
+	fillStatusLine(COLOR65K_DARKBLUE);
 	selectScreen(PAGE7_START_ADDR);	// Init page 7 screen
 	fillScreen(COLOR65K_DARKBLUE);
-	tft_slcls(COLOR65K_DARKBLUE);
+	fillStatusLine(COLOR65K_DARKBLUE);
 	selectScreen(PAGE8_START_ADDR);	// Init page 8 screen
 	fillScreen(COLOR65K_DARKBLUE);
-	tft_slcls(COLOR65K_DARKBLUE);
+	fillStatusLine(COLOR65K_DARKBLUE);
 	selectScreen(PAGE9_START_ADDR);	// Init page 9 screen
 	fillScreen(COLOR65K_DARKBLUE);
-	tft_slcls(COLOR65K_DARKBLUE);
+	fillStatusLine(COLOR65K_DARKBLUE);
 	selectScreen(PAGE10_START_ADDR);	// Init page 10 screen
 	fillScreen(COLOR65K_DARKBLUE);
-	tft_slcls(COLOR65K_DARKBLUE);
+	fillStatusLine(COLOR65K_DARKBLUE);
 	selectScreen(PAGE1_START_ADDR); // back to page 1 screen
 	
 	//start Touch Screen
@@ -386,7 +386,7 @@ void RA8876_t3:: fillScreen(uint16_t color) {
 }
 
 // Clear Status Line to background 'color'
-void RA8876_t3:: tft_slcls(uint16_t color) {
+void RA8876_t3:: fillStatusLine(uint16_t color) {
 	uint16_t temp = _TXTBackColor;
 	clearStatusLine(color);
 	_TXTBackColor = temp;
@@ -412,27 +412,14 @@ void RA8876_t3:: setTextColorFG(uint16_t fgc, uint16_t bgc) {
 	textColor(fgc,bgc);
 }
 
-// Send a character to the current text position. (processes ASCII control chars).
-void RA8876_t3:: tft_print(uint8_t text) {
-	tftPrint(text);
-}
-
-// Send a string to the current text position. (proccesses ASCII control chars).
-void RA8876_t3:: tftPrintStr(const char * str) {
-  while(*str != '\0')
-  {
-  tft_print(*str);
-  ++str; 
-  } 
-}
 
 // Send a character directly to video memory (No control ASCII codes are processed).
 void RA8876_t3:: tftRawWrite(uint8_t data) {
-	tftRawPrint(data);
+	rawPrint(data);
 }
 	
 // Send a string to the status line
-void RA8876_t3:: tft_slprint(uint16_t x0,uint16_t fgColor,uint16_t bgColor, const char *text) {
+void RA8876_t3:: printStatusLine(uint16_t x0,uint16_t fgColor,uint16_t bgColor, const char *text) {
 	writeStatusLine(x0*(_FNTwidth*_scaleX), fgColor, bgColor, text);	
 }
 
@@ -615,16 +602,6 @@ uint16_t RA8876_t3::getTextBGC(void) {
 	return _TXTBackColor;
 }
 
-// Get Graphic width size (in pixels)
-//int16_t RA8876_t3::width(void) {
-//	return _width;
-//	return _width-1;
-//}
-
-// Get Graphic vertical size (in pixels)
-//int16_t RA8876_t3::height(void) {
-//	return _height;
-//}
 
 // Get font vertical size (in pixels)
 uint8_t RA8876_t3::getFontHeight(void) {
@@ -634,25 +611,6 @@ uint8_t RA8876_t3::getFontHeight(void) {
 // Get font width size (in pixels)
 uint8_t RA8876_t3::getFontWidth(void) {
 	return _FNTwidth * _scaleX;
-}
-
-// Get 16 bit pixel value from RA8876 current screen page (x,y coords)
-int16_t RA8876_t3::getPixel_16bpp(int16_t x, int16_t y) {
-	return getPixel_16bpp(x, y);
-}
-
-// Set 16 bit pixel value in RA8876 current screen page (x,y coords)
-void RA8876_t3:: setPixel(int16_t x, int16_t y, uint16_t color) {
-	putPixel_16bpp(x, y, color);
-}
-// Draw a line. TODO: Add brush size
-//void RA8876_t3:: drawLine(int16_t x0, int16_t y0, int16_t x1, int16_t y1,uint16_t color) {
-	//drawLine(x0, y0, x1, y1, color);
-//}
-
-// Draw a vline. TODO: Add brush size, do fastHline()
-void RA8876_t3:: drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color) {
-	drawFastVLine(x, y, h, color);
 }
 
 // Draw a rectangle. TODO: Add line thickness size
@@ -692,30 +650,15 @@ boolean touchDetect(boolean autoclear) {
 return false; // return false for now
 }
 
-// Draw a circle TODO: Add circle thickness size
-//void RA8876_t3:: drawCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color) {
-//	drawCircle(x0, y0, r, color);
-//}
-
 // Draw a filled circle
 void RA8876_t3:: fillCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color) {
 	drawCircleFill(x0, y0, r, color);
 }
 
-// Draw an ellipse. TODO: Add line thickness size
-//void RA8876_t3:: drawEllipse(int16_t xCenter, int16_t yCenter, int16_t longAxis, int16_t shortAxis, uint16_t color) {
-//	drawEllipse(xCenter, yCenter, longAxis, shortAxis, color);
-///}
-
 // Draw a filled ellipse.
 void RA8876_t3:: fillEllipse(int16_t xCenter, int16_t yCenter, int16_t longAxis, int16_t shortAxis, uint16_t color) {
 	drawEllipseFill(xCenter, yCenter, longAxis, shortAxis, color);
 }
-
-// Draw a triangle. TODO: Add line thickness size
-//void RA8876_t3:: drawTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color) {
-//	drawTriangle(x0, y0, x1, y1, x2, y2, color);
-//}
 
 // Draw a filled triangle
 void RA8876_t3:: fillTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color) {
@@ -852,35 +795,10 @@ void RA8876_t3:: putPicture_16bppData8(ru16 x, ru16 y, ru16 w, ru16 h, const uns
 	putPicture_16bppData8(x, y, w, h, data);
 }
 
-// Scroll the screen down one text line
-void RA8876_t3:: scroll_down(void ) {
-	scroll_down();
-}
 
 // Scroll the screen up one text line
-void RA8876_t3:: scroll_up(void ) {
+void RA8876_t3:: scrollUp(void ) {
 	scroll();
-}
-	
-// Used by VT100 routines
-void RA8876_t3:: clreol(void)  {
-	clreol();  // clear to end of line
-}
-
-void RA8876_t3:: clreos(void ) {
-	clreos();  // clear to end of screen 
-}
-
-void RA8876_t3:: clrbol(void ) {
-	clrbol();  // clear to begining of line
-}
-
-void RA8876_t3:: clrbos(void ) {
-	clrbos();  // clear to begining of screen
-}
-
-void RA8876_t3:: clrlin(void ) {
-	clrlin();  // clear the current line
 }
 
 // Display time/date on the status bar
@@ -923,7 +841,7 @@ void RA8876_t3:: timeOff(void) {
 //= RA8876 BTE functions (Block Transfer Engine)                        =
 //=======================================================================
 // Copy box size part of the current screen page to another screen page
-uint32_t RA8876_t3::tft_boxPut(uint32_t vPageAddr, uint16_t x0, uint16_t y0,
+/*uint32_t RA8876_t3::tft_boxPut(uint32_t vPageAddr, uint16_t x0, uint16_t y0,
 					uint16_t x1, uint16_t y1, uint16_t dx0, uint16_t dy0) {
 	return boxPut(vPageAddr, x0, y0, x1, y1, dx0, dy0);
 }
@@ -933,11 +851,12 @@ uint32_t RA8876_t3::tft_boxGet(uint32_t vPageAddr, uint16_t x0, uint16_t y0,
 					uint16_t x1, uint16_t y1, uint16_t dx0, uint16_t dy0) {
 	return boxGet(vPageAddr, x0, y0, x1, y1, dx0, dy0);
 }
+*/
 
 //=======================================================================
 //= PIP window function (Display one of two or both PIP windows)        =
 //=======================================================================
-void RA8876_t3::tft_PIP (
+/*void RA8876_t3::tft_PIP (
  unsigned char On_Off // 0 : disable PIP, 1 : enable PIP, 2 : To maintain the original state
 ,unsigned char Select_PIP // 1 : use PIP1 , 2 : use PIP2
 ,unsigned long PAddr //start address of PIP
@@ -951,4 +870,4 @@ void RA8876_t3::tft_PIP (
 ) {
 	PIP (On_Off, Select_PIP, PAddr, XP, YP, ImageWidth, X_Dis, Y_Dis, X_W, Y_H);
 }
-
+*/

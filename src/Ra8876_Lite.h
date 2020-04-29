@@ -841,205 +841,208 @@ memory size. For example : page_size = 1024*600*2byte(16bpp) = 1228800byte, maxi
 #define	cClrb7		0x7f
 
 //static volatile ru32 _maxspeed = 20000000;//holder for SPI speed
-static volatile ru32 _maxspeed = 34000000; // This is the fastest useable speed
+static volatile ru32 _maxspeed = 30000000; // This is the fastest useable speed
 					   // with my setup.
 //static volatile ru32 _maxspeed = 24000000;//holder for SPI speed
 
 const uint32_t MEM_SIZE_MAX	= 16l*1024l*1024l;	///Max. size in byte of SDRAM
 
-class Ra8876_Lite
+class Ra8876_Lite : public Print
 {
 private:
-// int _xnscs, _xnreset;
-int _mosi;
-int _miso;
-int _sclk;
-int _cs;
-int _rst;
-int	_errorCode;
+	// int _xnscs, _xnreset;
+	int _mosi;
+	int _miso;
+	int _sclk;
+	int _cs;
+	int _rst;
+	int	_errorCode;
 
 public:
-// Global Variables
-volatile boolean			  _textMode;
-int16_t 		 			  _width, 			  _height;
-int16_t						  _cursorX, 		  _cursorY;
-uint8_t						  _scaleX,			  _scaleY;
-uint8_t						  _FNTwidth, 		  _FNTheight;
-uint8_t _fontheight;
-uint8_t _cursorXsize;
-uint8_t _cursorYsize;
+	// Global Variables
+	volatile boolean			  _textMode;
+	int16_t 		 			  _width, 			  _height;
+	int16_t						  _cursorX, 		  _cursorY;
+	uint8_t						  _scaleX,			  _scaleY;
+	uint8_t						  _FNTwidth, 		  _FNTheight;
+	uint8_t _fontheight;
+	uint8_t _cursorXsize;
+	uint8_t _cursorYsize;
 
-volatile bool	RA8876_BUSY;
+	volatile bool	RA8876_BUSY;
 
-uint32_t currentPage;
-uint32_t lastPage;
-uint32_t pageOffset;
-uint8_t currentFont;
+	uint32_t currentPage;
+	uint32_t lastPage;
+	uint32_t pageOffset;
+	uint8_t currentFont;
 
-// Text Sreen Vars
-uint8_t	vdata;
-uint8_t leftmarg;
-uint8_t topmarg;
-uint8_t rightmarg;
-uint8_t bottommarg;
-uint8_t tab_size;
-uint16_t prompt_size; // prompt ">"
-uint16_t prompt_line; // current text prompt row
-uint16_t CharPosX, CharPosY;
-boolean UDFont;
+	// Text Sreen Vars
+	uint8_t	vdata;
+	uint8_t leftmarg;
+	uint8_t topmarg;
+	uint8_t rightmarg;
+	uint8_t bottommarg;
+	uint8_t tab_size;
+	uint16_t prompt_size; // prompt ">"
+	uint16_t prompt_line; // current text prompt row
+	uint16_t CharPosX, CharPosY;
+	boolean UDFont;
 
-//scroll vars ----------------------------
-uint16_t	_scrollXL,_scrollXR,_scrollYT,_scrollYB;
-uint16_t	_TXTForeColor;
-uint16_t	_TXTBackColor;
+	//scroll vars ----------------------------
+	uint16_t	_scrollXL,_scrollXR,_scrollYT,_scrollYB;
+	uint16_t	_TXTForeColor;
+	uint16_t	_TXTBackColor;
 
 
-Ra8876_Lite(int CSp, int RSTp, int mosi_pin, int sclk_pin, int miso_pin);
-/* Initialize RA8876 */
-boolean Ra8876_begin(void);
-boolean ra8876Initialize(void); 
-boolean ra8876PllInitial (void);
-boolean ra8876SdramInitial(void);
+	Ra8876_Lite(int CSp, int RSTp, int mosi_pin, int sclk_pin, int miso_pin);
+	/* Initialize RA8876 */
+	boolean Ra8876_begin(void);
+	boolean ra8876Initialize(void); 
+	boolean ra8876PllInitial (void);
+	boolean ra8876SdramInitial(void);
 
-/*access*/
-void lcdRegWrite(ru8 reg);
-void lcdDataWrite(ru8 data);
-ru8 lcdDataRead(void);
-ru16 lcdDataRead16bpp(void);
-ru8 lcdStatusRead(void);
-void lcdRegDataWrite(ru8 reg,ru8 data);
-ru8 lcdRegDataRead(ru8 reg);
-void lcdDataWrite16bbp(ru16 data); 
-/*Staus*/
-void checkWriteFifoNotFull(void);
-void checkWriteFifoEmpty(void);
-void checkReadFifoNotFull(void);
-void checkReadFifoFull(void);
-void checkReadFifoNotEmpty(void);
-void check2dBusy(void);
-boolean checkSdramReady(void);
-ru8 powerSavingStatus(void);
-boolean checkIcReady(void);//
+	/*access*/
+	void lcdRegWrite(ru8 reg);
+	void lcdDataWrite(ru8 data);
+	ru8 lcdDataRead(void);
+	ru16 lcdDataRead16bpp(void);
+	ru8 lcdStatusRead(void);
+	void lcdRegDataWrite(ru8 reg,ru8 data);
+	ru8 lcdRegDataRead(ru8 reg);
+	void lcdDataWrite16bbp(ru16 data); 
+	/*Staus*/
+	void checkWriteFifoNotFull(void);
+	void checkWriteFifoEmpty(void);
+	void checkReadFifoNotFull(void);
+	void checkReadFifoFull(void);
+	void checkReadFifoNotEmpty(void);
+	void check2dBusy(void);
+	boolean checkSdramReady(void);
+	ru8 powerSavingStatus(void);
+	boolean checkIcReady(void);//
 
-void displayOn(boolean on);
-void lcdHorizontalWidthVerticalHeight(ru16 width,ru16 height);
-void lcdHorizontalNonDisplay(ru16 numbers);
-void lcdHsyncStartPosition(ru16 numbers);
-void lcdHsyncPulseWidth(ru16 numbers);
-void lcdVerticalNonDisplay(ru16 numbers);
-void lcdVsyncStartPosition(ru16 numbers);
-void lcdVsyncPulseWidth(ru16 numbers);
-void displayImageStartAddress(ru32 addr);
-void displayImageWidth(ru16 width);
-void displayWindowStartXY(ru16 x0,ru16 y0);
-void canvasImageStartAddress(ru32 addr);
-void canvasImageWidth(ru16 width);
-void activeWindowXY(ru16 x0,ru16 y0);
-void activeWindowWH(ru16 width,ru16 height);
+	void displayOn(boolean on);
+	void lcdHorizontalWidthVerticalHeight(ru16 width,ru16 height);
+	void lcdHorizontalNonDisplay(ru16 numbers);
+	void lcdHsyncStartPosition(ru16 numbers);
+	void lcdHsyncPulseWidth(ru16 numbers);
+	void lcdVerticalNonDisplay(ru16 numbers);
+	void lcdVsyncStartPosition(ru16 numbers);
+	void lcdVsyncPulseWidth(ru16 numbers);
+	void displayImageStartAddress(ru32 addr);
+	void displayImageWidth(ru16 width);
+	void displayWindowStartXY(ru16 x0,ru16 y0);
+	void canvasImageStartAddress(ru32 addr);
+	void canvasImageWidth(ru16 width);
+	void activeWindowXY(ru16 x0,ru16 y0);
+	void activeWindowWH(ru16 width,ru16 height);
 
-void bte_Source0_MemoryStartAddr(ru32 addr);
-void bte_Source0_ImageWidth(ru16 width);
-void bte_Source0_WindowStartXY(ru16 x0,ru16 y0);
-void bte_Source1_MemoryStartAddr(ru32 addr);
-void bte_Source1_ImageWidth(ru16 width);
-void bte_Source1_WindowStartXY(ru16 x0,ru16 y0);
-void bte_DestinationMemoryStartAddr(ru32 addr);
-void bte_DestinationImageWidth(ru16 width);
-void bte_DestinationWindowStartXY(ru16 x0,ru16 y0);
-void bte_WindowSize(ru16 width, ru16 height);
+	void bte_Source0_MemoryStartAddr(ru32 addr);
+	void bte_Source0_ImageWidth(ru16 width);
+	void bte_Source0_WindowStartXY(ru16 x0,ru16 y0);
+	void bte_Source1_MemoryStartAddr(ru32 addr);
+	void bte_Source1_ImageWidth(ru16 width);
+	void bte_Source1_WindowStartXY(ru16 x0,ru16 y0);
+	void bte_DestinationMemoryStartAddr(ru32 addr);
+	void bte_DestinationImageWidth(ru16 width);
+	void bte_DestinationWindowStartXY(ru16 x0,ru16 y0);
+	void bte_WindowSize(ru16 width, ru16 height);
 
-/*PWM function*/
-void pwm_Prescaler(ru8 prescaler);
-void pwm_ClockMuxReg(ru8 pwm1_clk_div, ru8 pwm0_clk_div, ru8 xpwm1_ctrl, ru8 xpwm0_ctrl);
-void pwm_Configuration(ru8 pwm1_inverter,ru8 pwm1_auto_reload,ru8 pwm1_start,ru8 
-                      pwm0_dead_zone, ru8 pwm0_inverter, ru8 pwm0_auto_reload,ru8 pwm0_start);
+	/*PWM function*/
+	void pwm_Prescaler(ru8 prescaler);
+	void pwm_ClockMuxReg(ru8 pwm1_clk_div, ru8 pwm0_clk_div, ru8 xpwm1_ctrl, ru8 xpwm0_ctrl);
+	void pwm_Configuration(ru8 pwm1_inverter,ru8 pwm1_auto_reload,ru8 pwm1_start,ru8 
+						  pwm0_dead_zone, ru8 pwm0_inverter, ru8 pwm0_auto_reload,ru8 pwm0_start);
 
-void pwm0_ClocksPerPeriod(ru16 clocks_per_period);
-void pwm0_Duty(ru16 duty);
-void pwm1_ClocksPerPeriod(ru16 clocks_per_period);
-void pwm1_Duty(ru16 duty);
- 		
-void ramAccessPrepare(void);
-void foreGroundColor16bpp(ru16 color);
-void backGroundColor16bpp(ru16 color);
+	void pwm0_ClocksPerPeriod(ru16 clocks_per_period);
+	void pwm0_Duty(ru16 duty);
+	void pwm1_ClocksPerPeriod(ru16 clocks_per_period);
+	void pwm1_Duty(ru16 duty);
+			
+	void ramAccessPrepare(void);
+	void foreGroundColor16bpp(ru16 color);
+	void backGroundColor16bpp(ru16 color);
 
-/*graphic function*/
-void graphicMode(boolean on);
-void setPixelCursor(ru16 x,ru16 y);
-void putPixel_16bpp(ru16 x,ru16 y,ru16 color);
-ru16 getPixel_16bpp(ru16 x,ru16 y);
-void putPicture_16bpp(ru16 x,ru16 y,ru16 width, ru16 height);
-void putPicture_16bppData8(ru16 x,ru16 y,ru16 width, ru16 height, const unsigned char *data);
-void putPicture_16bppData16(ru16 x,ru16 y,ru16 width, ru16 height, const unsigned short *data);
-void Memory_Select_SDRAM(void);
-void Memory_Select_Graphic_Cursor_RAM(void);
-void Enable_Graphic_Cursor(void);
-void Disable_Graphic_Cursor(void);
-void Select_Graphic_Cursor_1(void);
-void Select_Graphic_Cursor_2(void);
-void Select_Graphic_Cursor_3(void);
-void Select_Graphic_Cursor_4(void);
-void Memory_Select_CGRAM(void);
-void CGRAM_initial(uint32_t charAddr, const uint8_t *data, uint16_t count);
-void Memory_XY_Mode(void);
-void Memory_Linear_Mode(void);
-//**[40h][41h][42h][43h]**//
-void Graphic_Cursor_XY(unsigned short WX,unsigned short HY);
-//**[44]**//
-void Set_Graphic_Cursor_Color_1(unsigned char temp);
-//**[45]**//
-void Set_Graphic_Cursor_Color_2(unsigned char temp);
-void Graphic_cursor_initial(void);
+	/*graphic function*/
+	void graphicMode(boolean on);
+	void setPixelCursor(ru16 x,ru16 y);
+	void drawPixel(ru16 x, ru16 y, ru16 color);
+	ru16 getPixel(ru16 x, ru16 y);
+	void putPicture_16bpp(ru16 x,ru16 y,ru16 width, ru16 height);
+	void putPicture_16bppData8(ru16 x,ru16 y,ru16 width, ru16 height, const unsigned char *data);
+	void putPicture_16bppData16(ru16 x,ru16 y,ru16 width, ru16 height, const unsigned short *data);
+	void Memory_Select_SDRAM(void);
+	void Memory_Select_Graphic_Cursor_RAM(void);
+	void Enable_Graphic_Cursor(void);
+	void Disable_Graphic_Cursor(void);
+	void Select_Graphic_Cursor_1(void);
+	void Select_Graphic_Cursor_2(void);
+	void Select_Graphic_Cursor_3(void);
+	void Select_Graphic_Cursor_4(void);
+	void Memory_Select_CGRAM(void);
+	void CGRAM_initial(uint32_t charAddr, const uint8_t *data, uint16_t count);
+	void Memory_XY_Mode(void);
+	void Memory_Linear_Mode(void);
+	//**[40h][41h][42h][43h]**//
+	void Graphic_Cursor_XY(unsigned short WX,unsigned short HY);
+	//**[44]**//
+	void Set_Graphic_Cursor_Color_1(unsigned char temp);
+	//**[45]**//
+	void Set_Graphic_Cursor_Color_2(unsigned char temp);
+	void Graphic_cursor_initial(void);
 
-uint32_t boxPut(uint32_t vPageAddr, uint16_t x0, uint16_t y0,uint16_t x1, uint16_t y1, uint16_t dx0, uint16_t dy0);
-uint32_t boxGet(uint32_t vPageAddr, uint16_t x0, uint16_t y0,uint16_t x1, uint16_t y1, uint16_t dx0, uint16_t dy0);
+	uint32_t boxPut(uint32_t vPageAddr, uint16_t x0, uint16_t y0,uint16_t x1, uint16_t y1, uint16_t dx0, uint16_t dy0);
+	uint32_t boxGet(uint32_t vPageAddr, uint16_t x0, uint16_t y0,uint16_t x1, uint16_t y1, uint16_t dx0, uint16_t dy0);
 
-void initButton(struct Gbuttons *button, uint16_t x, uint16_t y, uint8_t w, uint8_t h,
- uint16_t outline, uint16_t fill, uint16_t textcolor,
- char *label, uint8_t textsize);
+	void initButton(struct Gbuttons *button, uint16_t x, uint16_t y, uint8_t w, uint8_t h,
+	 uint16_t outline, uint16_t fill, uint16_t textcolor,
+	 char *label, uint8_t textsize);
 
-void drawButton(struct Gbuttons *buttons, bool inverted);
-bool buttonContains(struct Gbuttons *buttons,uint16_t x, uint16_t y);
-void buttonPress(struct Gbuttons *buttons, bool p);
-bool buttonIsPressed(struct Gbuttons *buttons);
-bool buttonJustPressed(struct Gbuttons *buttons);
-bool buttonJustReleased(struct Gbuttons *buttons);
-void Color_Bar_ON(void);
-void Color_Bar_OFF(void);
+	void drawButton(struct Gbuttons *buttons, bool inverted);
+	bool buttonContains(struct Gbuttons *buttons,uint16_t x, uint16_t y);
+	void buttonPress(struct Gbuttons *buttons, bool p);
+	bool buttonIsPressed(struct Gbuttons *buttons);
+	bool buttonJustPressed(struct Gbuttons *buttons);
+	bool buttonJustReleased(struct Gbuttons *buttons);
+	void Color_Bar_ON(void);
+	void Color_Bar_OFF(void);
 
-/*text function*/
-void textMode(boolean on);
-void textColor(ru16 foreground_color,ru16 background_color);
-void setTextCursor(ru16 x,ru16 y);
-void textxy(ru16 x, ru16 y);
-void buildTextScreen(void);
-void setFontSource(uint8_t source);
-//**[5Fh]~[62h]**//
-void linearAddressSet(ru32 addr);
+	/*text function*/
+	void textMode(boolean on);
+	void textColor(ru16 foreground_color,ru16 background_color);
+	void setTextCursor(ru16 x,ru16 y);
+	void textxy(ru16 x, ru16 y);
+	void buildTextScreen(void);
+	void setFontSource(uint8_t source);
+	//**[5Fh]~[62h]**//
+	void linearAddressSet(ru32 addr);
 
-ru8 vmemReadData(ru32 addr);
-ru16 vmemReadData16(ru32 addr);
-void vmemWriteData(ru32 addr, ru8 vmemData);
-void vmemWriteData16(ru32 addr, ru16 vmemData);
+	ru8 vmemReadData(ru32 addr);
+	ru16 vmemReadData16(ru32 addr);
+	void vmemWriteData(ru32 addr, ru8 vmemData);
+	void vmemWriteData16(ru32 addr, ru16 vmemData);
 
-//**[DBh]~[DEh]**//
-void CGRAM_Start_address(uint32_t Addr);
-void setTextParameter1(ru8 source_select,ru8 size_select,ru8 iso_select);//cch
-void setTextParameter2(ru8 align, ru8 chroma_key, ru8 width_enlarge, ru8 height_enlarge);//cdh
-void genitopCharacterRomParameter(ru8 scs_select, ru8 clk_div, ru8 rom_select, ru8 character_select, ru8 gt_width);//b7h,bbh,ceh,cfh
+	//**[DBh]~[DEh]**//
+	void CGRAM_Start_address(uint32_t Addr);
+	void setTextParameter1(ru8 source_select,ru8 size_select,ru8 iso_select);//cch
+	void setTextParameter2(ru8 align, ru8 chroma_key, ru8 width_enlarge, ru8 height_enlarge);//cdh
+	void genitopCharacterRomParameter(ru8 scs_select, ru8 clk_div, ru8 rom_select, ru8 character_select, ru8 gt_width);//b7h,bbh,ceh,cfh
 
-void clearActiveScreen(void);
-void clreol(void);
-void clreos(void);
-void clrbol(void);
-void clrbos(void);
-void clrlin(void);
-void clearStatusLine(uint16_t color); 
-void putString(ru16 x0,ru16 y0, const char *str);
-void writeStatusLine(ru16 x0, uint16_t fgcolor, uint16_t bgcolor, const char *str);
+	void clearActiveScreen(void);
+	void clreol(void);
+	void clreos(void);
+	void clrbol(void);
+	void clrbos(void);
+	void clrlin(void);
+	void clearStatusLine(uint16_t color); 
+	void putString(ru16 x0,ru16 y0, const char *str);
+	void writeStatusLine(ru16 x0, uint16_t fgcolor, uint16_t bgcolor, const char *str);
 
-size_t tftPrint(uint8_t text);
-size_t tftRawPrint(uint8_t text);
+	// overwrite print functions:
+	virtual size_t write(uint8_t);
+	virtual size_t write(const uint8_t *buffer, size_t size);
+	
+size_t rawPrint(uint8_t text);
 void update_xy(void);
 void update_tft(uint8_t data);
 void Enable_Text_Cursor(void);
@@ -1049,7 +1052,7 @@ void Disable_Text_Cursor_Blinking(void);
 void Blinking_Time_Frames(unsigned char temp);
 void Text_Cursor_H_V(unsigned short WX,unsigned short HY);
 void scroll(void);
-void scroll_down(void);
+void scrollDown(void);
  
 /*draw function*/
 void drawLine(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color);

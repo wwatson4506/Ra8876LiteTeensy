@@ -63,7 +63,7 @@ void rectangles(uint16_t thickness) {
 			tft.drawRect(x0,y0,x1,y1,myColors[c]);
 		}
 	}
-	tft.tft_slcls(myColors[11]);
+	tft.fillStatusLine(myColors[11]);
 }
 
 // Draw random filled rectangle boxes
@@ -77,7 +77,7 @@ void filledRectangles(void) {
 		c = (uint16_t)random(21);
 		tft.fillRect(x0,y0,x1,y1,myColors[c+1]);
 	}
-	tft.tft_slcls(myColors[11]);
+	tft.fillStatusLine(myColors[11]);
 }
 
 // Draw random round rectangle boxes
@@ -126,7 +126,7 @@ void rRectangles(uint16_t thickness) {
 			tft.drawRoundRect(x0,y0,x1,y1,xr,yr,myColors[c]);
 		}
 	}
-	tft.tft_slcls(myColors[11]);
+	tft.fillStatusLine(myColors[11]);
 }
 
 // Draw random filled round rectangle boxes
@@ -158,7 +158,7 @@ void filledRRectangles(void) {
 			yr = (y1 - y0) / 2 - 1;
 		tft.fillRoundRect(x0, y0, x1, y1, xr, yr, myColors[c]);
 	}
-	tft.tft_slcls(myColors[11]);
+	tft.fillStatusLine(myColors[11]);
 }
 
 // Draw random circles
@@ -189,7 +189,7 @@ void drawcircles(uint16_t thickness) {
 		}
 		tft.drawCircle(x0, y0, r, myColors[c]);
 	}
-	tft.tft_slcls(myColors[11]);
+	tft.fillStatusLine(myColors[11]);
 }
 
 // Draw random filled circles
@@ -210,7 +210,7 @@ void fillcircles(void) {
 			y0 = (uint16_t)(tft.height() - r);
 		tft.fillCircle(x0, y0, r, myColors[c]);
 	}
-	tft.tft_slcls(myColors[11]);
+	tft.fillStatusLine(myColors[11]);
 }
 
 // Draw random unfilled tritangles
@@ -226,7 +226,7 @@ void drawTriangles(void) {
 		c = (uint16_t)random(21);
 		tft.drawTriangle(x0,y0,x1,y1,x2,y2,myColors[c+1]);
 	}
-	tft.tft_slcls(myColors[11]);
+	tft.fillStatusLine(myColors[11]);
 }
 
 // Draw random filled triangles
@@ -242,7 +242,7 @@ void fillTriangles(void) {
 		c = (uint16_t)random(21);
 		tft.fillTriangle(x0,y0,x1,y1,x2,y2,myColors[c+1]);
 	}
-	tft.tft_slcls(myColors[11]);
+	tft.fillStatusLine(myColors[11]);
 }
 
 // Draw random unfilled ellipses
@@ -266,7 +266,7 @@ void drawEllipses(void)
 			y0 = (uint16_t)(tft.height() - yr);
 		tft.drawEllipse(x0, y0, xr, yr, myColors[color]);
 	}
-	tft.tft_slcls(myColors[11]);
+	tft.fillStatusLine(myColors[11]);
 }
 
 // Draw random filled ellipses
@@ -290,7 +290,7 @@ void fillEllipses(void)
 			y0 = (uint16_t)(tft.height() - yr);
 		tft.fillEllipse(x0, y0, xr, yr, myColors[color]);
 	}
-	tft.tft_slcls(myColors[11]);
+	tft.fillStatusLine(myColors[11]);
 	//timeOn(); // Turn on time/date display on status line
 }
 
@@ -310,7 +310,7 @@ void drawlines(void) {
 		if(y1 > tft.height()) y1 = tft.height();
 		tft.drawLine(x0,y0,x1,y1,myColors[c]);
 	}
-	tft.tft_slcls(myColors[11]);
+	tft.fillStatusLine(myColors[11]);
 }
 
 int i = 0;
@@ -323,72 +323,72 @@ void setup() {
 }
 
 void loop() {
-	tft.tft_slprint(0,myColors[1],myColors[11],"Rectangles");
+	tft.printStatusLine(0,myColors[1],myColors[11],"Rectangles");
 	interations = 30000;
 	rectangles(0);
 	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft.tft_slprint(0,myColors[1],myColors[11],"Rectangles 10 pixel line thickness");
+	tft.printStatusLine(0,myColors[1],myColors[11],"Rectangles 10 pixel line thickness");
 	interations = 4000;
 	rectangles(10);
 	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft.tft_slprint(0,myColors[1],myColors[11],"Filled Rectangles");
+	tft.printStatusLine(0,myColors[1],myColors[11],"Filled Rectangles");
 	interations = 4000;
 	filledRectangles();
 	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft.tft_slprint(0,myColors[1],myColors[11],"Round Rectangles");
+	tft.printStatusLine(0,myColors[1],myColors[11],"Round Rectangles");
 	interations = 30000;
 	rRectangles(0);
 	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft.tft_slprint(0,myColors[1],myColors[11],"Round Rectangles 10 pixel line thickness");
+	tft.printStatusLine(0,myColors[1],myColors[11],"Round Rectangles 10 pixel line thickness");
 	interations = 4000;
 	rRectangles(10);
 	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft.tft_slprint(0,myColors[1],myColors[11],"Filled Round Rectangles");
+	tft.printStatusLine(0,myColors[1],myColors[11],"Filled Round Rectangles");
 	interations = 4000;
 	filledRRectangles();
 	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft.tft_slprint(0,myColors[1],myColors[11],"Circles");
+	tft.printStatusLine(0,myColors[1],myColors[11],"Circles");
 	interations = 30000;
 	drawcircles(0);
 	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft.tft_slprint(0,myColors[1],myColors[11],"Circles 10 pixel circle thickness");
+	tft.printStatusLine(0,myColors[1],myColors[11],"Circles 10 pixel circle thickness");
 	interations = 4000;
 	drawcircles(10);
 	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft.tft_slprint(0,myColors[1],myColors[11],"Filled Circles");
+	tft.printStatusLine(0,myColors[1],myColors[11],"Filled Circles");
 	interations = 4000;
 	fillcircles();
 	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft.tft_slprint(0,myColors[1],myColors[11],"Triangles");
+	tft.printStatusLine(0,myColors[1],myColors[11],"Triangles");
 	interations = 30000;
 	drawTriangles();
 	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft.tft_slprint(0,myColors[1],myColors[11],"Filled Triangles");
+	tft.printStatusLine(0,myColors[1],myColors[11],"Filled Triangles");
 	interations = 4000;
 	fillTriangles();
 	tft.fillScreen(myColors[11]);
 	delay(10);
 	interations = 30000;
-	tft.tft_slprint(0,myColors[1],myColors[11],"Ellipses");
+	tft.printStatusLine(0,myColors[1],myColors[11],"Ellipses");
 	drawEllipses();
 	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft.tft_slprint(0,myColors[1],myColors[11],"Filled Ellipses");
+	tft.printStatusLine(0,myColors[1],myColors[11],"Filled Ellipses");
 	interations = 4000;
 	fillEllipses();
 	tft.fillScreen(myColors[11]);
 	delay(10);
-	tft.tft_slprint(0,myColors[1],myColors[11],"Lines");
+	tft.printStatusLine(0,myColors[1],myColors[11],"Lines");
 	interations = 100000;
 	drawlines();
 	tft.fillScreen(myColors[11]);

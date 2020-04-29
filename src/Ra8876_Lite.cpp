@@ -1179,7 +1179,7 @@ void Ra8876_Lite::graphicMode(boolean on)
 //**************************************************************//
 /* Read a 16bpp pixel                                           */
 //**************************************************************//
-ru16 Ra8876_Lite::getPixel_16bpp(ru16 x,ru16 y)
+ru16 Ra8876_Lite::getPixel(ru16 x,ru16 y)
 {
 	ru16 rdata = 0;
 	graphicMode(true);
@@ -1196,7 +1196,7 @@ ru16 Ra8876_Lite::getPixel_16bpp(ru16 x,ru16 y)
 //**************************************************************//
 /* Write a 16bpp pixel                                          */
 //**************************************************************//
-void  Ra8876_Lite::putPixel_16bpp(ru16 x,ru16 y,ru16 color)
+void  Ra8876_Lite::drawPixel(ru16 x,ru16 y,ru16 color)
 {
 	graphicMode(true);
 	setPixelCursor(x,y);
@@ -1375,7 +1375,7 @@ void  Ra8876_Lite::putString(ru16 x0,ru16 y0, const char *str)
   textMode(true);
   while(*str != '\0')
   {
-  tftPrint(*str);
+  write(*str);
   ++str; 
   } 
   textMode(false);
@@ -1526,60 +1526,70 @@ extern void tone(uint8_t pin, uint16_t frequency, uint32_t duration);
 /* This function processes most ASCII control codes and will    */
 /* scroll the screen up when text position is past bottom line  */
 //**************************************************************//
-size_t Ra8876_Lite::tftPrint(uint8_t text) {
+// overwrite functions from class Print:
+size_t Ra8876_Lite::write(uint8_t c) {
+	return write(&c, 1);
+}
 
-	vdata = text;
-	if (text == 13){//'\r'
-		//Ignore carriage-return
-	} else if(text == '\n') {
-		_cursorY += (_FNTheight * _scaleY);
-		prompt_line = _cursorY + _scrollYT;
-        _cursorX = _scrollXL;
-        update_xy();
-    } else if(text == 127) { // Destructive Backspace
-			if((_cursorX > (prompt_size +_scrollXL)) || (_cursorY > (prompt_line + _scrollYT)))
-			{
-				_cursorX-=(_FNTwidth * _scaleX);
-				update_xy();
-				vdata = 0x20;
-				update_tft(vdata);
-				update_xy();
-			}
-			if((_cursorY > (prompt_line + _scrollYT)) && ((_cursorX + _scrollXL) < 0)) {
-				_cursorY -= (_FNTheight * _scaleY);
-				_cursorX = _width-(_FNTwidth * _scaleX);
-				if(_FNTwidth == 12)
-					_cursorX -= 4; // 1024 / 12 = 85.3 so adjust
-				update_xy();
+size_t Ra8876_Lite::write(const uint8_t *buffer, size_t size) {
 
-			}
-    } else if(text == 0x09) { // TAB Character
-			_cursorX += (tab_size*(_FNTwidth * _scaleX));
+	size_t cb = size;
+	while (cb) {
+		uint8_t text = *buffer++;
+		cb--;
+		vdata = text;
+		if (text == 13){//'\r'
+			//Ignore carriage-return
+		} else if(text == '\n') {
+			_cursorY += (_FNTheight * _scaleY);
+			prompt_line = _cursorY + _scrollYT;
+			_cursorX = _scrollXL;
 			update_xy();
-    } else if(text == 0x07) { // BELL Character
-			tone(35,1000,500); // Need Pin variable for tone output (now pin #35)
-    } else if(text == 0x0c) { // form feed
-		drawSquareFill(_scrollXL, _scrollYT, _scrollXR, _scrollYB, _TXTBackColor);
-		textColor(_TXTForeColor,_TXTBackColor);
-		setTextCursor(_scrollXL,_scrollYT);
-	} else {
-		update_tft(vdata);
-		_cursorX += (_FNTwidth * _scaleX);
-		switch(_FNTwidth) {
-			case 12: // Font width is 12, 1024 / 12 =  85.3, have to
-					 // subtract 12 to keep within screen width.
-				if(_cursorX >= _scrollXR-(_FNTwidth * _scaleX)) {
-				_cursorY += (_FNTheight * _scaleY);
-				_cursorX = _scrollXL;
+		} else if(text == 127) { // Destructive Backspace
+				if((_cursorX > (prompt_size +_scrollXL)) || (_cursorY > (prompt_line + _scrollYT)))
+				{
+					_cursorX-=(_FNTwidth * _scaleX);
+					update_xy();
+					vdata = 0x20;
+					update_tft(vdata);
+					update_xy();
+				}
+				if((_cursorY > (prompt_line + _scrollYT)) && ((_cursorX + _scrollXL) < 0)) {
+					_cursorY -= (_FNTheight * _scaleY);
+					_cursorX = _width-(_FNTwidth * _scaleX);
+					if(_FNTwidth == 12)
+						_cursorX -= 4; // 1024 / 12 = 85.3 so adjust
+					update_xy();
+
+				}
+		} else if(text == 0x09) { // TAB Character
+				_cursorX += (tab_size*(_FNTwidth * _scaleX));
+				update_xy();
+		} else if(text == 0x07) { // BELL Character
+				tone(35,1000,500); // Need Pin variable for tone output (now pin #35)
+		} else if(text == 0x0c) { // form feed
+			drawSquareFill(_scrollXL, _scrollYT, _scrollXR, _scrollYB, _TXTBackColor);
+			textColor(_TXTForeColor,_TXTBackColor);
+			setTextCursor(_scrollXL,_scrollYT);
+		} else {
+			update_tft(vdata);
+			_cursorX += (_FNTwidth * _scaleX);
+			switch(_FNTwidth) {
+				case 12: // Font width is 12, 1024 / 12 =  85.3, have to
+						 // subtract 12 to keep within screen width.
+					if(_cursorX >= _scrollXR-(_FNTwidth * _scaleX)) {
+					_cursorY += (_FNTheight * _scaleY);
+					_cursorX = _scrollXL;
+				}
+				break;
+				default:
+					if(_cursorX >= _scrollXR) {
+					_cursorY += (_FNTheight * _scaleY);
+					_cursorX = _scrollXL;
+				}
 			}
-			break;
-			default:
-				if(_cursorX >= _scrollXR) {
-				_cursorY += (_FNTheight * _scaleY);
-				_cursorX = _scrollXL;
-			}
+			update_xy();
 		}
-		update_xy();
 	}
 	return 1;
 }
@@ -1590,7 +1600,7 @@ size_t Ra8876_Lite::tftPrint(uint8_t text) {
 /* codes and will scroll the screen up when text  */
 /* position is past bottom line.                  */
 //************************************************//
-size_t Ra8876_Lite::tftRawPrint(uint8_t text) {
+size_t Ra8876_Lite::rawPrint(uint8_t text) {
 		update_tft(text);
 		_cursorX += (_FNTwidth * _scaleX);
 		switch(_FNTwidth) {
@@ -2202,7 +2212,7 @@ void Ra8876_Lite::drawLine(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 void Ra8876_Lite::drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color)
 {
 	if (h < 1) h = 1;
-	h < 2 ? putPixel_16bpp(x,y,color) : drawLine(x, y, x, (y+h)-1, color);
+	h < 2 ? drawPixel(x,y,color) : drawLine(x, y, x, (y+h)-1, color);
 }
 
 //**************************************************************//
@@ -2478,7 +2488,7 @@ void Ra8876_Lite::scroll(void) { // No arguments for now
 //*************************************************************//
 // Scroll Screen down
 //*************************************************************//
-void Ra8876_Lite::scroll_down(void) { // No arguments for now
+void Ra8876_Lite::scrollDown(void) { // No arguments for now
 	bteMemoryCopy(currentPage,SCREEN_WIDTH, _scrollXL, _scrollYT,	//Source
 				  PAGE10_START_ADDR,SCREEN_WIDTH, _scrollXL, _scrollYT,	//Desination
 				  _scrollXR-_scrollXL, (_scrollYB-_scrollYT)-(_FNTheight*_scaleY)); //Copy Width, Height

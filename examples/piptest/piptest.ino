@@ -9,10 +9,17 @@
 // window processing most ASCII control codes.
 // There is a built in status line at the bottom of the screen that
 // is 16 pixels in height with functions to support it.
+// guages.ino
 #include "Arduino.h"
 #include "Ra8876_Lite.h"
-#include "tft.h"
-#include "vt100.h"
+#include "RA8876_t3.h"
+
+//#include "vt100.h"
+#include <math.h>
+
+// This example is a modified version of Sumotoy's guages example
+// from his RA8875 driver. Modified to work with the RA8876 TFT controller.
+RA8876_t3 tft = RA8876_t3(10, 8, 11, 13, 12);
 
 // Array of RA8876 Basic Colors
 PROGMEM uint16_t myColors[] = {
@@ -67,15 +74,15 @@ uint8_t fh = 0;
 // Draw a border for the text window
 void drawBorder(void) {
 	uint64_t color = 0;
-	fw = getFontWidth();
-	fh = getFontHeight();
+	fw = tft.getFontWidth();
+	fh = tft.getFontHeight();
 	x = (10*fw)-thickness;
 	y = (2*fh)-thickness;
-	w = getGwidth()-(10*fw) + thickness;
-	h = getGheight()-(2*fh) + thickness;
+	w = tft.width()-(10*fw) + thickness;
+	h = tft.height()-(2*fh) + thickness;
 	color = random(0,65535) | 0x5555;
 	for(int i = 1; i <= thickness; i++) {
-		drawRect(x, y, w, h, color);
+		tft.drawRect(x, y, w, h, color);
 		x+=1;
 		y+=1;
 		w-=1;
@@ -85,40 +92,40 @@ void drawBorder(void) {
 
 // Put it all together
 void setup() {
-	tft_init();
-	initVT100();
-	setFontSize(2,false);
-	setTextAt(0,0);
-	tft_cls(myColors[11]);
+	tft.init();
+	//initVT100();
+	tft.setFontSize(2,false);
+	tft.setTextAt(0,0);
+	tft.fillScreen(myColors[11]);
 	len = strlen(title);
-	setTextColorFG(myColors[6],myColors[11]);
-	setTextAt((getTwidth()/2) - (len/2),0);
-	tftPrintStr(title);
-	setTextColorFG(myColors[1],myColors[11]);
-	setFontSize(1,true);
-	setTMargins(10, 2, 10, 2); //Setup a text window
+	tft.setTextColorFG(myColors[6],myColors[11]);
+	tft.setTextAt((tft.width()/2) - (len/2),0);
+	tft.println(title);
+	tft.setTextColorFG(myColors[1],myColors[11]);
+	tft.setFontSize(1,true);
+	tft.setTMargins(10, 2, 10, 2); //Setup a text window
 	
 	// Setup PIP window #1 on screen page #4
-	setTextColorFG(myColors[1],myColors[11]);
-	selectScreen(SCREEN_4); // Select screen page 4
-	tft_cls(myColors[13]);
-	setFontSize(1,true); // Set 12x24 font size
-	setTextAt(0,0);
-	setTextColorFG(myColors[0],myColors[13]);
-	tftPrintStr(pip1);
-	fillCircle(xw / 2, yh / 2, 100, myColors[2]);
+	tft.setTextColorFG(myColors[1],myColors[11]);
+	tft.selectScreen(SCREEN_4); // Select screen page 4
+	tft.fillScreen(myColors[13]);
+	tft.setFontSize(1,true); // Set 12x24 font size
+	tft.setTextAt(0,0);
+	tft.setTextColorFG(myColors[0],myColors[13]);
+	tft.println(pip1);
+	tft.fillCircle(xw / 2, yh / 2, 100, myColors[2]);
 
 	// Setup PIP window #2 on screen page #5
-	setTextColorFG(myColors[1],myColors[11]);
-	selectScreen(SCREEN_5); // Select screen page 5
-	tft_cls(myColors[6]);
-	setFontSize(2,true); // Set 16x32 font size
-	setTextAt(0,0);
-	setTextColorFG(myColors[0],myColors[6]);
-	tftPrintStr(pip2);
-	fillRect(xw - 300, yh - 200 , 300, 200, myColors[15]);
+	tft.setTextColorFG(myColors[1],myColors[11]);
+	tft.selectScreen(SCREEN_5); // Select screen page 5
+	tft.fillScreen(myColors[6]);
+	tft.setFontSize(2,true); // Set 16x32 font size
+	tft.setTextAt(0,0);
+	tft.setTextColorFG(myColors[0],myColors[6]);
+	tft.println(pip2);
+	tft.fillRect(xw - 300, yh - 200 , 300, 200, myColors[15]);
 	// Set screen page #1 as the active screen page
-	selectScreen(SCREEN_1); // Select home page
+	tft.selectScreen(SCREEN_1); // Select home page
 }
 
 void loop() {
@@ -128,16 +135,16 @@ void loop() {
 	onOff = 1; // Enable PIP's
 
 	pipNo = 1; // Select and enable PIP #1
-	tft_PIP(onOff,pipNo,SCREEN_4,xp,yp,getGwidth(),xd,yd,xw,yh);
+	tft.PIP(onOff,pipNo,SCREEN_4,xp,yp,tft.width(),xd,yd,xw,yh);
 	pipNo = 2; //Select and enable PIP #2
-	tft_PIP(onOff,pipNo,SCREEN_5,xp,yp,getGwidth(),xd+700,yd+240,xw,yh);
+	tft.PIP(onOff,pipNo,SCREEN_5,xp,yp,tft.width(),xd+700,yd+240,xw,yh);
 	pipNo = 1; // Select and move PIP #1
 	drawBorder();
 	for(int i=0; i <= 700; i++) {
-		tft_PIP(onOff,pipNo,SCREEN_4,xp,yp,getGwidth(),xd+i,yd,xw,yh);
+		tft.PIP(onOff,pipNo,SCREEN_4,xp,yp,tft.width(),xd+i,yd,xw,yh);
 		delayMicroseconds(pipDelay);
-		setTextColorFG(myColors[i % 22],myColors[11]);
-		tft_print(c); // Print character set in text window
+		tft.setTextColorFG(myColors[i % 22],myColors[11]);
+		tft.print(c); // Print character set in text window
 		c++;
 		if(c == 255)
 			c = 32;
@@ -145,10 +152,10 @@ void loop() {
 	drawBorder();
 	pipNo = 2; // Select and move PIP #2
 	for(int i=600; i >= 0; i--) {
-		tft_PIP(onOff,pipNo,SCREEN_5,xp,yp,getGwidth(),xd+i,yd+240,xw,yh);
+		tft.PIP(onOff,pipNo,SCREEN_5,xp,yp,tft.width(),xd+i,yd+240,xw,yh);
 		delayMicroseconds(pipDelay);
-		setTextColorFG(myColors[i % 22],myColors[11]);
-		tft_print(c); // Print character set in text window
+		tft.setTextColorFG(myColors[i % 22],myColors[11]);
+		tft.print(c); // Print character set in text window
 		c++;
 		if(c == 255)
 			c = 32;
@@ -156,5 +163,5 @@ void loop() {
 	finished = millis()-start;
 	// Print some stats to the status line
 	sprintf(STR1,"pipDelay: %lu uS, Loop Cycle Time: %lu ms, Use pipDelay=0 for fastest Loop time.",(unsigned long)pipDelay, (unsigned long)finished);
-	tft_slprint(0,myColors[13],myColors[11],STR1);
+	tft.printStatusLine(0,myColors[13],myColors[11],STR1);
 }

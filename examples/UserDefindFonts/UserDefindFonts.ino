@@ -1,8 +1,15 @@
 // UserDefinedFonts.ino
 #include "Arduino.h"
 #include "Ra8876_Lite.h"
-#include "tft.h"
-#include "vt100.h"
+#include "RA8876_t3.h"
+
+//#include "vt100.h"
+#include <math.h>
+
+// This example is a modified version of Sumotoy's guages example
+// from his RA8875 driver. Modified to work with the RA8876 TFT controller.
+RA8876_t3 tft = RA8876_t3(10, 8, 11, 13, 12);
+
 #include "font8x16.h"
 
 // Array of Simple RA8876 Basic Colors
@@ -32,27 +39,28 @@ PROGMEM uint16_t myColors[] = {
 };
 
 void setup() {
-	tft_init();
-	initVT100();
-	fontLoadMEM((char *)font8x16);
-	setFontSize(1,false);
-	setTextAt(0,0);
-	tft_cls(myColors[0]);
-	tft_slcls(myColors[0]);
-	tft_slprint(0,myColors[13],myColors[0],"Example of User Defined Characters. 8x16 font size. Uses tftRawWrite() function.");
-	setFontSource(1); //Select UDFont.
-	setTextColorFG(myColors[1] , myColors[0]);
-	setFontSize(0,true); // Set to smallest font scale.
-	tftPrintStr((const char *)"Hello Teensy!, font scaling = 0\n"); 
-	setFontSize(1,true); // Set to 1X font scale.
-	tftPrintStr((const char *)"Hello Teensy!, font scaling = 1\n"); 
-	setFontSize(2,true); // Set to 2X font scale.
-	tftPrintStr((const char *)"Hello Teensy!, font scaling = 2\n\n"); 
-	setFontSize(1,true); // Set to smallest font scale.
-	setTextColorFG(myColors[6] , myColors[0]);
+	tft.init();
+	//initVT100();
+	tft.fontLoadMEM((char *)font8x16);
+	tft.setFontSize(1,false);
+	tft.setTextAt(0,0);
+  tft.println("Font Test");
+	tft.fillScreen(myColors[0]);
+	tft.fillStatusLine(myColors[0]);
+	tft.printStatusLine(0,myColors[13],myColors[0],"Example of User Defined Characters. 8x16 font size. Uses tftRawWrite() function.");
+	tft.setFontSource(1); //Select UDFont.
+	tft.setTextColorFG(myColors[1] , myColors[0]);
+	tft.setFontSize(0,true); // Set to smallest font scale.
+	tft.printf("Hello Teensy!, font scaling = 0\n"); 
+	tft.setFontSize(1,true); // Set to 1X font scale.
+	tft.printf("Hello Teensy!, font scaling = 1\n"); 
+	tft.setFontSize(2,true); // Set to 2X font scale.
+	tft.printf("Hello Teensy!, font scaling = 2\n\n"); 
+	tft.setFontSize(1,true); // Set to smallest font scale.
+	tft.setTextColorFG(myColors[6] , myColors[0]);
 	// Send raw characters to screen. Does not process ASCII control codes.
 	for(uint8_t i = 0; i < 255; i++)
-		tftRawWrite(i);
+		tft.rawPrint(i);
 }
 
 void loop() {

@@ -59,13 +59,13 @@ void setup() {
 	tft.init();
 	//initVT100();
 	tft.setTextAt(0,0);
-	tft.tft_cls(myColors[11]);
+	tft.fillScreen(myColors[11]);
 	tft.setFontSize(1,false);
 	for (uint8_t i = 0; i < 6; i++) {
 		drawGauge(posx[i], posy[i], radius[i]);
 	}
-	tft.tft_slcls(myColors[11]);
-	tft.tft_slprint(0,myColors[1],myColors[11],"Sumotoy's guages sketch on the T4");
+	tft.fillStatusLine(myColors[11]);
+	tft.printStatusLine(0,myColors[1],myColors[11],"Sumotoy's guages sketch on the T4");
 }
 
 void loop(void) {
