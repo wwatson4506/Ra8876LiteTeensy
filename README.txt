@@ -1,3 +1,35 @@
+as of 04/29/20
+The Ra8876 library redo for the Teensy has been focused on consolidation and essentially refactoring to make it into a more generic libary for library.  For the restructuing of the the library it is currently being tested with the BuyDisplay's ER-TFTM070-6 7 inch LCD module w/touch, https://www.buydisplay.com/spi-7-inch-tft-lcd-dislay-module-1024x600-ra8876-optl-touch-screen-panel.
+
+Chages made so far include the users ability to:
+1. Specify the SPI port for the display:
+RA8876_t3(const uint8_t CSp = 10, const uint8_t RSTp = 8, const uint8_t mosi_pin = 11, const uint8_t sclk_pin = 13, const uint8_t miso_pin = 12);
+pins are defaulted to standard SPI pins.  Currently the Back Light pin is still harde coded in the library to pin 7
+
+2. Command changes for compatibility with other display libraries:
+tft_cls -> fillScreen(color)
+getGwidth -> width()
+getGheight -> height()
+
+3. Added or modified
+setCursor(x, y) - added
+drawFastHLine - added
+setFontSize - modified so you can pass just the size, with a default runflag=false
+setTextSize - added, calls setFontSize, only have to pass size, defaults to runflag=false
+fillStatusLine(uint16_t color); - used to fill the status line (left it in since i thought it was neat, at least for now)
+printStatusLine(uint16_t x0,uint16_t fgColor,uint16_t bgColor, const char *text); - now used to print to the statusline
+
+4. prints to screen changed to use print stream so you can call tft.print, printf, println without having to convert data to strings etc.
+
+5. vt100 - not incorporated for now.
+
+6. All examples have been updated to the new data calls and working with the updated library.
+
+
+
+
+
+==========================================================================================
 Ra8876LiteTeeensy WIP
 
 Teensy RA8876 Driver using BuyDisplay's ER-TFTM101-1 10.1 inch lcd module tft display w/touch
