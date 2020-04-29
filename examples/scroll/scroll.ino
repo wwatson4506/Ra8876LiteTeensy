@@ -54,7 +54,7 @@ void loop() {
 
 	tft.fillStatusLine(myColors[0]);
 	tft.printStatusLine(0,myColors[13],myColors[0],"scroll_down(), scroll_up()");
-	tft.setFontSource(0);
+	//tft.setFontSource(0);
 	tft.setFontSize(1,true);
 	tft.setTextAt(0,0);
 	for(i = 32; i < 256; i++) {
@@ -63,14 +63,21 @@ void loop() {
 		tft.print(i);
 	}
 	tft.setTextColorFG(myColors[1] , myColors[0]);
-	while(j++ < 10) {
-		for(i = 0; i < 21; i++) {
+	//while(j++ < 10) {
+		for(i = 0; i < 42; i++) {
 			tft.scrollDown();
 		}
-		for(i = 0; i < 21; i++) {
+   delay(2000);
+   
+  for(i = 32; i < 256; i++) {
+    if(color == 22) color = 1;
+    tft.setTextColorFG(myColors[color++] , myColors[0]);
+    tft.print(i);
+  }
+		for(i = 0; i < 42; i++) {
 			tft.scrollUp();
 		}
-	}
+	//}
 	j = 0;
 	delay(2000);
 }

@@ -470,7 +470,7 @@ void RA8876_t3:: setFontSource(uint8_t source) {
 		}
 		break;
 	}
-	setFontSource(source);
+	Ra8876_Lite::setFontSource(source);
 	// Rebuild current screen page
 	buildTextScreen();
 }
