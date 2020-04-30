@@ -343,6 +343,26 @@ void RA8876_t3:: restoreTFTParams(tftSave_t *screenSave) {
 	 _TXTBackColor = screenSave->TXTBackColor;
 }
 
+void RA8876_t3:: useCanvas()
+{
+	displayImageStartAddress(PAGE1_START_ADDR);
+	displayImageWidth(_width);
+	displayWindowStartXY(0,0);
+	
+	canvasImageStartAddress(PAGE2_START_ADDR);
+	canvasImageWidth(_width);
+	activeWindowXY(0, 0);
+	activeWindowWH(_width, _height);
+	check2dBusy();
+	ramAccessPrepare();
+}
+
+void RA8876_t3:: updateScreen() {
+	bteMemoryCopy(PAGE2_START_ADDR,_width,0,0,
+				  PAGE1_START_ADDR,_width, 0,0,
+				 _width,_height);	
+}
+
 // Setup text cursor
 void RA8876_t3:: cursorInit(void)
 {

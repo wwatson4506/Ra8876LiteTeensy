@@ -841,7 +841,7 @@ memory size. For example : page_size = 1024*600*2byte(16bpp) = 1228800byte, maxi
 #define	cClrb7		0x7f
 
 //static volatile ru32 _maxspeed = 20000000;//holder for SPI speed
-static volatile ru32 _maxspeed = 30000000; // This is the fastest useable speed
+static volatile ru32 _maxspeed = 38000000; // This is the fastest useable speed
 					   // with my setup.
 //static volatile ru32 _maxspeed = 24000000;//holder for SPI speed
 

@@ -159,6 +159,9 @@ public:
 	void saveTFTParams(tftSave_t *screenSave);
 	void restoreTFTParams(tftSave_t *screenSave);
 	
+	void useCanvas();
+	void updateScreen();
+	
 	//void print(uint8_t text);
 	void tftRawWrite(uint8_t data);
 	//void printStr(const char * str);
