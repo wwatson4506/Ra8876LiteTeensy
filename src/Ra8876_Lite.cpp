@@ -160,14 +160,18 @@ boolean Ra8876_Lite::Ra8876_begin(void)
 	pinMode(_cs, OUTPUT);
 	SPI.begin();
   
-	//ra8876 hardware reset
-	pinMode(_rst, OUTPUT); 
-	digitalWrite(_rst, HIGH);
-	delay(1);
-	digitalWrite(_rst, LOW);
-	delay(1);
-	digitalWrite(_rst, HIGH);
-	delay(10);
+	// toggle RST low to reset
+	if (_rst < 255) {
+		pinMode(_rst, OUTPUT);
+		digitalWrite(_rst, HIGH);
+		delay(5);
+		digitalWrite(_rst, LOW);
+		delay(20);
+		digitalWrite(_rst, HIGH);
+		delay(150);
+	}
+
+	
 	if(!checkIcReady())
 		return false;
 	//read ID code must disable pll, 01h bit7 set 0
@@ -275,10 +279,11 @@ boolean Ra8876_Lite::ra8876Initialize(void) {
 //**************************************************************//
 void Ra8876_Lite::lcdRegWrite(ru8 reg) 
 {
+  uint16_t _data = ((uint16_t)RA8876_SPI_CMDWRITE<<8 | reg);
+  
   RA8876_BUSY = true;
   startSend();
-  SPI.transfer(RA8876_SPI_CMDWRITE);
-  SPI.transfer(reg);
+  SPI.transfer16((uint16_t)_data);
   endSend();
 	RA8876_BUSY = false;
 }
@@ -288,10 +293,10 @@ void Ra8876_Lite::lcdRegWrite(ru8 reg)
 //**************************************************************//
 void Ra8876_Lite::lcdDataWrite(ru8 data) 
 {
+  uint16_t _data = ((uint16_t)RA8876_SPI_DATAWRITE<<8 | data);
   RA8876_BUSY = true;
   startSend();
-  SPI.transfer(RA8876_SPI_DATAWRITE);
-  SPI.transfer(data);
+  SPI.transfer16((uint16_t) _data);
   endSend();
 	RA8876_BUSY = false;
 }
@@ -301,10 +306,11 @@ void Ra8876_Lite::lcdDataWrite(ru8 data)
 //**************************************************************//
 ru8 Ra8876_Lite::lcdDataRead(void) 
 {
+  uint16_t _data = ((uint16_t)RA8876_SPI_DATAREAD<<8 | 0xFF);
+  
   RA8876_BUSY = true;
   startSend();
-  SPI.transfer(RA8876_SPI_DATAREAD);
-  ru8 data = SPI.transfer(0xff);
+  ru8 data = SPI.transfer16((uint16_t)_data);
   endSend();
     RA8876_BUSY = false;
   return data;
@@ -315,10 +321,11 @@ ru8 Ra8876_Lite::lcdDataRead(void)
 //**************************************************************//
 ru8 Ra8876_Lite::lcdStatusRead(void) 
 {
+  uint16_t _data = ((uint16_t)RA8876_SPI_STATUSREAD<<8 | 0xFF);
+  
   RA8876_BUSY = true;
   startSend();
-  SPI.transfer(RA8876_SPI_STATUSREAD);
-  ru8 data= SPI.transfer(0xff);
+  ru8 data = SPI.transfer16((uint16_t)_data);
   endSend();
 	RA8876_BUSY = false;
   return data;
@@ -327,7 +334,7 @@ ru8 Ra8876_Lite::lcdStatusRead(void)
 //**************************************************************//
 // Write Data to a RA8876 register
 //**************************************************************//
-void Ra8876_Lite::lcdRegDataWrite(ru8 reg,ru8 data)
+void Ra8876_Lite::lcdRegDataWrite(ru8 reg, ru8 data)
 {
   lcdRegWrite(reg);
   lcdDataWrite(data);
@@ -594,6 +601,7 @@ ex:
 
 	delay(1);
 	lcdRegWrite(0x01);
+	delay(2);
 	lcdDataWrite(0x80);
 	delay(2); //wait for pll stable
 	if((lcdDataRead()&0x80)==0x80)
@@ -1204,7 +1212,7 @@ void  Ra8876_Lite::drawPixel(ru16 x,ru16 y,ru16 color)
 	checkWriteFifoNotFull();	//if high speed mcu and without Xnwait check
 	lcdDataWrite(color);
 	lcdDataWrite(color>>8);
-// lcdDataWrite16bbp(color);
+	//lcdDataWrite16bbp(color);
 	checkWriteFifoEmpty();		//if high speed mcu and without Xnwait check
 	graphicMode(false);
 }
