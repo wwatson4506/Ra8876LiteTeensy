@@ -840,10 +840,8 @@ memory size. For example : page_size = 1024*600*2byte(16bpp) = 1228800byte, maxi
 #define	cClrb6		0xbf
 #define	cClrb7		0x7f
 
-//static volatile ru32 _maxspeed = 20000000;//holder for SPI speed
-static volatile ru32 _maxspeed = 39000000; // This is the fastest useable speed
-					   // with my setup.
-//static volatile ru32 _maxspeed = 24000000;//holder for SPI speed
+static volatile ru32 _maxspeed = 5000000; // Default to a relatively slow speed for breadboard testing
+					   //A "good" PCB can get up to 75000000 (75MHz) with a Teensy 4
 
 const uint32_t MEM_SIZE_MAX	= 16l*1024l*1024l;	///Max. size in byte of SDRAM
 

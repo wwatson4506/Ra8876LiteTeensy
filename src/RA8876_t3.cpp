@@ -30,29 +30,12 @@
 #include "RA8876_t3.h"
 //#include "XPT2046.h"
 
-
-#define RA8876_CS 10 //see below...
-#define RA8876_RESET 8//any pin or nothing!
-#define RA8876_MOSI 11
-#define RA8876_SCLK 13
-#define RA8876_MISO 12
-#define RA8876_BACKLITE  7
-
-// RA8876 Interrupt Pin
-//#define RA8876_INT  2
-
 // Touch Screen is not enabled at this time.
 // Uses a modified version of XPT2046. WIP
 // Touch Screen CS Pin
 #define CS_PIN	31
 // Touch Screen Interrupt Pin
 #define TIRQ_PIN	24
-
-// Used for Status Line Time Display
-IntervalTimer timeDisplay;
-static time_t timeval;
-static char datestr[80];
-struct tm *time_p;
 
 // Create a parameter save structure for all 10 screen pages	
 tftSave_t	screenSave1,
@@ -90,8 +73,6 @@ boolean RA8876_t3::init(void) {
 //	pinMode(CS_PIN,OUTPUT);
 //	digitalWrite(CS_PIN, HIGH);
 	// Setup Backlite enable pin and turn backlite on - move to sketch
-	pinMode(RA8876_BACKLITE, OUTPUT);    //backlight 
-	digitalWrite(RA8876_BACKLITE, HIGH); //on
 
 	// Initialize RA8876 driver
 	if(!Ra8876_begin())

@@ -17,9 +17,10 @@
 //#include "vt100.h"
 #include <math.h>
 
-// This example is a modified version of Sumotoy's guages example
-// from his RA8875 driver. Modified to work with the RA8876 TFT controller.
-RA8876_t3 tft = RA8876_t3(10, 8, 11, 13, 12);
+#define RA8876_CS 10
+#define RA8876_RESET 8
+#define BACKLITE 7 //External backlight control connected to this Arduino pin
+RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
 
 // Array of RA8876 Basic Colors
 PROGMEM uint16_t myColors[] = {
@@ -92,7 +93,14 @@ void drawBorder(void) {
 
 // Put it all together
 void setup() {
-	tft.init();
+  //I'm guessing most copies of this display are using external PWM
+  //backlight control instead of the internal RA8876 PWM.
+  //Connect a Teensy pin to pin 14 on the display.
+  //Can use analogWrite() but I suggest you increase the PWM frequency first so it doesn't sing.
+  pinMode(BACKLITE, OUTPUT);
+  digitalWrite(BACKLITE, HIGH);
+  
+  tft.init();
 	//initVT100();
 	tft.setFontSize(2,false);
 	tft.setTextAt(0,0);
@@ -137,7 +145,7 @@ void loop() {
 	pipNo = 1; // Select and enable PIP #1
 	tft.PIP(onOff,pipNo,SCREEN_4,xp,yp,tft.width(),xd,yd,xw,yh);
 	pipNo = 2; //Select and enable PIP #2
-	tft.PIP(onOff,pipNo,SCREEN_5,xp,yp,tft.width(),xd+700,yd+240,xw,yh);
+	tft.PIP(onOff,pipNo,SCREEN_5,xp,yp,tft.width(),xd+700,yd+215,xw,yh);
 	pipNo = 1; // Select and move PIP #1
 	drawBorder();
 	for(int i=0; i <= 700; i++) {
@@ -152,7 +160,7 @@ void loop() {
 	drawBorder();
 	pipNo = 2; // Select and move PIP #2
 	for(int i=600; i >= 0; i--) {
-		tft.PIP(onOff,pipNo,SCREEN_5,xp,yp,tft.width(),xd+i,yd+240,xw,yh);
+		tft.PIP(onOff,pipNo,SCREEN_5,xp,yp,tft.width(),xd+i,yd+215,xw,yh);
 		delayMicroseconds(pipDelay);
 		tft.setTextColorFG(myColors[i % 22],myColors[11]);
 		tft.print(c); // Print character set in text window
