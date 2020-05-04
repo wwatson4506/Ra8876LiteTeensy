@@ -841,7 +841,7 @@ memory size. For example : page_size = 1024*600*2byte(16bpp) = 1228800byte, maxi
 #define	cClrb7		0x7f
 
 //static volatile ru32 _maxspeed = 20000000;//holder for SPI speed
-static volatile ru32 _maxspeed = 30000000; // This is the fastest useable speed
+static volatile ru32 _maxspeed = 39000000; // This is the fastest useable speed
 					   // with my setup.
 //static volatile ru32 _maxspeed = 24000000;//holder for SPI speed
 
@@ -1103,16 +1103,18 @@ void setSerialFlash4BytesMode(ru8 scs_select);
 void dma_24bitAddressBlockMode(ru8 scs_selct,ru8 clk_div,ru16 x0,ru16 y0,ru16 width,ru16 height,ru16 picture_width,ru32 addr);
 void dma_32bitAddressBlockMode(ru8 scs_selct,ru8 clk_div,ru16 x0,ru16 y0,ru16 width,ru16 height,ru16 picture_width,ru32 addr);
 
-	inline __attribute__((always_inline)) 
-	void startSend(){
-		SPI.beginTransaction(SPISettings(_maxspeed, MSBFIRST, SPI_MODE0));
-			digitalWriteFast(_cs, LOW);
-	}
-	
-	inline __attribute__((always_inline)) 
-	void endSend(){
-		digitalWriteFast(_cs, HIGH);
-		SPI.endTransaction();
+
+//SPI Functions
+inline __attribute__((always_inline)) 
+void startSend(){
+	SPI.beginTransaction(SPISettings(_maxspeed, MSBFIRST, SPI_MODE0));
+	digitalWriteFast(_cs, LOW);
+}
+
+inline __attribute__((always_inline)) 
+void endSend(){
+	digitalWriteFast(_cs, HIGH);
+	SPI.endTransaction();
 } 
 
 /* PIP window funtions */

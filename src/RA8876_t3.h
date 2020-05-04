@@ -159,10 +159,10 @@ public:
 	void saveTFTParams(tftSave_t *screenSave);
 	void restoreTFTParams(tftSave_t *screenSave);
 	
-	//void print(uint8_t text);
-	void tftRawWrite(uint8_t data);
-	//void printStr(const char * str);
+	void useCanvas();
+	void updateScreen();
 	
+	void tftRawWrite(uint8_t data);
 	void printStatusLine(uint16_t x0,uint16_t fgColor,uint16_t bgColor, const char *text);
 	void fillScreen(uint16_t color);
 	void fillStatusLine(uint16_t color);
@@ -224,11 +224,6 @@ public:
 	void putPicture_16bppData8(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const unsigned char *data);
 
 	void scrollUp(void);
-	
-	void displayTime(void );
-	void timeOn(void);
-	void timeOff(void);
-
 };
 
 #endif

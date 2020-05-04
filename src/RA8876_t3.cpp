@@ -24,14 +24,12 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#include <time.h>
 #include "Arduino.h"
 #include "SPI.h"
 #include "Ra8876_Lite.h"
 #include "RA8876_t3.h"
 //#include "XPT2046.h"
-#include "TimeLib.h"
-#include "IntervalTimer.h"
+
 
 #define RA8876_CS 10 //see below...
 #define RA8876_RESET 8//any pin or nothing!
@@ -309,7 +307,7 @@ void RA8876_t3::saveTFTParams(tftSave_t *screenSave) {
 }
 
 // Restore selected screen page parameters
-void RA8876_t3:: restoreTFTParams(tftSave_t *screenSave) {
+void RA8876_t3::restoreTFTParams(tftSave_t *screenSave) {
 	 _width = screenSave->width;
 	 _height = screenSave->height;
 	 _cursorX = screenSave->cursorX;
@@ -343,8 +341,28 @@ void RA8876_t3:: restoreTFTParams(tftSave_t *screenSave) {
 	 _TXTBackColor = screenSave->TXTBackColor;
 }
 
+void RA8876_t3::useCanvas()
+{
+	displayImageStartAddress(PAGE1_START_ADDR);
+	displayImageWidth(_width);
+	displayWindowStartXY(0,0);
+	
+	canvasImageStartAddress(PAGE2_START_ADDR);
+	canvasImageWidth(_width);
+	activeWindowXY(0, 0);
+	activeWindowWH(_width, _height);
+	check2dBusy();
+	ramAccessPrepare();
+}
+
+void RA8876_t3::updateScreen() {
+	bteMemoryCopy(PAGE2_START_ADDR,_width,0,0,
+				  PAGE1_START_ADDR,_width, 0,0,
+				 _width,_height);	
+}
+
 // Setup text cursor
-void RA8876_t3:: cursorInit(void)
+void RA8876_t3::cursorInit(void)
 {
 	_cursorXsize = _FNTwidth;
 	_cursorYsize = _FNTheight-1;
@@ -353,13 +371,13 @@ void RA8876_t3:: cursorInit(void)
 	Enable_Text_Cursor_Blinking();	// Turn blinking cursor on
 }
 
-void RA8876_t3:: setCursor(uint16_t x, uint16_t y)
+void RA8876_t3::setCursor(uint16_t x, uint16_t y)
 {
 	setTextCursor(x, y);
 }
 
 //Set Graphic Mode Margins (pixel based)
-void RA8876_t3:: setMargins(uint16_t xl, uint16_t yt, uint16_t xr, uint16_t yb) {
+void RA8876_t3::setMargins(uint16_t xl, uint16_t yt, uint16_t xr, uint16_t yb) {
 	_scrollXL = xl;
 	_scrollYT = yt;
 	_scrollXR = xr;
@@ -369,7 +387,7 @@ void RA8876_t3:: setMargins(uint16_t xl, uint16_t yt, uint16_t xr, uint16_t yb) 
 }
 
 //Set Text Mode Margins (font size based)
-void RA8876_t3:: setTMargins(uint16_t xl, uint16_t yt, uint16_t xr, uint16_t yb) {
+void RA8876_t3::setTMargins(uint16_t xl, uint16_t yt, uint16_t xr, uint16_t yb) {
 	_scrollXL = xl*    _FNTwidth;
 	_scrollYT = yt*    _FNTheight;
 	_scrollXR = SCREEN_WIDTH-(xr*    _FNTwidth);
@@ -379,19 +397,19 @@ void RA8876_t3:: setTMargins(uint16_t xl, uint16_t yt, uint16_t xr, uint16_t yb)
 }
 
 // Set text prompt size (font size based)
-void RA8876_t3:: setPromptSize(uint16_t ps) {
+void RA8876_t3::setPromptSize(uint16_t ps) {
 	prompt_size = ps*(    _FNTwidth *     _scaleX) +     _scrollXL; // Default prompt ">"
 }
 
 // Clear current screen to background 'color'
-void RA8876_t3:: fillScreen(uint16_t color) {
+void RA8876_t3::fillScreen(uint16_t color) {
 	drawSquareFill(_scrollXL, _scrollYT, _scrollXR, _scrollYB, color);
 	textColor(_TXTForeColor,_TXTBackColor);
 	setTextCursor(_scrollXL,_scrollYT);
 }
 
 // Clear Status Line to background 'color'
-void RA8876_t3:: fillStatusLine(uint16_t color) {
+void RA8876_t3::fillStatusLine(uint16_t color) {
 	uint16_t temp = _TXTBackColor;
 	clearStatusLine(color);
 	_TXTBackColor = temp;
@@ -400,31 +418,31 @@ void RA8876_t3:: fillStatusLine(uint16_t color) {
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3:: setTextColor(uint16_t color)
+void RA8876_t3::setTextColor(uint16_t color)
 {
 	foreGroundColor16bpp(color);
 }
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3:: setBackGroundColor(uint16_t color)
+void RA8876_t3::setBackGroundColor(uint16_t color)
 {
 	backGroundColor16bpp(color);
 }
 
 // Set text foreground/background colors
-void RA8876_t3:: setTextColorFG(uint16_t fgc, uint16_t bgc) {
+void RA8876_t3::setTextColorFG(uint16_t fgc, uint16_t bgc) {
 	textColor(fgc,bgc);
 }
 
 
 // Send a character directly to video memory (No control ASCII codes are processed).
-void RA8876_t3:: tftRawWrite(uint8_t data) {
+void RA8876_t3::tftRawWrite(uint8_t data) {
 	rawPrint(data);
 }
 	
 // Send a string to the status line
-void RA8876_t3:: printStatusLine(uint16_t x0,uint16_t fgColor,uint16_t bgColor, const char *text) {
+void RA8876_t3::printStatusLine(uint16_t x0,uint16_t fgColor,uint16_t bgColor, const char *text) {
 	writeStatusLine(x0*(_FNTwidth*_scaleX), fgColor, bgColor, text);	
 }
 
@@ -462,7 +480,7 @@ uint8_t RA8876_t3::fontLoad(char *fontfile) {
 #endif
 
 // Select internal fonts or user defined fonts (0 for internal or 1 for user defined)
-void RA8876_t3:: setFontSource(uint8_t source) {
+void RA8876_t3::setFontSource(uint8_t source) {
 	switch(source) {
 	case 0:
 		_scaleX = 1;
@@ -535,7 +553,7 @@ boolean RA8876_t3::setFontSize(uint8_t scale, boolean runflag) {
 }
 
 // Text cursor on or off
-void RA8876_t3:: setCursorMode(boolean mode) {
+void RA8876_t3::setCursorMode(boolean mode) {
 
 	if(mode == false)
 		Disable_Text_Cursor();	// No cursor
@@ -544,7 +562,7 @@ void RA8876_t3:: setCursorMode(boolean mode) {
 }
 
 // Set text cursor type
-void RA8876_t3:: setCursorType(uint8_t type) {
+void RA8876_t3::setCursorType(uint8_t type) {
 
 	switch(type) {
 		case 0:
@@ -565,7 +583,7 @@ void RA8876_t3:: setCursorType(uint8_t type) {
 }
 
 // Set text cursor blink mode (On or Off)
-void RA8876_t3:: setCursorBlink(boolean onOff) {
+void RA8876_t3::setCursorBlink(boolean onOff) {
 	if(onOff)
 		Enable_Text_Cursor_Blinking();
 	else
@@ -573,7 +591,7 @@ void RA8876_t3:: setCursorBlink(boolean onOff) {
 }
 	
 // Position text cursor
-void RA8876_t3:: setTextAt(int16_t x, int16_t y) {
+void RA8876_t3::setTextAt(int16_t x, int16_t y) {
 	textxy((uint16_t)x,(uint16_t)y);
 }
 
@@ -619,7 +637,7 @@ uint8_t RA8876_t3::getFontWidth(void) {
 }
 
 // Draw a rectangle. TODO: Add line thickness size
-void RA8876_t3:: drawRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t color) {
+void RA8876_t3::drawRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t color) {
 	uint16_t tempColor = _TXTForeColor;
 	drawSquare(x, y, w, h, color);
 	_TXTForeColor = tempColor;
@@ -627,7 +645,7 @@ void RA8876_t3:: drawRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t co
 }
 
 // Draw a filled rectangle.
-void RA8876_t3:: fillRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t color) {
+void RA8876_t3::fillRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t color) {
 	uint16_t tempColor = _TXTForeColor;
 	drawSquareFill(x, y, w, h, color);
 	_TXTForeColor = tempColor;
@@ -635,17 +653,17 @@ void RA8876_t3:: fillRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t co
 }
 
 // Draw a round rectangle. TODO: Add line thickness size
-void RA8876_t3:: drawRoundRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t xr, uint16_t yr, uint16_t color) {
+void RA8876_t3::drawRoundRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t xr, uint16_t yr, uint16_t color) {
 	drawCircleSquare(x, y, w, h, xr, yr, color);
 }
 
 // Draw a filed round rectangle.
-void RA8876_t3:: fillRoundRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t xr, uint16_t yr, uint16_t color) {
+void RA8876_t3::fillRoundRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t xr, uint16_t yr, uint16_t color) {
 	drawCircleSquareFill(x, y, w, h, xr, yr, color);
 }
 
 // Enable Touch Screen.
-void RA8876_t3:: touchEnable(boolean enabled) {
+void RA8876_t3::touchEnable(boolean enabled) {
 //		touchEnable(enabled);
 }
 
@@ -656,27 +674,27 @@ return false; // return false for now
 }
 
 // Draw a filled circle
-void RA8876_t3:: fillCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color) {
+void RA8876_t3::fillCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color) {
 	drawCircleFill(x0, y0, r, color);
 }
 
 // Draw a filled ellipse.
-void RA8876_t3:: fillEllipse(int16_t xCenter, int16_t yCenter, int16_t longAxis, int16_t shortAxis, uint16_t color) {
+void RA8876_t3::fillEllipse(int16_t xCenter, int16_t yCenter, int16_t longAxis, int16_t shortAxis, uint16_t color) {
 	drawEllipseFill(xCenter, yCenter, longAxis, shortAxis, color);
 }
 
 // Draw a filled triangle
-void RA8876_t3:: fillTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color) {
+void RA8876_t3::fillTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color) {
 	drawTriangleFill(x0, y0, x1, y1, x2, y2, color);
 }
 
 // Read touch screen ADC
-void RA8876_t3:: readTouchADC(uint16_t *x, uint16_t *y) {
+void RA8876_t3::readTouchADC(uint16_t *x, uint16_t *y) {
 //	touchReadAdc(x, y);//we using 10bit adc data here
 }
 
 // Setup graphic mouse cursor// Draw an ellipse. TODO: Add line thickness size
-void RA8876_t3:: gCursorSet(boolean gcursoronoff, uint8_t gcursortype, uint8_t gcursorcolor1, uint8_t gcursorcolor2) {
+void RA8876_t3::gCursorSet(boolean gcursoronoff, uint8_t gcursortype, uint8_t gcursorcolor1, uint8_t gcursorcolor2) {
 	if (gcursoronoff == 0)
 		Disable_Graphic_Cursor();
 	else
@@ -702,7 +720,7 @@ void RA8876_t3:: gCursorSet(boolean gcursoronoff, uint8_t gcursortype, uint8_t g
 }
 
 // Set graphic cursor position on screen
-void RA8876_t3:: gcursorxy(uint16_t gcx, uint16_t gcy) {
+void RA8876_t3::gcursorxy(uint16_t gcx, uint16_t gcy) {
 	Graphic_Cursor_XY(gcx, gcy);
 }
 
@@ -710,7 +728,7 @@ void RA8876_t3:: gcursorxy(uint16_t gcx, uint16_t gcy) {
 //= The following Graphic Button functions are based on Adafruits Graphic button libraries =
 //==========================================================================================
 // Initialize a graphic button. 
-void RA8876_t3:: initButton(struct Gbuttons *buttons, uint16_t x, uint16_t y, uint8_t w, uint8_t h,
+void RA8876_t3::initButton(struct Gbuttons *buttons, uint16_t x, uint16_t y, uint8_t w, uint8_t h,
  uint16_t outline, uint16_t fill, uint16_t textcolor,
  char *label, uint8_t textsize)
 {
@@ -727,7 +745,7 @@ void RA8876_t3:: initButton(struct Gbuttons *buttons, uint16_t x, uint16_t y, ui
 }
 
 // Draw graphic button. (not completely implemented yet)
-void RA8876_t3:: drawButton(struct Gbuttons *buttons, boolean inverted) {
+void RA8876_t3::drawButton(struct Gbuttons *buttons, boolean inverted) {
   uint16_t fill, outline;
 //  uint16_t text;
   uint16_t fgcolor = _TXTForeColor;	
@@ -763,7 +781,7 @@ boolean RA8876_t3::buttonContains(struct Gbuttons *buttons, uint16_t x, uint16_t
 }
 
 // Signal state of buttons: true = pressed, false = released
-void RA8876_t3:: buttonPress(struct Gbuttons *buttons, boolean p) {
+void RA8876_t3::buttonPress(struct Gbuttons *buttons, boolean p) {
   buttons->laststate = buttons->currstate;
   buttons->currstate = p;
 }
@@ -791,55 +809,19 @@ return false;
 }
 
 // Get Touch Screen x/y coords.
-void RA8876_t3:: getTSpoint(uint16_t *x, uint16_t *y) {
+void RA8876_t3::getTSpoint(uint16_t *x, uint16_t *y) {
 //	touch.getPosition(x,y);
 }
 
 // Put a picture on the screen using raw picture data
-void RA8876_t3:: putPicture_16bppData8(ru16 x, ru16 y, ru16 w, ru16 h, const unsigned char *data) {
+void RA8876_t3::putPicture_16bppData8(ru16 x, ru16 y, ru16 w, ru16 h, const unsigned char *data) {
 	putPicture_16bppData8(x, y, w, h, data);
 }
 
 
 // Scroll the screen up one text line
-void RA8876_t3:: scrollUp(void ) {
+void RA8876_t3::scrollUp(void ) {
 	scroll();
-}
-
-// Display time/date on the status bar
-void RA8876_t3:: displayTime(void )
-{
-	uint16_t tempFNTHeight = _FNTheight;
-	uint16_t tempFNTWidth = _FNTwidth;
-	
-//	timeval = rtc_get();
-//printf("timeval = %lu\n",timeval);
-//	time_p = localtime( &timeval );
-//	strftime(datestr,80,"%a %b %d %Y %I:%M:%S %p", time_p);
-//	mktime(datestr,80,"%a %b %d %Y %I:%M:%S %p", time_p);
-//	if(RA8876_BUSY == false) { // do not write to display if SPI is busy
-//		check2dBusy();
-//		_FNTheight = 24;
-//		_FNTwidth = 16;
-//		buildTextScreen();
-//		writeStatusLine((43*(_FNTwidth*_scaleX))+8, _TXTForeColor, _TXTBackColor,datestr);
-//		_FNTheight = tempFNTHeight;
-//		_FNTwidth = tempFNTWidth;
-//		buildTextScreen();
-//	}
-}
-
-// turn on time display on status line
-void RA8876_t3:: timeOn(void) {
-	//Start a PIT counter to display time on status bar every second
-	//timeDisplay.begin(displayTime,1000000);
-	//displayTime();
-}
-
-// turn off time display on status line
-void RA8876_t3:: timeOff(void) {
-	//Stop a PIT counter to display time on status bar every second
-	//timeDisplay.end();
 }
 
 //=======================================================================
