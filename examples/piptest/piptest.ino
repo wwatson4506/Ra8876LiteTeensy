@@ -79,15 +79,15 @@ void drawBorder(void) {
 	fh = tft.getFontHeight();
 	x = (10*fw)-thickness;
 	y = (2*fh)-thickness;
-	w = tft.width()-(10*fw) + thickness;
-	h = tft.height()-(2*fh) + thickness;
+	w = tft.width()-(20*fw) + 2*thickness;
+	h = tft.height()-(4*fh) + 2*thickness;
 	color = random(0,65535) | 0x5555;
 	for(int i = 1; i <= thickness; i++) {
 		tft.drawRect(x, y, w, h, color);
 		x+=1;
 		y+=1;
-		w-=1;
-		h-=1;
+		w-=2;
+		h-=2;
 	}
 }
 
@@ -100,38 +100,38 @@ void setup() {
   pinMode(BACKLITE, OUTPUT);
   digitalWrite(BACKLITE, HIGH);
   
-  tft.init();
+  tft.begin();
 	//initVT100();
 	tft.setFontSize(2,false);
-	tft.setTextAt(0,0);
+	tft.setCursor(0,0);
 	tft.fillScreen(myColors[11]);
 	len = strlen(title);
-	tft.setTextColorFG(myColors[6],myColors[11]);
-	tft.setTextAt((tft.width()/2) - (len/2),0);
+	tft.setTextColor(myColors[6],myColors[11]);
+	tft.setCursor((tft.width()/2) - (len/2)*tft.getFontWidth(),0);
 	tft.println(title);
-	tft.setTextColorFG(myColors[1],myColors[11]);
+	tft.setTextColor(myColors[1],myColors[11]);
 	tft.setFontSize(1,true);
 	tft.setTMargins(10, 2, 10, 2); //Setup a text window
 	
 	// Setup PIP window #1 on screen page #4
-	tft.setTextColorFG(myColors[1],myColors[11]);
+	tft.setTextColor(myColors[1],myColors[11]);
 	tft.selectScreen(SCREEN_4); // Select screen page 4
 	tft.fillScreen(myColors[13]);
 	tft.setFontSize(1,true); // Set 12x24 font size
-	tft.setTextAt(0,0);
-	tft.setTextColorFG(myColors[0],myColors[13]);
+	tft.setCursor(0,0);
+	tft.setTextColor(myColors[0],myColors[13]);
 	tft.println(pip1);
 	tft.fillCircle(xw / 2, yh / 2, 100, myColors[2]);
 
 	// Setup PIP window #2 on screen page #5
-	tft.setTextColorFG(myColors[1],myColors[11]);
+	tft.setTextColor(myColors[1],myColors[11]);
 	tft.selectScreen(SCREEN_5); // Select screen page 5
 	tft.fillScreen(myColors[6]);
 	tft.setFontSize(2,true); // Set 16x32 font size
-	tft.setTextAt(0,0);
-	tft.setTextColorFG(myColors[0],myColors[6]);
+	tft.setCursor(0,0);
+	tft.setTextColor(myColors[0],myColors[6]);
 	tft.println(pip2);
-	tft.fillRect(xw - 300, yh - 200 , 300, 200, myColors[15]);
+	tft.fillRect(xw - 300, yh - 200 , 100, 100, myColors[15]);
 	// Set screen page #1 as the active screen page
 	tft.selectScreen(SCREEN_1); // Select home page
 }
@@ -151,7 +151,7 @@ void loop() {
 	for(int i=0; i <= 700; i++) {
 		tft.PIP(onOff,pipNo,SCREEN_4,xp,yp,tft.width(),xd+i,yd,xw,yh);
 		delayMicroseconds(pipDelay);
-		tft.setTextColorFG(myColors[i % 22],myColors[11]);
+		tft.setTextColor(myColors[i % 22],myColors[11]);
 		tft.print(c); // Print character set in text window
 		c++;
 		if(c == 255)
@@ -159,10 +159,10 @@ void loop() {
 	}
 	drawBorder();
 	pipNo = 2; // Select and move PIP #2
-	for(int i=600; i >= 0; i--) {
+	for(int i=700; i >= 0; i--) {
 		tft.PIP(onOff,pipNo,SCREEN_5,xp,yp,tft.width(),xd+i,yd+215,xw,yh);
 		delayMicroseconds(pipDelay);
-		tft.setTextColorFG(myColors[i % 22],myColors[11]);
+		tft.setTextColor(myColors[i % 22],myColors[11]);
 		tft.print(c); // Print character set in text window
 		c++;
 		if(c == 255)

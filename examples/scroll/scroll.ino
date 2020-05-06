@@ -51,11 +51,12 @@ void setup() {
   pinMode(BACKLITE, OUTPUT);
   digitalWrite(BACKLITE, HIGH);
   
-  tft.init();
+  tft.begin();
 	//initVT100();
 	tft.setTextAt(0,0);
 	tft.fillStatusLine(myColors[11]);
 	tft.setFontSize(1,false);
+	tft.setMargins(0, 0, tft.width(), tft.height()); //so scroll doesn't erase the status bar
 }
 
 void loop() {

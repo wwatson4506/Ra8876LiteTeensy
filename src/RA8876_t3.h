@@ -150,7 +150,7 @@ class RA8876_t3 : public Ra8876_Lite
 public:
 	RA8876_t3(const uint8_t CSp = 10, const uint8_t RSTp = 8, const uint8_t mosi_pin = 11, const uint8_t sclk_pin = 13, const uint8_t miso_pin = 12);
 
-	boolean init(void);
+	boolean begin(void);
 	uint8_t vmemReadData(uint32_t addr);
 	void vmemWriteData(uint32_t addr, uint8_t vmemData);
 	uint16_t vmemReadData16(uint32_t addr);
@@ -168,7 +168,7 @@ public:
 	void fillStatusLine(uint16_t color);
 	void setTextColor(uint16_t color);
 	void setBackGroundColor(uint16_t color);
-	void setTextColorFG(uint16_t fgc, uint16_t bgc);
+	void setTextColor(uint16_t fgc, uint16_t bgc);
 	int16_t getTextX(void);
 
 	void setMargins(uint16_t xl, uint16_t yt, uint16_t xr, uint16_t yb);
@@ -179,7 +179,6 @@ public:
 	void setFontSource(uint8_t source);
 	boolean setFontSize(uint8_t scale, boolean runflag=false);
 	void setTextSize(uint8_t scale, boolean runflag=false) { setFontSize(scale, runflag);}
-	void setTextAt(int16_t x, int16_t y);
 	int16_t getTextY(void);
 	int16_t getTwidth(void);
 	int16_t getTheight(void);

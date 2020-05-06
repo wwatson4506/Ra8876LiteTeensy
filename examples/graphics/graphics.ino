@@ -329,7 +329,7 @@ void setup() {
   pinMode(BACKLITE, OUTPUT);
   digitalWrite(BACKLITE, HIGH);
     
-	tft.init();
+	tft.begin();
 	//initVT100();
   tft.setTextAt(0,0);
 	tft.fillScreen(myColors[11]);

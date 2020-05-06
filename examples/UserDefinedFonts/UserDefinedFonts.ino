@@ -47,7 +47,7 @@ void setup() {
   pinMode(BACKLITE, OUTPUT);
   digitalWrite(BACKLITE, HIGH);
       
-	tft.init();
+	tft.begin();
 	//initVT100();
 	tft.fontLoadMEM((char *)font8x16);
 	tft.setFontSize(1,false);

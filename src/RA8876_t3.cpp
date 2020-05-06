@@ -68,7 +68,7 @@ RA8876_t3::RA8876_t3(const uint8_t CSp, const uint8_t RSTp, const uint8_t mosi_p
 // Initialize Touch Screen driver
 //XPT2046 touch(CS_PIN, TIRQ_PIN);
 
-boolean RA8876_t3::init(void) {
+boolean RA8876_t3::begin(void) {
 	// Setup Touch Screen Pin as Output
 //	pinMode(CS_PIN,OUTPUT);
 //	digitalWrite(CS_PIN, HIGH);
@@ -91,7 +91,7 @@ boolean RA8876_t3::init(void) {
 	Graphic_cursor_initial();  // Initialize Graphic Cursor
     Select_Graphic_Cursor_2(); // Select Arrow Graphic Cursor
 	// Set default foreground and background colors
-	setTextColorFG(_TXTForeColor, _TXTBackColor);	
+	setTextColor(_TXTForeColor, _TXTBackColor);	
 	// Position text cursor to default
 	setTextCursor(_scrollXL, _scrollYT);
 	// Setup Text Cursor
@@ -372,8 +372,8 @@ void RA8876_t3::setMargins(uint16_t xl, uint16_t yt, uint16_t xr, uint16_t yb) {
 void RA8876_t3::setTMargins(uint16_t xl, uint16_t yt, uint16_t xr, uint16_t yb) {
 	_scrollXL = xl*    _FNTwidth;
 	_scrollYT = yt*    _FNTheight;
-	_scrollXR = SCREEN_WIDTH-(xr*    _FNTwidth);
-	_scrollYB = SCREEN_HEIGHT-(yb*    _FNTheight);
+	_scrollXR = _width-(xr*    _FNTwidth);
+	_scrollYB = _height-(yb*    _FNTheight);
 	buildTextScreen();	
 	setTextCursor(    _scrollXL,    _scrollYT);
 }
@@ -400,6 +400,7 @@ void RA8876_t3::fillStatusLine(uint16_t color) {
 }
 
 //**************************************************************//
+// Note that, unlike the RA88875, this does not set BG transparent!
 //**************************************************************//
 void RA8876_t3::setTextColor(uint16_t color)
 {
@@ -413,8 +414,8 @@ void RA8876_t3::setBackGroundColor(uint16_t color)
 	backGroundColor16bpp(color);
 }
 
-// Set text foreground/background colors
-void RA8876_t3::setTextColorFG(uint16_t fgc, uint16_t bgc) {
+// Set text foreground + background colors
+void RA8876_t3::setTextColor(uint16_t fgc, uint16_t bgc) {
 	textColor(fgc,bgc);
 }
 
@@ -525,7 +526,7 @@ boolean RA8876_t3::setFontSize(uint8_t scale, boolean runflag) {
 	buildTextScreen();
 	cursorInit();
 	if(runflag == false) {
-		drawSquareFill(0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1, _TXTBackColor);
+		drawSquareFill(0, 0, _width-1, _height-1, _TXTBackColor);
 		//have to wait for fill to finish before changing the foreground color...
 		check2dBusy();
 		textColor(_TXTForeColor,_TXTBackColor);
@@ -575,10 +576,7 @@ void RA8876_t3::setCursorBlink(boolean onOff) {
 		Disable_Text_Cursor_Blinking();
 }
 	
-// Position text cursor
-void RA8876_t3::setTextAt(int16_t x, int16_t y) {
-	textxy((uint16_t)x,(uint16_t)y);
-}
+// If you're looking to set text write position in characters within the current scroll window then use textxy()
 
 // Get cursor X position
 int16_t RA8876_t3::getTextX(void) {
@@ -623,22 +621,22 @@ uint8_t RA8876_t3::getFontWidth(void) {
 
 // Draw a rectangle. Note: damages text color register
 void RA8876_t3::drawRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t color) {
-	drawSquare(x, y, w, h, color);
+	drawSquare(x, y, x+w-1, y+h-1, color);
 }
 
 // Draw a filled rectangle. Note: damages text color register
 void RA8876_t3::fillRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t color) {
-	drawSquareFill(x, y, w, h, color);
+	drawSquareFill(x, y, x+w-1, y+h-1, color);
 }
 
 // Draw a round rectangle. 
 void RA8876_t3::drawRoundRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t xr, uint16_t yr, uint16_t color) {
-	drawCircleSquare(x, y, w, h, xr, yr, color);
+	drawCircleSquare(x, y, x+w-1, y+h-1, xr, yr, color);
 }
 
 // Draw a filed round rectangle.
 void RA8876_t3::fillRoundRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t xr, uint16_t yr, uint16_t color) {
-	drawCircleSquareFill(x, y, w, h, xr, yr, color);
+	drawCircleSquareFill(x, y, x+w-1, y+h-1, xr, yr, color);
 }
 
 // Enable Touch Screen.

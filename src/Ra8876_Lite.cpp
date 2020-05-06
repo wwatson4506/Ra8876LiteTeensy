@@ -420,7 +420,7 @@ BTE, Geometry engine, Serial flash DMA, Text write or Graphic write
 A typical task like drawing a rectangle might take 30-150 microseconds, 
     depending on size
 A large filled rectangle might take 3300 microseconds
-//**************************************************************/
+*****************************************************************/
 void Ra8876_Lite::check2dBusy(void)  
 {  ru32 i; 
    for(i=0;i<5000000;i++)   //Please according to your usage to modify i value.
@@ -1255,8 +1255,7 @@ void  Ra8876_Lite::putPicture_16bppData8(ru16 x,ru16 y,ru16 width, ru16 height, 
 	} 
 	checkWriteFifoEmpty();				//if high speed mcu and without Xnwait check
 	activeWindowXY(0,0);
-// activeWindowWH(SCREEN_WIDTH,SCREEN_HEIGHT);
-	activeWindowWH(SCREEN_WIDTH,600);
+    activeWindowWH(SCREEN_WIDTH,SCREEN_HEIGHT);
 }
 
 //****************************************************************//
@@ -1280,8 +1279,7 @@ void  Ra8876_Lite::putPicture_16bppData16(ru16 x,ru16 y,ru16 width, ru16 height,
 	} 
 	checkWriteFifoEmpty();//if high speed mcu and without Xnwait check
 	activeWindowXY(0,0);
-	// activeWindowWH(SCREEN_WIDTH,SCREEN_HEIGHT);
-	activeWindowWH(SCREEN_WIDTH,600);
+	activeWindowWH(SCREEN_WIDTH,SCREEN_HEIGHT);
 }
 
 //***************************************************//
@@ -1316,6 +1314,7 @@ void Ra8876_Lite::textColor(ru16 foreground_color,ru16 background_color)
 
 //**************************************************************//
 /* Position Text Cursor                                         */
+/* in pixel coordinates                                         */
 //**************************************************************//
 void  Ra8876_Lite::setTextCursor(ru16 x,ru16 y)
 {
@@ -1327,7 +1326,7 @@ void  Ra8876_Lite::setTextCursor(ru16 x,ru16 y)
 }
 
 //***************************************************************//
-/* Used by ClearActiveScreen(), (Window OP's)                    */
+/* Position text cursor in character units                       */
 //***************************************************************//
 void Ra8876_Lite::textxy(ru16 x, ru16 y)
 {
@@ -1393,7 +1392,8 @@ void  Ra8876_Lite::putString(ru16 x0,ru16 y0, const char *str)
 /* Clear the status line                                        */
 //**************************************************************//
 void Ra8876_Lite::clearStatusLine(uint16_t color) {
-	drawSquareFill(0,SCREEN_HEIGHT-1,SCREEN_WIDTH-1,600,color);
+	_height = SCREEN_HEIGHT-STATUS_LINE_HEIGHT;
+	drawSquareFill(0,_height-1,_width,SCREEN_HEIGHT-1,color);
     check2dBusy();
 }
 
@@ -1406,6 +1406,7 @@ void Ra8876_Lite::clearStatusLine(uint16_t color) {
 //**************************************************************//
 void  Ra8876_Lite::writeStatusLine(ru16 x0, uint16_t fgcolor, uint16_t bgcolor, const char *str)
 {
+	_height = SCREEN_HEIGHT-STATUS_LINE_HEIGHT;
 	uint16_t tempX = _cursorX;
 	uint16_t tempY = _cursorY;
 	uint16_t tempBGColor = _TXTBackColor;
@@ -1427,7 +1428,7 @@ void  Ra8876_Lite::writeStatusLine(ru16 x0, uint16_t fgcolor, uint16_t bgcolor, 
 
 	buildTextScreen();
 	textMode(true);
-	setTextCursor(x0,576);
+	setTextCursor(x0, _height);
 	textColor(fgcolor,bgcolor);
 	if(!UDFont) {
 		ramAccessPrepare();

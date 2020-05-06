@@ -99,8 +99,13 @@ typedef uint32_t	ru32;
 
 #define RA8877_LVDS_FORMAT  0    // 0:Format1(VESA format), 1:Format2 =(JEIDA format) 
 
-#define SCREEN_WIDTH 1024
-#define SCREEN_HEIGHT 576	// was 600, leave room for a status line
+//Physical size of screen - these numbers won't change even if rotation is applied or status bar occupies some screen area
+#define SCREEN_WIDTH HDW
+#define SCREEN_HEIGHT VDH
+
+//pixels to reserve for status line (if any status line functions get used)
+#define STATUS_LINE_HEIGHT 24
+
 
 /*Page(image buffer) configure*/
 /*The maximum number of pages is based on SDRAM capacity and color depth and width and height of one page*/
@@ -862,7 +867,7 @@ private:
 
 public:
 	// Global Variables
-	volatile boolean			  _textMode;
+	boolean			  _textMode;
 	int16_t 		 			  _width, 			  _height;
 	int16_t						  _cursorX, 		  _cursorY;
 	uint8_t						  _scaleX,			  _scaleY;
