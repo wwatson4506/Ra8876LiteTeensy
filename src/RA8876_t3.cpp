@@ -157,6 +157,7 @@ boolean RA8876_t3::init(void) {
 // and my USBKeyboard host driver.
 // Also, STBASIC Commands: screen 0 to screen 8
 void RA8876_t3::selectScreen(uint32_t screenPage) {
+	check2dBusy();
 	tftSave_t *tempSave, *tempRestore;
 	// Don't Select the current screen page
 	if(screenPage == currentPage)
@@ -385,6 +386,7 @@ void RA8876_t3::setPromptSize(uint16_t ps) {
 // Clear current screen to background 'color'
 void RA8876_t3::fillScreen(uint16_t color) {
 	drawSquareFill(_scrollXL, _scrollYT, _scrollXR, _scrollYB, color);
+	check2dBusy();  //must wait for fill to finish before setting foreground color
 	textColor(_TXTForeColor,_TXTBackColor);
 	setTextCursor(_scrollXL,_scrollYT);
 }
@@ -524,6 +526,8 @@ boolean RA8876_t3::setFontSize(uint8_t scale, boolean runflag) {
 	cursorInit();
 	if(runflag == false) {
 		drawSquareFill(0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1, _TXTBackColor);
+		//have to wait for fill to finish before changing the foreground color...
+		check2dBusy();
 		textColor(_TXTForeColor,_TXTBackColor);
 		setTextCursor(0,0);
 	}
@@ -617,23 +621,17 @@ uint8_t RA8876_t3::getFontWidth(void) {
 	return _FNTwidth * _scaleX;
 }
 
-// Draw a rectangle. TODO: Add line thickness size
+// Draw a rectangle. Note: damages text color register
 void RA8876_t3::drawRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t color) {
-	uint16_t tempColor = _TXTForeColor;
 	drawSquare(x, y, w, h, color);
-	_TXTForeColor = tempColor;
-	setTextColorFG(_TXTForeColor, _TXTBackColor);
 }
 
-// Draw a filled rectangle.
+// Draw a filled rectangle. Note: damages text color register
 void RA8876_t3::fillRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t color) {
-	uint16_t tempColor = _TXTForeColor;
 	drawSquareFill(x, y, w, h, color);
-	_TXTForeColor = tempColor;
-	setTextColorFG(_TXTForeColor,_TXTBackColor);
 }
 
-// Draw a round rectangle. TODO: Add line thickness size
+// Draw a round rectangle. 
 void RA8876_t3::drawRoundRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t xr, uint16_t yr, uint16_t color) {
 	drawCircleSquare(x, y, w, h, xr, yr, color);
 }
