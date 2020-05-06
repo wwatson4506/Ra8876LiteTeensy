@@ -51,6 +51,10 @@ typedef uint32_t	ru32;
 #define RA8876_SPI_DATAWRITE   0x80
 #define RA8876_SPI_DATAREAD    0xc0
 #define RA8876_SPI_STATUSREAD  0x40
+#define RA8876_SPI_CMDWRITE16    (ru16)0x0000
+#define RA8876_SPI_DATAWRITE16   (ru16)0x8000
+#define RA8876_SPI_DATAREAD16    (ru16)0xc000
+#define RA8876_SPI_STATUSREAD16  (ru16)0x4000
 
 /*==== [SW_(1)]  PLL  =====*/
 //Crystal resonator for RA8876, suggested 10MHz
@@ -95,8 +99,13 @@ typedef uint32_t	ru32;
 
 #define RA8877_LVDS_FORMAT  0    // 0:Format1(VESA format), 1:Format2 =(JEIDA format) 
 
-#define SCREEN_WIDTH 1024
-#define SCREEN_HEIGHT 576	// was 600, leave room for a status line
+//Physical size of screen - these numbers won't change even if rotation is applied or status bar occupies some screen area
+#define SCREEN_WIDTH HDW
+#define SCREEN_HEIGHT VDH
+
+//pixels to reserve for status line (if any status line functions get used)
+#define STATUS_LINE_HEIGHT 24
+
 
 /*Page(image buffer) configure*/
 /*The maximum number of pages is based on SDRAM capacity and color depth and width and height of one page*/
@@ -840,10 +849,8 @@ memory size. For example : page_size = 1024*600*2byte(16bpp) = 1228800byte, maxi
 #define	cClrb6		0xbf
 #define	cClrb7		0x7f
 
-//static volatile ru32 _maxspeed = 20000000;//holder for SPI speed
-static volatile ru32 _maxspeed = 39000000; // This is the fastest useable speed
-					   // with my setup.
-//static volatile ru32 _maxspeed = 24000000;//holder for SPI speed
+static volatile ru32 _maxspeed = 5000000; // Default to a relatively slow speed for breadboard testing
+					   //A "good" PCB can get up to 75000000 (75MHz) with a Teensy 4
 
 const uint32_t MEM_SIZE_MAX	= 16l*1024l*1024l;	///Max. size in byte of SDRAM
 
@@ -860,7 +867,7 @@ private:
 
 public:
 	// Global Variables
-	volatile boolean			  _textMode;
+	boolean			  _textMode;
 	int16_t 		 			  _width, 			  _height;
 	int16_t						  _cursorX, 		  _cursorY;
 	uint8_t						  _scaleX,			  _scaleY;
@@ -869,7 +876,7 @@ public:
 	uint8_t _cursorXsize;
 	uint8_t _cursorYsize;
 
-	volatile bool	RA8876_BUSY;
+	volatile bool	RA8876_BUSY; //This is used to show an SPI transaction is in progress. 
 
 	uint32_t currentPage;
 	uint32_t lastPage;
@@ -902,15 +909,15 @@ public:
 	boolean ra8876SdramInitial(void);
 
 	/*access*/
-	void lcdRegWrite(ru8 reg);
-	void lcdDataWrite(ru8 data);
-	ru8 lcdDataRead(void);
-	ru16 lcdDataRead16bpp(void);
-	ru8 lcdStatusRead(void);
-	void lcdRegDataWrite(ru8 reg,ru8 data);
-	ru8 lcdRegDataRead(ru8 reg);
-	void lcdDataWrite16bbp(ru16 data); 
-	/*Staus*/
+	void lcdRegWrite(ru8 reg, bool finalize = true);
+	void lcdDataWrite(ru8 data, bool finalize = true);
+	ru8 lcdDataRead(bool finalize = true);
+	ru16 lcdDataRead16bpp(bool finalize = true);
+	ru8 lcdStatusRead(bool finalize = true);
+	void lcdRegDataWrite(ru8 reg,ru8 data, bool finalize = true);
+	ru8 lcdRegDataRead(ru8 reg, bool finalize = true);
+	void lcdDataWrite16bbp(ru16 data, bool finalize = true); 
+	/*Status*/
 	void checkWriteFifoNotFull(void);
 	void checkWriteFifoEmpty(void);
 	void checkReadFifoNotFull(void);
@@ -960,8 +967,8 @@ public:
 	void pwm1_Duty(ru16 duty);
 			
 	void ramAccessPrepare(void);
-	void foreGroundColor16bpp(ru16 color);
-	void backGroundColor16bpp(ru16 color);
+	void foreGroundColor16bpp(ru16 color, bool finalize = true);
+	void backGroundColor16bpp(ru16 color, bool finalize = true);
 
 	/*graphic function*/
 	void graphicMode(boolean on);
@@ -1042,121 +1049,127 @@ public:
 	virtual size_t write(uint8_t);
 	virtual size_t write(const uint8_t *buffer, size_t size);
 	
-size_t rawPrint(uint8_t text);
-void update_xy(void);
-void update_tft(uint8_t data);
-void Enable_Text_Cursor(void);
-void Disable_Text_Cursor(void);
-void Enable_Text_Cursor_Blinking(void);
-void Disable_Text_Cursor_Blinking(void);
-void Blinking_Time_Frames(unsigned char temp);
-void Text_Cursor_H_V(unsigned short WX,unsigned short HY);
-void scroll(void);
-void scrollDown(void);
- 
-/*draw function*/
-void drawLine(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color);
-void drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color);
-void drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color);
-void drawSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color);
-void drawSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color);
-void drawCircleSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru16 yr, ru16 color);
-void drawCircleSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru16 yr, ru16 color);
-void drawTriangle(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru16 color);
-void drawTriangleFill(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru16 color);
-void drawCircle(ru16 x0,ru16 y0,ru16 r,ru16 color);
-void drawCircleFill(ru16 x0,ru16 y0,ru16 r,ru16 color);
-void drawEllipse(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color);
-void drawEllipseFill(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color);
- 
-/*BTE function*/
-void bteMemoryCopy(ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,ru32 des_addr,ru16 des_image_width, 
-                   ru16 des_x,ru16 des_y,ru16 copy_width,ru16 copy_height);
-void bteMemoryCopyWithROP(ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,
-                           ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 copy_width,ru16 copy_height,ru8 rop_code);
-void bteMemoryCopyWithChromaKey(ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
-                               ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 copy_width,ru16 copy_height,ru16 chromakey_color);
-void bteMpuWriteWithROPData8(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
-                        ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned char *data);
-void bteMpuWriteWithROPData16(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
-                        ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned short *data);
-void bteMpuWriteWithROP(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
-                        ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code);                     
-void bteMpuWriteWithChromaKeyData8(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 chromakey_color,
-                             const unsigned char *data);
-void bteMpuWriteWithChromaKeyData16(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 chromakey_color,
-                             const unsigned short *data);
-void bteMpuWriteWithChromaKey(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 chromakey_color);
-void bteMpuWriteColorExpansionData(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 foreground_color,ru16 background_color,const unsigned char *data);
-void bteMpuWriteColorExpansion(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 foreground_color,ru16 background_color);
-void bteMpuWriteColorExpansionWithChromaKeyData(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,
-                                            ru16 foreground_color,ru16 background_color,const unsigned char *data);
-void bteMpuWriteColorExpansionWithChromaKey(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,
-                                            ru16 width,ru16 height,ru16 foreground_color,ru16 background_color);
+	size_t rawPrint(uint8_t text);
+	void update_xy(void);
+	void update_tft(uint8_t data);
+	void Enable_Text_Cursor(void);
+	void Disable_Text_Cursor(void);
+	void Enable_Text_Cursor_Blinking(void);
+	void Disable_Text_Cursor_Blinking(void);
+	void Blinking_Time_Frames(unsigned char temp);
+	void Text_Cursor_H_V(unsigned short WX,unsigned short HY);
+	void scroll(void);
+	void scrollDown(void);
+	 
+	/*draw function*/
+	void drawLine(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color);
+	void drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color);
+	void drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color);
+	void drawSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color);
+	void drawSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color);
+	void drawCircleSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru16 yr, ru16 color);
+	void drawCircleSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru16 yr, ru16 color);
+	void drawTriangle(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru16 color);
+	void drawTriangleFill(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru16 color);
+	void drawCircle(ru16 x0,ru16 y0,ru16 r,ru16 color);
+	void drawCircleFill(ru16 x0,ru16 y0,ru16 r,ru16 color);
+	void drawEllipse(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color);
+	void drawEllipseFill(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color);
+	 
+	/*BTE function*/
+	void bteMemoryCopy(ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,ru32 des_addr,ru16 des_image_width, 
+					   ru16 des_x,ru16 des_y,ru16 copy_width,ru16 copy_height);
+	void bteMemoryCopyWithROP(ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,
+							   ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 copy_width,ru16 copy_height,ru8 rop_code);
+	void bteMemoryCopyWithChromaKey(ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
+								   ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 copy_width,ru16 copy_height,ru16 chromakey_color);
+	void bteMpuWriteWithROPData8(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
+							ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned char *data);
+	void bteMpuWriteWithROPData16(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
+							ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned short *data);
+	void bteMpuWriteWithROP(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
+							ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code);                     
+	void bteMpuWriteWithChromaKeyData8(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 chromakey_color,
+								 const unsigned char *data);
+	void bteMpuWriteWithChromaKeyData16(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 chromakey_color,
+								 const unsigned short *data);
+	void bteMpuWriteWithChromaKey(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 chromakey_color);
+	void bteMpuWriteColorExpansionData(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 foreground_color,ru16 background_color,const unsigned char *data);
+	void bteMpuWriteColorExpansion(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 foreground_color,ru16 background_color);
+	void bteMpuWriteColorExpansionWithChromaKeyData(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,
+												ru16 foreground_color,ru16 background_color,const unsigned char *data);
+	void bteMpuWriteColorExpansionWithChromaKey(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,
+												ru16 width,ru16 height,ru16 foreground_color,ru16 background_color);
 
-void btePatternFill(ru8 p8x8or16x16, ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
-                   ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height);
-void btePatternFillWithChromaKey(ru8 p8x8or16x16, ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
-                                ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 chromakey_color);
-/*DMA function*/
-void setSerialFlash4BytesMode(ru8 scs_select);
-void dma_24bitAddressBlockMode(ru8 scs_selct,ru8 clk_div,ru16 x0,ru16 y0,ru16 width,ru16 height,ru16 picture_width,ru32 addr);
-void dma_32bitAddressBlockMode(ru8 scs_selct,ru8 clk_div,ru16 x0,ru16 y0,ru16 width,ru16 height,ru16 picture_width,ru32 addr);
+	void btePatternFill(ru8 p8x8or16x16, ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
+					   ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height);
+	void btePatternFillWithChromaKey(ru8 p8x8or16x16, ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
+									ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 chromakey_color);
+	/*DMA function*/
+	void setSerialFlash4BytesMode(ru8 scs_select);
+	void dma_24bitAddressBlockMode(ru8 scs_selct,ru8 clk_div,ru16 x0,ru16 y0,ru16 width,ru16 height,ru16 picture_width,ru32 addr);
+	void dma_32bitAddressBlockMode(ru8 scs_selct,ru8 clk_div,ru16 x0,ru16 y0,ru16 width,ru16 height,ru16 picture_width,ru32 addr);
 
 
-//SPI Functions
-inline __attribute__((always_inline)) 
-void startSend(){
-	SPI.beginTransaction(SPISettings(_maxspeed, MSBFIRST, SPI_MODE0));
-	digitalWriteFast(_cs, LOW);
-}
+	//SPI Functions
+	inline __attribute__((always_inline)) 
+	void startSend(){
+		if(!RA8876_BUSY) {
+	        RA8876_BUSY = true;
+			SPI.beginTransaction(SPISettings(_maxspeed, MSBFIRST, SPI_MODE0));
+		}
+	    digitalWriteFast(_cs, LOW);
+	}
 
-inline __attribute__((always_inline)) 
-void endSend(){
-	digitalWriteFast(_cs, HIGH);
-	SPI.endTransaction();
-} 
+	inline __attribute__((always_inline)) 
+	void endSend(bool finalize){
+		digitalWriteFast(_cs, HIGH);
+		if(finalize) {
+			SPI.endTransaction();
+			RA8876_BUSY = false;
+		}
+	} 
 
-/* PIP window funtions */
-void PIP
-(
- unsigned char On_Off // 0 : disable PIP, 1 : enable PIP, 2 : To maintain the original state
-,unsigned char Select_PIP // 1 : use PIP1 , 2 : use PIP2
-,unsigned long PAddr //start address of PIP
-,unsigned short XP //coordinate X of PIP Window, It must be divided by 4.
-,unsigned short YP //coordinate Y of PIP Window, It must be divided by 4.
-,unsigned long ImageWidth //Image Width of PIP (recommend = canvas image width)
-,unsigned short X_Dis //coordinate X of Display Window
-,unsigned short Y_Dis //coordinate Y of Display Window
-,unsigned short X_W //width of PIP and Display Window, It must be divided by 4.
-,unsigned short Y_H //height of PIP and Display Window , It must be divided by 4.
-);
+	/* PIP window funtions */
+	void PIP
+	(
+	 unsigned char On_Off // 0 : disable PIP, 1 : enable PIP, 2 : To maintain the original state
+	,unsigned char Select_PIP // 1 : use PIP1 , 2 : use PIP2
+	,unsigned long PAddr //start address of PIP
+	,unsigned short XP //coordinate X of PIP Window, It must be divided by 4.
+	,unsigned short YP //coordinate Y of PIP Window, It must be divided by 4.
+	,unsigned long ImageWidth //Image Width of PIP (recommend = canvas image width)
+	,unsigned short X_Dis //coordinate X of Display Window
+	,unsigned short Y_Dis //coordinate Y of Display Window
+	,unsigned short X_W //width of PIP and Display Window, It must be divided by 4.
+	,unsigned short Y_H //height of PIP and Display Window , It must be divided by 4.
+	);
 
-void PIP_Display_Start_XY(unsigned short WX,unsigned short HY);	
-void PIP_Image_Start_Address(unsigned long Addr);	
-void PIP_Image_Width(unsigned short WX);	
-void PIP_Window_Image_Start_XY(unsigned short WX,unsigned short HY);	
-void PIP_Window_Width_Height(unsigned short WX,unsigned short HY);	
+	void PIP_Display_Start_XY(unsigned short WX,unsigned short HY);	
+	void PIP_Image_Start_Address(unsigned long Addr);	
+	void PIP_Image_Width(unsigned short WX);	
+	void PIP_Window_Image_Start_XY(unsigned short WX,unsigned short HY);	
+	void PIP_Window_Width_Height(unsigned short WX,unsigned short HY);	
 
-//**[10h]**//
-void Enable_PIP1(void);
-void Disable_PIP1(void);
-void Enable_PIP2(void);
-void Disable_PIP2(void);
-void Select_PIP1_Parameter(void);
-void Select_PIP2_Parameter(void);
-void Select_Main_Window_8bpp(void);
-void Select_Main_Window_16bpp(void);
-void Select_Main_Window_24bpp(void);
-void Select_LCD_Sync_Mode(void);
-void Select_LCD_DE_Mode(void);
-//**[11h]**//
-void Select_PIP1_Window_8bpp(void);
-void Select_PIP1_Window_16bpp(void);
-void Select_PIP1_Window_24bpp(void);
-void Select_PIP2_Window_8bpp(void);
-void Select_PIP2_Window_16bpp(void);
-void Select_PIP2_Window_24bpp(void);
+	//**[10h]**//
+	void Enable_PIP1(void);
+	void Disable_PIP1(void);
+	void Enable_PIP2(void);
+	void Disable_PIP2(void);
+	void Select_PIP1_Parameter(void);
+	void Select_PIP2_Parameter(void);
+	void Select_Main_Window_8bpp(void);
+	void Select_Main_Window_16bpp(void);
+	void Select_Main_Window_24bpp(void);
+	void Select_LCD_Sync_Mode(void);
+	void Select_LCD_DE_Mode(void);
+	//**[11h]**//
+	void Select_PIP1_Window_8bpp(void);
+	void Select_PIP1_Window_16bpp(void);
+	void Select_PIP1_Window_24bpp(void);
+	void Select_PIP2_Window_8bpp(void);
+	void Select_PIP2_Window_16bpp(void);
+	void Select_PIP2_Window_24bpp(void);
 
 };
 

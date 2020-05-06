@@ -277,89 +277,84 @@ boolean Ra8876_Lite::ra8876Initialize(void) {
 //**************************************************************//
 // Write to a RA8876 register
 //**************************************************************//
-void Ra8876_Lite::lcdRegWrite(ru8 reg) 
+void Ra8876_Lite::lcdRegWrite(ru8 reg, bool finalize) 
 {
-  uint16_t _data = ((uint16_t)RA8876_SPI_CMDWRITE<<8 | reg);
+  ru16 _data = (RA8876_SPI_CMDWRITE16 | reg);
   
-  RA8876_BUSY = true;
   startSend();
-  SPI.transfer16((uint16_t)_data);
-  endSend();
-	RA8876_BUSY = false;
+  SPI.transfer16(_data);
+  endSend(finalize);
 }
 
 //**************************************************************//
 // Write RA8876 Data
 //**************************************************************//
-void Ra8876_Lite::lcdDataWrite(ru8 data) 
+void Ra8876_Lite::lcdDataWrite(ru8 data, bool finalize) 
 {
-  uint16_t _data = ((uint16_t)RA8876_SPI_DATAWRITE<<8 | data);
-  RA8876_BUSY = true;
+  ru16 _data = (RA8876_SPI_DATAWRITE16 | data);
   startSend();
-  SPI.transfer16((uint16_t) _data);
-  endSend();
-	RA8876_BUSY = false;
+  SPI.transfer16(_data);
+  endSend(finalize);
 }
 
 //**************************************************************//
 // Read RA8876 Data
 //**************************************************************//
-ru8 Ra8876_Lite::lcdDataRead(void) 
+ru8 Ra8876_Lite::lcdDataRead(bool finalize) 
 {
-  uint16_t _data = ((uint16_t)RA8876_SPI_DATAREAD<<8 | 0xFF);
+  ru16 _data = (RA8876_SPI_DATAREAD16 | 0x00);
   
-  RA8876_BUSY = true;
   startSend();
-  ru8 data = SPI.transfer16((uint16_t)_data);
-  endSend();
-    RA8876_BUSY = false;
+  ru8 data = SPI.transfer16(_data);
+  endSend(finalize);
   return data;
 }
 
 //**************************************************************//
 // Read RA8876 status register
 //**************************************************************//
-ru8 Ra8876_Lite::lcdStatusRead(void) 
+ru8 Ra8876_Lite::lcdStatusRead(bool finalize) 
 {
-  uint16_t _data = ((uint16_t)RA8876_SPI_STATUSREAD<<8 | 0xFF);
-  
-  RA8876_BUSY = true;
   startSend();
-  ru8 data = SPI.transfer16((uint16_t)_data);
-  endSend();
-	RA8876_BUSY = false;
+  ru8 data = SPI.transfer16(RA8876_SPI_STATUSREAD16);
+  endSend(finalize);
   return data;
 }
 
 //**************************************************************//
 // Write Data to a RA8876 register
 //**************************************************************//
-void Ra8876_Lite::lcdRegDataWrite(ru8 reg, ru8 data)
+void Ra8876_Lite::lcdRegDataWrite(ru8 reg, ru8 data, bool finalize)
 {
-  lcdRegWrite(reg);
-  lcdDataWrite(data);
+  //write the register we wish to write to, then send the data
+  //don't need to release _CS between the two transfers
+  ru16 _reg = (RA8876_SPI_CMDWRITE16 | reg);
+  ru16 _data = (RA8876_SPI_DATAWRITE16 | data);
+  
+  startSend();
+  SPI.transfer16(_reg);
+  SPI.transfer16(_data);
+  endSend(finalize);
 }
 
 //**************************************************************//
 // Read a RA8876 register Data
 //**************************************************************//
-ru8 Ra8876_Lite::lcdRegDataRead(ru8 reg)
+ru8 Ra8876_Lite::lcdRegDataRead(ru8 reg, bool finalize)
 {
-  lcdRegWrite(reg);
+  lcdRegWrite(reg, finalize);
   return lcdDataRead();
 }
 
 //**************************************************************//
 // support SPI interface to write 16bpp data after Regwrite 04h
 //**************************************************************//
-void Ra8876_Lite::lcdDataWrite16bbp(ru16 data) 
+void Ra8876_Lite::lcdDataWrite16bbp(ru16 data, bool finalize) 
 {
-	RA8876_BUSY = true;
 	startSend();
 	SPI.transfer(RA8876_SPI_DATAWRITE);
 	SPI.transfer16(data);
-	endSend();
-	RA8876_BUSY = false;
+	endSend(finalize);
 }
 
 //**************************************************************//
@@ -421,16 +416,20 @@ void Ra8876_Lite::checkReadFifoNotEmpty(void)
 /*[Status Register] bit3   Core task is busy
 Following task is running:
 BTE, Geometry engine, Serial flash DMA, Text write or Graphic write
-0: task is done or idle.   1: task is busy*/
-//**************************************************************//
+0: task is done or idle.   1: task is busy
+A typical task like drawing a rectangle might take 30-150 microseconds, 
+    depending on size
+A large filled rectangle might take 3300 microseconds
+*****************************************************************/
 void Ra8876_Lite::check2dBusy(void)  
-{  ru32 i,j; 
+{  ru32 i; 
    for(i=0;i<5000000;i++)   //Please according to your usage to modify i value.
    { 
-//   delayMicroseconds(1);
-    if( (j = lcdStatusRead()&0x08)==0x00 )
-    {break;}
+   delayMicroseconds(1);
+    if( (lcdStatusRead()&0x08)==0x00 )
+    {return;}
    }
+   Serial.println("2D ready failed");
 }  
 
 
@@ -954,7 +953,6 @@ ru8 Ra8876_Lite::vmemReadData(ru32 addr)
 	vmemData = lcdDataRead(); // read byte
 	check2dBusy();
 	Memory_XY_Mode();
-	graphicMode(false);
 	return vmemData;
 }
 
@@ -1153,20 +1151,20 @@ void  Ra8876_Lite::ramAccessPrepare(void)
 
 //**************************************************************//
 //**************************************************************//
-void Ra8876_Lite::foreGroundColor16bpp(ru16 color)
+void Ra8876_Lite::foreGroundColor16bpp(ru16 color, bool finalize)
 {
-	lcdRegDataWrite(RA8876_FGCR,color>>8);//d2h
-	lcdRegDataWrite(RA8876_FGCG,color>>3);//d3h
-	lcdRegDataWrite(RA8876_FGCB,color<<3);//d4h
+	lcdRegDataWrite(RA8876_FGCR,color>>8, false);//d2h
+	lcdRegDataWrite(RA8876_FGCG,color>>3, false);//d3h
+	lcdRegDataWrite(RA8876_FGCB,color<<3, finalize);//d4h
 }
 
 //**************************************************************//
 //**************************************************************//
-void Ra8876_Lite::backGroundColor16bpp(ru16 color)
+void Ra8876_Lite::backGroundColor16bpp(ru16 color, bool finalize)
 {
-	lcdRegDataWrite(RA8876_BGCR,color>>8);//d5h
-	lcdRegDataWrite(RA8876_BGCG,color>>3);//d6h
-	lcdRegDataWrite(RA8876_BGCB,color<<3);//d7h
+	lcdRegDataWrite(RA8876_BGCR,color>>8, false);//d5h
+	lcdRegDataWrite(RA8876_BGCG,color>>3, false);//d6h
+	lcdRegDataWrite(RA8876_BGCB,color<<3, finalize);//d7h
 }
 
 //***************************************************//
@@ -1175,14 +1173,18 @@ void Ra8876_Lite::backGroundColor16bpp(ru16 color)
 
 //**************************************************************//
 /* Turn RA8876 graphic mode ON/OFF (True = ON)                  */
+/* Inverse of text mode                                         */
 //**************************************************************//
 void Ra8876_Lite::graphicMode(boolean on)
- {
+{
+  if(_textMode == on) {  
 	if(on)
 		lcdRegDataWrite(RA8876_ICR,RA8877_LVDS_FORMAT<<3|RA8876_GRAPHIC_MODE<<2|RA8876_MEMORY_SELECT_IMAGE);//03h  //switch to graphic mode
 	else
 		lcdRegDataWrite(RA8876_ICR,RA8877_LVDS_FORMAT<<3|RA8876_TEXT_MODE<<2|RA8876_MEMORY_SELECT_IMAGE);//03h  //switch back to text mode
- }
+	_textMode = !on;
+  }
+}
 
 //**************************************************************//
 /* Read a 16bpp pixel                                           */
@@ -1214,7 +1216,6 @@ void  Ra8876_Lite::drawPixel(ru16 x,ru16 y,ru16 color)
 	lcdDataWrite(color>>8);
 	//lcdDataWrite16bbp(color);
 	checkWriteFifoEmpty();		//if high speed mcu and without Xnwait check
-	graphicMode(false);
 }
 
 //**************************************************************//
@@ -1228,7 +1229,6 @@ void  Ra8876_Lite::putPicture_16bpp(ru16 x,ru16 y,ru16 width, ru16 height)
 	setPixelCursor(x,y);
 	ramAccessPrepare();
 // SOMETHING IS MISSING HERE !!!
-	graphicMode(false);
 }
 
 //*******************************************************************//
@@ -1255,9 +1255,7 @@ void  Ra8876_Lite::putPicture_16bppData8(ru16 x,ru16 y,ru16 width, ru16 height, 
 	} 
 	checkWriteFifoEmpty();				//if high speed mcu and without Xnwait check
 	activeWindowXY(0,0);
-// activeWindowWH(SCREEN_WIDTH,SCREEN_HEIGHT);
-	activeWindowWH(SCREEN_WIDTH,600);
-	graphicMode(false);
+    activeWindowWH(SCREEN_WIDTH,SCREEN_HEIGHT);
 }
 
 //****************************************************************//
@@ -1281,9 +1279,7 @@ void  Ra8876_Lite::putPicture_16bppData16(ru16 x,ru16 y,ru16 width, ru16 height,
 	} 
 	checkWriteFifoEmpty();//if high speed mcu and without Xnwait check
 	activeWindowXY(0,0);
-	// activeWindowWH(SCREEN_WIDTH,SCREEN_HEIGHT);
-	activeWindowWH(SCREEN_WIDTH,600);
-	graphicMode(false);
+	activeWindowWH(SCREEN_WIDTH,SCREEN_HEIGHT);
 }
 
 //***************************************************//
@@ -1295,11 +1291,13 @@ void  Ra8876_Lite::putPicture_16bppData16(ru16 x,ru16 y,ru16 width, ru16 height,
 //**************************************************************//
 void Ra8876_Lite::textMode(boolean on)
 {
+  if(on != _textMode) {
 	if(on)
 		lcdRegDataWrite(RA8876_ICR,RA8877_LVDS_FORMAT<<3|RA8876_TEXT_MODE<<2|RA8876_MEMORY_SELECT_IMAGE);//03h  //switch to text mode
 	else
 		lcdRegDataWrite(RA8876_ICR,RA8877_LVDS_FORMAT<<3|RA8876_GRAPHIC_MODE<<2|RA8876_MEMORY_SELECT_IMAGE);//03h  //switch back to graphic mode
-
+	_textMode = on;
+  }
 }
 
 //**************************************************************//
@@ -1307,26 +1305,28 @@ void Ra8876_Lite::textMode(boolean on)
 //**************************************************************//
 void Ra8876_Lite::textColor(ru16 foreground_color,ru16 background_color)
 {
-	foreGroundColor16bpp(foreground_color);
-	backGroundColor16bpp(background_color);
+	check2dBusy();
+	foreGroundColor16bpp(foreground_color, false);
+	backGroundColor16bpp(background_color, true);
 	_TXTForeColor = foreground_color;
 	_TXTBackColor = background_color;
 }
 
 //**************************************************************//
 /* Position Text Cursor                                         */
+/* in pixel coordinates                                         */
 //**************************************************************//
 void  Ra8876_Lite::setTextCursor(ru16 x,ru16 y)
 {
-	lcdRegDataWrite(RA8876_F_CURX0,x); //63h
-	lcdRegDataWrite(RA8876_F_CURX1,x>>8);//64h
-	lcdRegDataWrite(RA8876_F_CURY0,y);//65h
-	lcdRegDataWrite(RA8876_F_CURY1,y>>8);//66h
+	lcdRegDataWrite(RA8876_F_CURX0,x, false); //63h
+	lcdRegDataWrite(RA8876_F_CURX1,x>>8, false);//64h
+	lcdRegDataWrite(RA8876_F_CURY0,y, false);//65h
+	lcdRegDataWrite(RA8876_F_CURY1,y>>8, true);//66h
 	_cursorX = x; _cursorY = y; // Update global cursor position variables
 }
 
 //***************************************************************//
-/* Used by ClearActiveScreen(), (Window OP's)                    */
+/* Position text cursor in character units                       */
 //***************************************************************//
 void Ra8876_Lite::textxy(ru16 x, ru16 y)
 {
@@ -1383,17 +1383,18 @@ void  Ra8876_Lite::putString(ru16 x0,ru16 y0, const char *str)
   textMode(true);
   while(*str != '\0')
   {
-  write(*str);
-  ++str; 
+    write(*str);
+    ++str; 
   } 
-  textMode(false);
 }
 
 //**************************************************************//
 /* Clear the status line                                        */
 //**************************************************************//
 void Ra8876_Lite::clearStatusLine(uint16_t color) {
-	drawSquareFill(0,SCREEN_HEIGHT,SCREEN_WIDTH-1,600,color);
+	_height = SCREEN_HEIGHT-STATUS_LINE_HEIGHT;
+	drawSquareFill(0,_height-1,_width,SCREEN_HEIGHT-1,color);
+    check2dBusy();
 }
 
 //**************************************************************//
@@ -1405,6 +1406,7 @@ void Ra8876_Lite::clearStatusLine(uint16_t color) {
 //**************************************************************//
 void  Ra8876_Lite::writeStatusLine(ru16 x0, uint16_t fgcolor, uint16_t bgcolor, const char *str)
 {
+	_height = SCREEN_HEIGHT-STATUS_LINE_HEIGHT;
 	uint16_t tempX = _cursorX;
 	uint16_t tempY = _cursorY;
 	uint16_t tempBGColor = _TXTBackColor;
@@ -1426,7 +1428,7 @@ void  Ra8876_Lite::writeStatusLine(ru16 x0, uint16_t fgcolor, uint16_t bgcolor, 
 
 	buildTextScreen();
 	textMode(true);
-	setTextCursor(x0,576);
+	setTextCursor(x0, _height);
 	textColor(fgcolor,bgcolor);
 	if(!UDFont) {
 		ramAccessPrepare();
@@ -1773,6 +1775,7 @@ void Ra8876_Lite::Graphic_cursor_initial(void)
 {
 	unsigned int i ;
 
+    check2dBusy();
 	graphicMode(true);
     Memory_Select_Graphic_Cursor_RAM(); 
 	// Pen cursor
@@ -1808,7 +1811,6 @@ void Ra8876_Lite::Graphic_cursor_initial(void)
     Set_Graphic_Cursor_Color_1(0xff); // White foreground color
     Set_Graphic_Cursor_Color_2(0x00); // Background outline color
     Graphic_Cursor_XY(0,0);
-	graphicMode(false);
 }
 
 //***************************************************//
@@ -2008,11 +2010,11 @@ REG[42h] Graphic Cursor Vertical Location[7:0]
 REG[43h] Graphic Cursor Vertical Location[12:8]
 Reference main Window coordinates.
 */	
-	lcdRegDataWrite(RA8876_GCHP0,WX);
-	lcdRegDataWrite(RA8876_GCHP1,WX>>8);
+	lcdRegDataWrite(RA8876_GCHP0,WX, false);
+	lcdRegDataWrite(RA8876_GCHP1,WX>>8, false);
 
-	lcdRegDataWrite(RA8876_GCVP0,HY);
-	lcdRegDataWrite(RA8876_GCVP1,HY>>8);
+	lcdRegDataWrite(RA8876_GCVP0,HY, false);
+	lcdRegDataWrite(RA8876_GCVP1,HY>>8, true);
 }
 
 //************************************************/
@@ -2144,8 +2146,8 @@ Zero-based number. Value 0 means 1 pixel.
 Note : When font is enlarged, the cursor setting will multiply the
 same times as the font enlargement.
 */
-	lcdRegDataWrite(RA8876_CURHS,WX); // 0x3e
-	lcdRegDataWrite(RA8876_CURVS,HY); // 0x3f
+	lcdRegDataWrite(RA8876_CURHS,WX, false); // 0x3e
+	lcdRegDataWrite(RA8876_CURVS,HY, true); // 0x3f
 }
 
 //************************************************/
@@ -2191,20 +2193,18 @@ Display Test Color Bar
 //**************************************************************//
 void Ra8876_Lite::drawLine(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 {
+  check2dBusy();
   graphicMode(true);
-  check2dBusy();
   foreGroundColor16bpp(color);
-  lcdRegDataWrite(RA8876_DLHSR0,x0);//68h
-  lcdRegDataWrite(RA8876_DLHSR1,x0>>8);//69h
-  lcdRegDataWrite(RA8876_DLVSR0,y0);//6ah
-  lcdRegDataWrite(RA8876_DLVSR1,y0>>8);//6bh
-  lcdRegDataWrite(RA8876_DLHER0,x1);//6ch
-  lcdRegDataWrite(RA8876_DLHER1,x1>>8);//6dh
-  lcdRegDataWrite(RA8876_DLVER0,y1);//6eh
-  lcdRegDataWrite(RA8876_DLVER1,y1>>8);//6fh        
-  lcdRegDataWrite(RA8876_DCR0,RA8876_DRAW_LINE);//67h,0x80
-  check2dBusy();
-  graphicMode(false);
+  lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
+  lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
+  lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
+  lcdRegDataWrite(RA8876_DLVSR1,y0>>8, false);//6bh
+  lcdRegDataWrite(RA8876_DLHER0,x1, false);//6ch
+  lcdRegDataWrite(RA8876_DLHER1,x1>>8, false);//6dh
+  lcdRegDataWrite(RA8876_DLVER0,y1, false);//6eh
+  lcdRegDataWrite(RA8876_DLVER1,y1>>8, false);//6fh        
+  lcdRegDataWrite(RA8876_DCR0,RA8876_DRAW_LINE, true);//67h,0x80
 }
 
 /**************************************************************************
@@ -2237,20 +2237,19 @@ void Ra8876_Lite::drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color)
 //**************************************************************//
 void Ra8876_Lite::drawSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 {
+  check2dBusy();
   graphicMode(true);
-  check2dBusy();
   foreGroundColor16bpp(color);
-  lcdRegDataWrite(RA8876_DLHSR0,x0);//68h
-  lcdRegDataWrite(RA8876_DLHSR1,x0>>8);//69h
-  lcdRegDataWrite(RA8876_DLVSR0,y0);//6ah
-  lcdRegDataWrite(RA8876_DLVSR1,y0>>8);//6bh
-  lcdRegDataWrite(RA8876_DLHER0,x1);//6ch
-  lcdRegDataWrite(RA8876_DLHER1,x1>>8);//6dh
-  lcdRegDataWrite(RA8876_DLVER0,y1);//6eh
-  lcdRegDataWrite(RA8876_DLVER1,y1>>8);//6fh        
-  lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_SQUARE);//76h,0xa0
-  check2dBusy();
-  graphicMode(false);
+  lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
+  lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
+  lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
+  lcdRegDataWrite(RA8876_DLVSR1,y0>>8, false);//6bh
+  lcdRegDataWrite(RA8876_DLHER0,x1, false);//6ch
+  lcdRegDataWrite(RA8876_DLHER1,x1>>8, false);//6dh
+  lcdRegDataWrite(RA8876_DLVER0,y1, false);//6eh
+  lcdRegDataWrite(RA8876_DLVER1,y1>>8, false);//6fh     
+  lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_SQUARE, true);//76h,0xa0
+
 }
 
 //**************************************************************//
@@ -2260,20 +2259,18 @@ void Ra8876_Lite::drawSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 //**************************************************************//
 void Ra8876_Lite::drawSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 {
+  check2dBusy();
   graphicMode(true);
-  check2dBusy();
   foreGroundColor16bpp(color);
-  lcdRegDataWrite(RA8876_DLHSR0,x0);//68h
-  lcdRegDataWrite(RA8876_DLHSR1,x0>>8);//69h
-  lcdRegDataWrite(RA8876_DLVSR0,y0);//6ah
-  lcdRegDataWrite(RA8876_DLVSR1,y0>>8);//6bh
-  lcdRegDataWrite(RA8876_DLHER0,x1);//6ch
-  lcdRegDataWrite(RA8876_DLHER1,x1>>8);//6dh
-  lcdRegDataWrite(RA8876_DLVER0,y1);//6eh
-  lcdRegDataWrite(RA8876_DLVER1,y1>>8);//6fh        
-  lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_SQUARE_FILL);//76h,0xE0
-  check2dBusy();
-  graphicMode(false);
+  lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
+  lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
+  lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
+  lcdRegDataWrite(RA8876_DLVSR1,y0>>8, false);//6bh
+  lcdRegDataWrite(RA8876_DLHER0,x1, false);//6ch
+  lcdRegDataWrite(RA8876_DLHER1,x1>>8, false);//6dh
+  lcdRegDataWrite(RA8876_DLVER0,y1, false);//6eh
+  lcdRegDataWrite(RA8876_DLVER1,y1>>8, false);//6fh    
+  lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_SQUARE_FILL, true);//76h,0xE0  
 }
 
 //**************************************************************//
@@ -2285,24 +2282,22 @@ void Ra8876_Lite::drawSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 //**************************************************************//
 void Ra8876_Lite::drawCircleSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru16 yr, ru16 color)
 {
+  check2dBusy();
   graphicMode(true);
-  check2dBusy();
   foreGroundColor16bpp(color);
-  lcdRegDataWrite(RA8876_DLHSR0,x0);//68h
-  lcdRegDataWrite(RA8876_DLHSR1,x0>>8);//69h
-  lcdRegDataWrite(RA8876_DLVSR0,y0);//6ah
-  lcdRegDataWrite(RA8876_DLVSR1,y0>>8);//6bh
-  lcdRegDataWrite(RA8876_DLHER0,x1);//6ch
-  lcdRegDataWrite(RA8876_DLHER1,x1>>8);//6dh
-  lcdRegDataWrite(RA8876_DLVER0,y1);//6eh
-  lcdRegDataWrite(RA8876_DLVER1,y1>>8);//6fh    
-  lcdRegDataWrite(RA8876_ELL_A0,xr);//77h    
-  lcdRegDataWrite(RA8876_ELL_A1,xr>>8);//79h 
-  lcdRegDataWrite(RA8876_ELL_B0,yr);//7ah    
-  lcdRegDataWrite(RA8876_ELL_B1,yr>>8);//7bh
-  lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_CIRCLE_SQUARE);//76h,0xb0
-  check2dBusy();
-  graphicMode(false);
+  lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
+  lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
+  lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
+  lcdRegDataWrite(RA8876_DLVSR1,y0>>8, false);//6bh
+  lcdRegDataWrite(RA8876_DLHER0,x1, false);//6ch
+  lcdRegDataWrite(RA8876_DLHER1,x1>>8, false);//6dh
+  lcdRegDataWrite(RA8876_DLVER0,y1, false);//6eh
+  lcdRegDataWrite(RA8876_DLVER1,y1>>8, false);//6fh    
+  lcdRegDataWrite(RA8876_ELL_A0,xr, false);//77h    
+  lcdRegDataWrite(RA8876_ELL_A1,xr>>8, false);//79h 
+  lcdRegDataWrite(RA8876_ELL_B0,yr, false);//7ah    
+  lcdRegDataWrite(RA8876_ELL_B1,yr>>8, false);//7bh
+  lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_CIRCLE_SQUARE, true);//76h,0xb0
 }
 
 //**************************************************************//
@@ -2314,24 +2309,22 @@ void Ra8876_Lite::drawCircleSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, 
 //**************************************************************//
 void Ra8876_Lite::drawCircleSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru16 yr, ru16 color)
 {
+  check2dBusy();
   graphicMode(true);
-  check2dBusy();
   foreGroundColor16bpp(color);
-  lcdRegDataWrite(RA8876_DLHSR0,x0);//68h
-  lcdRegDataWrite(RA8876_DLHSR1,x0>>8);//69h
-  lcdRegDataWrite(RA8876_DLVSR0,y0);//6ah
-  lcdRegDataWrite(RA8876_DLVSR1,y0>>8);//6bh
-  lcdRegDataWrite(RA8876_DLHER0,x1);//6ch
-  lcdRegDataWrite(RA8876_DLHER1,x1>>8);//6dh
-  lcdRegDataWrite(RA8876_DLVER0,y1);//6eh
-  lcdRegDataWrite(RA8876_DLVER1,y1>>8);//6fh    
-  lcdRegDataWrite(RA8876_ELL_A0,xr);//77h    
-  lcdRegDataWrite(RA8876_ELL_A1,xr>>8);//78h 
-  lcdRegDataWrite(RA8876_ELL_B0,yr);//79h    
-  lcdRegDataWrite(RA8876_ELL_B1,yr>>8);//7ah
-  lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_CIRCLE_SQUARE_FILL);//76h,0xf0
-  check2dBusy();
-  graphicMode(false);
+  lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
+  lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
+  lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
+  lcdRegDataWrite(RA8876_DLVSR1,y0>>8, false);//6bh
+  lcdRegDataWrite(RA8876_DLHER0,x1, false);//6ch
+  lcdRegDataWrite(RA8876_DLHER1,x1>>8, false);//6dh
+  lcdRegDataWrite(RA8876_DLVER0,y1, false);//6eh
+  lcdRegDataWrite(RA8876_DLVER1,y1>>8, false);//6fh    
+  lcdRegDataWrite(RA8876_ELL_A0,xr, false);//77h    
+  lcdRegDataWrite(RA8876_ELL_A1,xr>>8, false);//78h 
+  lcdRegDataWrite(RA8876_ELL_B0,yr, false);//79h    
+  lcdRegDataWrite(RA8876_ELL_B1,yr>>8, false);//7ah
+  lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_CIRCLE_SQUARE_FILL, true);//76h,0xf0
 }
 
 //**************************************************************//
@@ -2342,24 +2335,22 @@ void Ra8876_Lite::drawCircleSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 
 //**************************************************************//
 void Ra8876_Lite::drawTriangle(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru16 color)
 {
+  check2dBusy();
   graphicMode(true);
-  check2dBusy();
   foreGroundColor16bpp(color);
-  lcdRegDataWrite(RA8876_DLHSR0,x0);//68h point 0
-  lcdRegDataWrite(RA8876_DLHSR1,x0>>8);//69h point 0
-  lcdRegDataWrite(RA8876_DLVSR0,y0);//6ah point 0
-  lcdRegDataWrite(RA8876_DLVSR1,y0>>8);//6bh point 0
-  lcdRegDataWrite(RA8876_DLHER0,x1);//6ch point 1
-  lcdRegDataWrite(RA8876_DLHER1,x1>>8);//6dh point 1
-  lcdRegDataWrite(RA8876_DLVER0,y1);//6eh point 1
-  lcdRegDataWrite(RA8876_DLVER1,y1>>8);//6fh point 1
-  lcdRegDataWrite(RA8876_DTPH0,x2);//70h point 2
-  lcdRegDataWrite(RA8876_DTPH1,x2>>8);//71h point 2
-  lcdRegDataWrite(RA8876_DTPV0,y2);//72h point 2
-  lcdRegDataWrite(RA8876_DTPV1,y2>>8);//73h  point 2
-  lcdRegDataWrite(RA8876_DCR0,RA8876_DRAW_TRIANGLE);//67h,0x82
-  check2dBusy();
-  graphicMode(false);
+  lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h point 0
+  lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h point 0
+  lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah point 0
+  lcdRegDataWrite(RA8876_DLVSR1,y0>>8, false);//6bh point 0
+  lcdRegDataWrite(RA8876_DLHER0,x1, false);//6ch point 1
+  lcdRegDataWrite(RA8876_DLHER1,x1>>8, false);//6dh point 1
+  lcdRegDataWrite(RA8876_DLVER0,y1, false);//6eh point 1
+  lcdRegDataWrite(RA8876_DLVER1,y1>>8, false);//6fh point 1
+  lcdRegDataWrite(RA8876_DTPH0,x2, false);//70h point 2
+  lcdRegDataWrite(RA8876_DTPH1,x2>>8, false);//71h point 2
+  lcdRegDataWrite(RA8876_DTPV0,y2, false);//72h point 2
+  lcdRegDataWrite(RA8876_DTPV1,y2>>8, false);//73h  point 2
+  lcdRegDataWrite(RA8876_DCR0,RA8876_DRAW_TRIANGLE, false);//67h,0x82
 }
 
 //**************************************************************//
@@ -2370,24 +2361,22 @@ void Ra8876_Lite::drawTriangle(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,r
 //**************************************************************//
 void Ra8876_Lite::drawTriangleFill(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru16 color)
 {
+  check2dBusy();
   graphicMode(true);
-  check2dBusy();
   foreGroundColor16bpp(color);
-  lcdRegDataWrite(RA8876_DLHSR0,x0);//68h
-  lcdRegDataWrite(RA8876_DLHSR1,x0>>8);//69h
-  lcdRegDataWrite(RA8876_DLVSR0,y0);//6ah
-  lcdRegDataWrite(RA8876_DLVSR1,y0>>8);//6bh
-  lcdRegDataWrite(RA8876_DLHER0,x1);//6ch
-  lcdRegDataWrite(RA8876_DLHER1,x1>>8);//6dh
-  lcdRegDataWrite(RA8876_DLVER0,y1);//6eh
-  lcdRegDataWrite(RA8876_DLVER1,y1>>8);//6fh  
-  lcdRegDataWrite(RA8876_DTPH0,x2);//70h
-  lcdRegDataWrite(RA8876_DTPH1,x2>>8);//71h
-  lcdRegDataWrite(RA8876_DTPV0,y2);//72h
-  lcdRegDataWrite(RA8876_DTPV1,y2>>8);//73h  
-  lcdRegDataWrite(RA8876_DCR0,RA8876_DRAW_TRIANGLE_FILL);//67h,0xa2
-  check2dBusy();
-  graphicMode(false);
+  lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
+  lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
+  lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
+  lcdRegDataWrite(RA8876_DLVSR1,y0>>8, false);//6bh
+  lcdRegDataWrite(RA8876_DLHER0,x1, false);//6ch
+  lcdRegDataWrite(RA8876_DLHER1,x1>>8, false);//6dh
+  lcdRegDataWrite(RA8876_DLVER0,y1, false);//6eh
+  lcdRegDataWrite(RA8876_DLVER1,y1>>8, false);//6fh  
+  lcdRegDataWrite(RA8876_DTPH0,x2, false);//70h
+  lcdRegDataWrite(RA8876_DTPH1,x2>>8, false);//71h
+  lcdRegDataWrite(RA8876_DTPV0,y2, false);//72h
+  lcdRegDataWrite(RA8876_DTPV1,y2>>8, false);//73h  
+  lcdRegDataWrite(RA8876_DCR0,RA8876_DRAW_TRIANGLE_FILL, true);//67h,0xa2
 }
 
 //**************************************************************//
@@ -2398,21 +2387,19 @@ void Ra8876_Lite::drawTriangleFill(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 
 //**************************************************************//
 void Ra8876_Lite::drawCircle(ru16 x0,ru16 y0,ru16 r,ru16 color)
 {
+  check2dBusy();
   graphicMode(true);
-  check2dBusy();
   foreGroundColor16bpp(color);
-  lcdRegDataWrite(RA8876_DEHR0,x0);//7bh
-  lcdRegDataWrite(RA8876_DEHR1,x0>>8);//7ch
-  lcdRegDataWrite(RA8876_DEVR0,y0);//7dh
-  lcdRegDataWrite(RA8876_DEVR1,y0>>8);//7eh
-  lcdRegDataWrite(RA8876_ELL_A0,r);//77h    
-  lcdRegDataWrite(RA8876_ELL_A1,r>>8);//78h 
-  lcdRegDataWrite(RA8876_ELL_B0,r);//79h    
-  lcdRegDataWrite(RA8876_ELL_B1,r>>8);//7ah
+  lcdRegDataWrite(RA8876_DEHR0,x0, false);//7bh
+  lcdRegDataWrite(RA8876_DEHR1,x0>>8, false);//7ch
+  lcdRegDataWrite(RA8876_DEVR0,y0, false);//7dh
+  lcdRegDataWrite(RA8876_DEVR1,y0>>8, false);//7eh
+  lcdRegDataWrite(RA8876_ELL_A0,r, false);//77h    
+  lcdRegDataWrite(RA8876_ELL_A1,r>>8, false);//78h 
+  lcdRegDataWrite(RA8876_ELL_B0,r, false);//79h    
+  lcdRegDataWrite(RA8876_ELL_B1,r>>8, false);//7ah
 //  lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_BOTTOM_LEFT_CURVE);//76h,0x90 (arc test)
-  lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_CIRCLE);//76h,0x80
-  check2dBusy();
-  graphicMode(false);
+  lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_CIRCLE, true);//76h,0x80
 }
 
 //**************************************************************//
@@ -2423,21 +2410,19 @@ void Ra8876_Lite::drawCircle(ru16 x0,ru16 y0,ru16 r,ru16 color)
 //**************************************************************//
 void Ra8876_Lite::drawCircleFill(ru16 x0,ru16 y0,ru16 r,ru16 color)
 {
+  check2dBusy();
   graphicMode(true);
-  check2dBusy();
   foreGroundColor16bpp(color);
-  lcdRegDataWrite(RA8876_DEHR0,x0);//7bh
-  lcdRegDataWrite(RA8876_DEHR1,x0>>8);//7ch
-  lcdRegDataWrite(RA8876_DEVR0,y0);//7dh
-  lcdRegDataWrite(RA8876_DEVR1,y0>>8);//7eh
-  lcdRegDataWrite(RA8876_ELL_A0,r);//77h    
-  lcdRegDataWrite(RA8876_ELL_A1,r>>8);//78h 
-  lcdRegDataWrite(RA8876_ELL_B0,r);//79h    
-  lcdRegDataWrite(RA8876_ELL_B1,r>>8);//7ah
+  lcdRegDataWrite(RA8876_DEHR0,x0, false);//7bh
+  lcdRegDataWrite(RA8876_DEHR1,x0>>8, false);//7ch
+  lcdRegDataWrite(RA8876_DEVR0,y0, false);//7dh
+  lcdRegDataWrite(RA8876_DEVR1,y0>>8, false);//7eh
+  lcdRegDataWrite(RA8876_ELL_A0,r, false);//77h    
+  lcdRegDataWrite(RA8876_ELL_A1,r>>8, false);//78h 
+  lcdRegDataWrite(RA8876_ELL_B0,r, false);//79h    
+  lcdRegDataWrite(RA8876_ELL_B1,r>>8, false);//7ah
 //  lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_BOTTOM_LEFT_CURVE_FILL);//76h,0xd0 (arc test)
-  lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_CIRCLE_FILL);//76h,0xc0
-  check2dBusy();
-  graphicMode(false);
+  lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_CIRCLE_FILL, false);//76h,0xc0
 }
 
 //**************************************************************//
@@ -2448,20 +2433,18 @@ void Ra8876_Lite::drawCircleFill(ru16 x0,ru16 y0,ru16 r,ru16 color)
 //**************************************************************//
 void Ra8876_Lite::drawEllipse(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color)
 {
+  check2dBusy();
   graphicMode(true);
-  check2dBusy();
   foreGroundColor16bpp(color);
-  lcdRegDataWrite(RA8876_DEHR0,x0);//7bh
-  lcdRegDataWrite(RA8876_DEHR1,x0>>8);//7ch
-  lcdRegDataWrite(RA8876_DEVR0,y0);//7dh
-  lcdRegDataWrite(RA8876_DEVR1,y0>>8);//7eh
-  lcdRegDataWrite(RA8876_ELL_A0,xr);//77h    
-  lcdRegDataWrite(RA8876_ELL_A1,xr>>8);//78h 
-  lcdRegDataWrite(RA8876_ELL_B0,yr);//79h    
-  lcdRegDataWrite(RA8876_ELL_B1,yr>>8);//7ah
-  lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_ELLIPSE);//76h,0x80
-  check2dBusy();
-  graphicMode(false);
+  lcdRegDataWrite(RA8876_DEHR0,x0, false);//7bh
+  lcdRegDataWrite(RA8876_DEHR1,x0>>8, false);//7ch
+  lcdRegDataWrite(RA8876_DEVR0,y0, false);//7dh
+  lcdRegDataWrite(RA8876_DEVR1,y0>>8, false);//7eh
+  lcdRegDataWrite(RA8876_ELL_A0,xr, false);//77h    
+  lcdRegDataWrite(RA8876_ELL_A1,xr>>8, false);//78h 
+  lcdRegDataWrite(RA8876_ELL_B0,yr, false);//79h    
+  lcdRegDataWrite(RA8876_ELL_B1,yr>>8, false);//7ah
+  lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_ELLIPSE, true);//76h,0x80
 }
 
 //**************************************************************//
@@ -2472,20 +2455,18 @@ void Ra8876_Lite::drawEllipse(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color)
 //**************************************************************//
 void Ra8876_Lite::drawEllipseFill(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color)
 {
+  check2dBusy();
   graphicMode(true);
-  check2dBusy();
   foreGroundColor16bpp(color);
-  lcdRegDataWrite(RA8876_DEHR0,x0);//7bh
-  lcdRegDataWrite(RA8876_DEHR1,x0>>8);//7ch
-  lcdRegDataWrite(RA8876_DEVR0,y0);//7dh
-  lcdRegDataWrite(RA8876_DEVR1,y0>>8);//7eh
-  lcdRegDataWrite(RA8876_ELL_A0,xr);//77h    
-  lcdRegDataWrite(RA8876_ELL_A1,xr>>8);//78h 
-  lcdRegDataWrite(RA8876_ELL_B0,yr);//79h    
-  lcdRegDataWrite(RA8876_ELL_B1,yr>>8);//7ah
-  lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_ELLIPSE_FILL);//76h,0xc0
-  check2dBusy();
-  graphicMode(false);
+  lcdRegDataWrite(RA8876_DEHR0,x0, false);//7bh
+  lcdRegDataWrite(RA8876_DEHR1,x0>>8, false);//7ch
+  lcdRegDataWrite(RA8876_DEVR0,y0, false);//7dh
+  lcdRegDataWrite(RA8876_DEVR1,y0>>8, false);//7eh
+  lcdRegDataWrite(RA8876_ELL_A0,xr, false);//77h    
+  lcdRegDataWrite(RA8876_ELL_A1,xr>>8, false);//78h 
+  lcdRegDataWrite(RA8876_ELL_B0,yr, false);//79h    
+  lcdRegDataWrite(RA8876_ELL_B1,yr>>8, false);//7ah
+  lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_ELLIPSE_FILL, true);//76h,0xc0
 }
 
 //*************************************************************//
@@ -2993,17 +2974,17 @@ void  Ra8876_Lite::btePatternFillWithChromaKey(ru8 p8x8or16x16, ru32 s0_addr,ru1
 // Setup PIP Windows ( 2 PIP Windows Avaiable)
 //**************************************************************//
 void Ra8876_Lite::PIP (
- unsigned char On_Off // 0 : disable PIP, 1 : enable PIP, 2 : To maintain the original state
-,unsigned char Select_PIP // 1 : use PIP1 , 2 : use PIP2
-,unsigned long PAddr //start address of PIP
-,unsigned short XP //coordinate X of PIP Window, It must be divided by 4.
-,unsigned short YP //coordinate Y of PIP Window, It must be divided by 4.
-,unsigned long ImageWidth //Image Width of PIP (recommend = canvas image width)
-,unsigned short X_Dis //coordinate X of Display Window
-,unsigned short Y_Dis //coordinate Y of Display Window
-,unsigned short X_W //width of PIP and Display Window, It must be divided by 4.
-,unsigned short Y_H //height of PIP and Display Window , It must be divided by 4.
-)
+		 unsigned char On_Off // 0 : disable PIP, 1 : enable PIP, 2 : To maintain the original state
+		,unsigned char Select_PIP // 1 : use PIP1 , 2 : use PIP2
+		,unsigned long PAddr //start address of PIP
+		,unsigned short XP //coordinate X of PIP Window, It must be divided by 4.
+		,unsigned short YP //coordinate Y of PIP Window, It must be divided by 4.
+		,unsigned long ImageWidth //Image Width of PIP (recommend = canvas image width)
+		,unsigned short X_Dis //coordinate X of Display Window
+		,unsigned short Y_Dis //coordinate Y of Display Window
+		,unsigned short X_W //width of PIP and Display Window, It must be divided by 4.
+		,unsigned short Y_H //height of PIP and Display Window , It must be divided by 4.
+		)
 {
 	if(Select_PIP == 1 )  
 	{

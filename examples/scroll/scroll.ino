@@ -9,9 +9,10 @@
 //#include "vt100.h"
 #include <math.h>
 
-// This example is a modified version of Sumotoy's guages example
-// from his RA8875 driver. Modified to work with the RA8876 TFT controller.
-RA8876_t3 tft = RA8876_t3(10, 8, 11, 13, 12);
+#define RA8876_CS 10
+#define RA8876_RESET 8
+#define BACKLITE 7 //External backlight control connected to this Arduino pin
+RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
 
 
 // Array of RA8876 Basic Colors
@@ -43,11 +44,19 @@ PROGMEM uint16_t myColors[] = {
 int i = 0, j = 0;
 int color = 1;
 void setup() {
-	tft.init();
+  //I'm guessing most copies of this display are using external PWM
+  //backlight control instead of the internal RA8876 PWM.
+  //Connect a Teensy pin to pin 14 on the display.
+  //Can use analogWrite() but I suggest you increase the PWM frequency first so it doesn't sing.
+  pinMode(BACKLITE, OUTPUT);
+  digitalWrite(BACKLITE, HIGH);
+  
+  tft.begin();
 	//initVT100();
 	tft.setTextAt(0,0);
 	tft.fillStatusLine(myColors[11]);
 	tft.setFontSize(1,false);
+	tft.setMargins(0, 0, tft.width(), tft.height()); //so scroll doesn't erase the status bar
 }
 
 void loop() {
