@@ -1086,6 +1086,18 @@ void  Ra8876_Lite::bte_WindowSize(ru16 width, ru16 height)
 }
 
 //**************************************************************//
+// Window alpha allows 2 source images to be blended together
+// with a constant blend factor (alpha) over the entire picture.
+// Also called "picture mode".
+// 
+// alpha can be from 0 to 32
+//**************************************************************//
+void  Ra8876_Lite::bte_WindowAlpha(ru8 alpha)
+{
+	lcdRegDataWrite(RA8876_APB_CTRL,alpha);//b5h
+}
+
+//**************************************************************//
 // These 8 bits determine prescaler value for Timer 0 and 1.*/
 // Time base is “Core_Freq / (Prescaler + 1)”*/
 //**************************************************************//
@@ -1198,8 +1210,6 @@ ru16 Ra8876_Lite::getPixel(ru16 x,ru16 y)
 	rdata = lcdDataRead();		// dummyread to alert SPI
 	rdata = lcdDataRead();		// read low byte
 	rdata |= lcdDataRead()<<8;	// add high byte 
-	check2dBusy();				// Wait for completion
-	graphicMode(false);			// Switch to Text Mode
 	return rdata;
 }
 
@@ -1211,11 +1221,9 @@ void  Ra8876_Lite::drawPixel(ru16 x,ru16 y,ru16 color)
 	graphicMode(true);
 	setPixelCursor(x,y);
 	ramAccessPrepare();
-	checkWriteFifoNotFull();	//if high speed mcu and without Xnwait check
 	lcdDataWrite(color);
 	lcdDataWrite(color>>8);
 	//lcdDataWrite16bbp(color);
-	checkWriteFifoEmpty();		//if high speed mcu and without Xnwait check
 }
 
 //**************************************************************//
@@ -1228,7 +1236,7 @@ void  Ra8876_Lite::putPicture_16bpp(ru16 x,ru16 y,ru16 width, ru16 height)
 	activeWindowWH(width,height);
 	setPixelCursor(x,y);
 	ramAccessPrepare();
-// SOMETHING IS MISSING HERE !!!
+    // Now your program has to send the image data pixels
 }
 
 //*******************************************************************//
@@ -2536,6 +2544,8 @@ void Ra8876_Lite::bteMemoryCopy(ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 
 								ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,
 								ru16 copy_width,ru16 copy_height)
 {
+  check2dBusy();
+  graphicMode(true);
   bte_Source0_MemoryStartAddr(s0_addr);
   bte_Source0_ImageWidth(s0_image_width);
   bte_Source0_WindowStartXY(s0_x,s0_y);
@@ -2553,7 +2563,6 @@ void Ra8876_Lite::bteMemoryCopy(ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 
 //  lcdRegDataWrite(RA8876_BTE_CTRL1,RA8876_BTE_ROP_CODE_12<<4|3);//91h
   lcdRegDataWrite(RA8876_BTE_COLR,(RA8876_S0_COLOR_DEPTH_16BPP<<5|RA8876_S1_COLOR_DEPTH_16BPP<<2|RA8876_DESTINATION_COLOR_DEPTH_16BPP) & 0x7f);//92h
   lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4);//90h
-  check2dBusy();
 } 
 
 //**************************************************************//
@@ -2564,6 +2573,8 @@ void Ra8876_Lite::bteMemoryCopyWithROP(
     ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,
     ru16 copy_width,ru16 copy_height,ru8 rop_code)
 {
+  check2dBusy();
+  graphicMode(true);
   bte_Source0_MemoryStartAddr(s0_addr);
   bte_Source0_ImageWidth(s0_image_width);
   bte_Source0_WindowStartXY(s0_x,s0_y);
@@ -2577,13 +2588,16 @@ void Ra8876_Lite::bteMemoryCopyWithROP(
   lcdRegDataWrite(RA8876_BTE_CTRL1,rop_code<<4|RA8876_BTE_MEMORY_COPY_WITH_ROP);//91h
   lcdRegDataWrite(RA8876_BTE_COLR,RA8876_S0_COLOR_DEPTH_16BPP<<5|RA8876_S1_COLOR_DEPTH_16BPP<<2|RA8876_DESTINATION_COLOR_DEPTH_16BPP);//92h
   lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4);//90h
-  check2dBusy();
 } 
 //**************************************************************//
 //**************************************************************//
-void Ra8876_Lite::bteMemoryCopyWithChromaKey(ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
-ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 copy_width,ru16 copy_height, ru16 chromakey_color)
+void Ra8876_Lite::bteMemoryCopyWithChromaKey(
+		ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
+		ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,
+		ru16 copy_width, ru16 copy_height, ru16 chromakey_color)
 {
+  check2dBusy();
+  graphicMode(true);
   bte_Source0_MemoryStartAddr(s0_addr);
   bte_Source0_ImageWidth(s0_image_width);
   bte_Source0_WindowStartXY(s0_x,s0_y);
@@ -2595,14 +2609,40 @@ ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 copy_width,ru16 c
   lcdRegDataWrite(RA8876_BTE_CTRL1,RA8876_BTE_MEMORY_COPY_WITH_CHROMA);//91h
   lcdRegDataWrite(RA8876_BTE_COLR,RA8876_S0_COLOR_DEPTH_16BPP<<5|RA8876_S1_COLOR_DEPTH_16BPP<<2|RA8876_DESTINATION_COLOR_DEPTH_16BPP);//92h
   lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4);//90h
+}
+//**************************************************************//
+//**************************************************************//
+void Ra8876_Lite::bteMemoryCopyWindowAlpha(
+		ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
+		ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,
+		ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,
+		ru16 copy_width, ru16 copy_height, ru8 alpha)
+{
   check2dBusy();
+  graphicMode(true);
+  bte_Source0_MemoryStartAddr(s0_addr);
+  bte_Source0_ImageWidth(s0_image_width);
+  bte_Source0_WindowStartXY(s0_x,s0_y);
+  bte_Source1_MemoryStartAddr(s1_addr);
+  bte_Source1_ImageWidth(s1_image_width);
+  bte_Source1_WindowStartXY(s1_x,s1_y);
+  bte_DestinationMemoryStartAddr(des_addr);
+  bte_DestinationImageWidth(des_image_width);
+  bte_DestinationWindowStartXY(des_x,des_y);
+  bte_WindowSize(copy_width,copy_height);
+  bte_WindowAlpha(alpha);
+  lcdRegDataWrite(RA8876_BTE_CTRL1,RA8876_BTE_MEMORY_COPY_WITH_OPACITY);//91h
+  lcdRegDataWrite(RA8876_BTE_COLR,RA8876_S0_COLOR_DEPTH_16BPP<<5|RA8876_S1_COLOR_DEPTH_16BPP<<2|RA8876_DESTINATION_COLOR_DEPTH_16BPP);//92h
+  lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4);//90h
 }
 //**************************************************************//
 //**************************************************************//
 void Ra8876_Lite::bteMpuWriteWithROPData8(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
 ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned char *data)
 {
-   ru16 i,j;
+  ru16 i,j;
+  check2dBusy();
+  graphicMode(true);
   bte_Source1_MemoryStartAddr(s1_addr);
   bte_Source1_ImageWidth(s1_image_width);
   bte_Source1_WindowStartXY(s1_x,s1_y);
@@ -2615,16 +2655,17 @@ ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned char *d
   lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4);//90h
   ramAccessPrepare();
   
+  startSend();
+  SPI.transfer(RA8876_SPI_DATAWRITE);
   for(i=0;i< height;i++)
   {	
-   for(j=0;j< (width*2);j++)
-   {
-    checkWriteFifoNotFull();
-    lcdDataWrite(*data);
-    data++;
+    for(j=0;j<width;j++)
+    {
+      SPI.transfer16(data[0]<<8 | data[1]);
+      data+=2;
     }
-   }
-  checkWriteFifoEmpty();
+  }
+  endSend(true);
 }
 
 //**************************************************************//
@@ -2632,7 +2673,9 @@ ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned char *d
 void Ra8876_Lite::bteMpuWriteWithROPData16(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
 ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned short *data)
 {
-   ru16 i,j;
+  ru16 i,j;
+  check2dBusy();
+  graphicMode(true);
   bte_Source1_MemoryStartAddr(s1_addr);
   bte_Source1_ImageWidth(s1_image_width);
   bte_Source1_WindowStartXY(s1_x,s1_y);
@@ -2644,25 +2687,27 @@ ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned short *
   lcdRegDataWrite(RA8876_BTE_COLR,RA8876_S0_COLOR_DEPTH_16BPP<<5|RA8876_S1_COLOR_DEPTH_16BPP<<2|RA8876_DESTINATION_COLOR_DEPTH_16BPP);//92h
   lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4);//90h
   ramAccessPrepare();
-  
- for(j=0;j<height;j++)
- {
-  for(i=0;i<width;i++)
+
+  startSend();
+  SPI.transfer(RA8876_SPI_DATAWRITE);
+  //SPI.transfer(data, width * height *2); //why doesn't this work?
+  for(j=0;j<height;j++)
   {
-   checkWriteFifoNotFull();//if high speed mcu and without Xnwait check
-   lcdDataWrite16bbp(*data);
-   data++;
-   //checkWriteFifoEmpty();//if high speed mcu and without Xnwait check
-  }
- } 
-  checkWriteFifoEmpty();
+    for(i=0;i<width;i++)
+    {
+	  SPI.transfer16(*data);	  
+      data++;
+    }
+  } 
+  endSend(true);
 }
 //**************************************************************//
-//write data after setting
+//write data after setting, using lcdDataWrite() or lcdDataWrite16bbp()
 //**************************************************************//
 void Ra8876_Lite::bteMpuWriteWithROP(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code)
 {
-//   ru16 i,j;
+  check2dBusy();
+  graphicMode(true);
   bte_Source1_MemoryStartAddr(s1_addr);
   bte_Source1_ImageWidth(s1_image_width);
   bte_Source1_WindowStartXY(s1_x,s1_y);
@@ -2680,6 +2725,8 @@ void Ra8876_Lite::bteMpuWriteWithROP(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,
 void Ra8876_Lite::bteMpuWriteWithChromaKeyData8(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 chromakey_color,const unsigned char *data)
 {
   ru16 i,j;
+  check2dBusy();
+  graphicMode(true);
   bte_DestinationMemoryStartAddr(des_addr);
   bte_DestinationImageWidth(des_image_width);
   bte_DestinationWindowStartXY(des_x,des_y);
@@ -2690,16 +2737,17 @@ void Ra8876_Lite::bteMpuWriteWithChromaKeyData8(ru32 des_addr,ru16 des_image_wid
   lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4);//90h
   ramAccessPrepare();
   
+  startSend();
+  SPI.transfer(RA8876_SPI_DATAWRITE);
   for(i=0;i< height;i++)
   {	
-   for(j=0;j< (width*2);j++)
-   {
-    checkWriteFifoNotFull();
-    lcdDataWrite(*data);
-    data++;
-    }
-   }
-  checkWriteFifoEmpty();
+    for(j=0;j<width;j++)
+    {
+      SPI.transfer16(data[0]<<8 | data[1]);
+      data+=2;
+     }
+  }
+  endSend(true);
 }
 
 //**************************************************************//
@@ -2707,6 +2755,8 @@ void Ra8876_Lite::bteMpuWriteWithChromaKeyData8(ru32 des_addr,ru16 des_image_wid
 void Ra8876_Lite::bteMpuWriteWithChromaKeyData16(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height, ru16 chromakey_color,const unsigned short *data)
 {
   ru16 i,j;
+  check2dBusy();
+  graphicMode(true);
   bte_DestinationMemoryStartAddr(des_addr);
   bte_DestinationImageWidth(des_image_width);
   bte_DestinationWindowStartXY(des_x,des_y);
@@ -2717,25 +2767,26 @@ void Ra8876_Lite::bteMpuWriteWithChromaKeyData16(ru32 des_addr,ru16 des_image_wi
   lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4);//90h
   ramAccessPrepare();
   
- for(j=0;j<height;j++)
- {
-  for(i=0;i<width;i++)
+  startSend();
+  SPI.transfer(RA8876_SPI_DATAWRITE);
+  for(j=0;j<height;j++)
   {
-   checkWriteFifoNotFull();//if high speed mcu and without Xnwait check
-   lcdDataWrite16bbp(*data);
-   data++;
-   //checkWriteFifoEmpty();//if high speed mcu and without Xnwait check
-  }
- } 
-  checkWriteFifoEmpty();
+    for(i=0;i<width;i++)
+    {
+	  SPI.transfer16(*data);
+      data++;
+    }
+  } 
+  endSend(true);
 }
 
 //**************************************************************//
-//write data after setting
+//write data after setting, using lcdDataWrite() or lcdDataWrite16bbp()
 //**************************************************************//
 void Ra8876_Lite::bteMpuWriteWithChromaKey(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 chromakey_color)
 {
-//  ru16 i,j;
+  check2dBusy();
+  graphicMode(true);
   bte_DestinationMemoryStartAddr(des_addr);
   bte_DestinationImageWidth(des_image_width);
   bte_DestinationWindowStartXY(des_x,des_y);
@@ -2752,6 +2803,8 @@ void Ra8876_Lite::bteMpuWriteWithChromaKey(ru32 des_addr,ru16 des_image_width, r
 void Ra8876_Lite::bteMpuWriteColorExpansionData(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 foreground_color,ru16 background_color,const unsigned char *data)
 {
   ru16 i,j;
+  check2dBusy();
+  graphicMode(true);
   bte_DestinationMemoryStartAddr(des_addr);
   bte_DestinationImageWidth(des_image_width);
   bte_DestinationWindowStartXY(des_x,des_y);
@@ -2765,22 +2818,21 @@ void Ra8876_Lite::bteMpuWriteColorExpansionData(ru32 des_addr,ru16 des_image_wid
   
   for(i=0;i< height;i++)
   {	
-   for(j=0;j< (width/8);j++)
-   {
-    checkWriteFifoNotFull();
-    lcdDataWrite(*data);
-    data++;
+    for(j=0;j< (width/8);j++)
+    {
+      lcdDataWrite(*data, false);
+      data++;
     }
-   }
-  checkWriteFifoEmpty();
-  check2dBusy();
+  }
+  lcdStatusRead();
 }
 //**************************************************************//
-//write data after setting
+//write data after setting, using lcdDataWrite() or lcdDataWrite16bbp()
 //**************************************************************//
 void Ra8876_Lite::bteMpuWriteColorExpansion(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 foreground_color,ru16 background_color)
 {
-//  ru16 i,j;
+  check2dBusy();
+  graphicMode(true);
   bte_DestinationMemoryStartAddr(des_addr);
   bte_DestinationImageWidth(des_image_width);
   bte_DestinationWindowStartXY(des_x,des_y);
@@ -2798,6 +2850,8 @@ void Ra8876_Lite::bteMpuWriteColorExpansion(ru32 des_addr,ru16 des_image_width, 
 void Ra8876_Lite::bteMpuWriteColorExpansionWithChromaKeyData(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 foreground_color,ru16 background_color, const unsigned char *data)
 {
   ru16 i,j;
+  check2dBusy();
+  graphicMode(true);
   bte_DestinationMemoryStartAddr(des_addr);
   bte_DestinationImageWidth(des_image_width);
   bte_DestinationWindowStartXY(des_x,des_y);
@@ -2811,23 +2865,22 @@ void Ra8876_Lite::bteMpuWriteColorExpansionWithChromaKeyData(ru32 des_addr,ru16 
   
   for(i=0;i< height;i++)
   {	
-   for(j=0;j< (width/8);j++)
-   {
-    checkWriteFifoNotFull();
-    lcdDataWrite(*data);
-    data++;
+    for(j=0;j< (width/8);j++)
+    {
+      lcdDataWrite(*data, false);
+      data++;
     }
-   }
-  checkWriteFifoEmpty();
-  check2dBusy();
+  }
+  lcdStatusRead();
 }
 //**************************************************************//
 /*background_color do not set the same as foreground_color*/
-//write data after setting
+//write data after setting, using lcdDataWrite() or lcdDataWrite16bbp()
 //**************************************************************//
 void Ra8876_Lite::bteMpuWriteColorExpansionWithChromaKey(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 foreground_color,ru16 background_color)
 {
-//  ru16 i,j;
+  check2dBusy();
+  graphicMode(true);
   bte_DestinationMemoryStartAddr(des_addr);
   bte_DestinationImageWidth(des_image_width);
   bte_DestinationWindowStartXY(des_x,des_y);
@@ -2844,6 +2897,8 @@ void Ra8876_Lite::bteMpuWriteColorExpansionWithChromaKey(ru32 des_addr,ru16 des_
 void  Ra8876_Lite::btePatternFill(ru8 p8x8or16x16, ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
                                  ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height)
 { 
+  check2dBusy();
+  graphicMode(true);
   bte_Source0_MemoryStartAddr(s0_addr);
   bte_Source0_ImageWidth(s0_image_width);
   bte_Source0_WindowStartXY(s0_x,s0_y);
@@ -2855,16 +2910,17 @@ void  Ra8876_Lite::btePatternFill(ru8 p8x8or16x16, ru32 s0_addr,ru16 s0_image_wi
   lcdRegDataWrite(RA8876_BTE_COLR,RA8876_S0_COLOR_DEPTH_16BPP<<5|RA8876_S1_COLOR_DEPTH_16BPP<<2|RA8876_DESTINATION_COLOR_DEPTH_16BPP);//92h
   
   if(p8x8or16x16 == 0)
-   lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4|RA8876_PATTERN_FORMAT8X8);//90h
+    lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4|RA8876_PATTERN_FORMAT8X8);//90h
   else
-   lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4|RA8876_PATTERN_FORMAT16X16);//90h
+    lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4|RA8876_PATTERN_FORMAT16X16);//90h
    
-  check2dBusy();
 }
 //**************************************************************//
 //**************************************************************//
 void  Ra8876_Lite::btePatternFillWithChromaKey(ru8 p8x8or16x16, ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 chromakey_color)
 {
+  check2dBusy();
+  graphicMode(true);
   bte_Source0_MemoryStartAddr(s0_addr);
   bte_Source0_ImageWidth(s0_image_width);
   bte_Source0_WindowStartXY(s0_x,s0_y);
@@ -2875,11 +2931,12 @@ void  Ra8876_Lite::btePatternFillWithChromaKey(ru8 p8x8or16x16, ru32 s0_addr,ru1
   backGroundColor16bpp(chromakey_color); 
   lcdRegDataWrite(RA8876_BTE_CTRL1,RA8876_BTE_ROP_CODE_12<<4|RA8876_BTE_PATTERN_FILL_WITH_CHROMA);//91h
   lcdRegDataWrite(RA8876_BTE_COLR,RA8876_S0_COLOR_DEPTH_16BPP<<5|RA8876_S1_COLOR_DEPTH_16BPP<<2|RA8876_DESTINATION_COLOR_DEPTH_16BPP);//92h
+
   if(p8x8or16x16 == 0)
-   lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4|RA8876_PATTERN_FORMAT8X8);//90h
+    lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4|RA8876_PATTERN_FORMAT8X8);//90h
   else
-   lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4|RA8876_PATTERN_FORMAT16X16);//90h
-  check2dBusy();
+    lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4|RA8876_PATTERN_FORMAT16X16);//90h
+
 }
 
  /*DMA Function*/

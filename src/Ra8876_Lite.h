@@ -849,8 +849,6 @@ memory size. For example : page_size = 1024*600*2byte(16bpp) = 1228800byte, maxi
 #define	cClrb6		0xbf
 #define	cClrb7		0x7f
 
-static volatile ru32 _maxspeed = 5000000; // Default to a relatively slow speed for breadboard testing
-					   //A "good" PCB can get up to 75000000 (75MHz) with a Teensy 4
 
 const uint32_t MEM_SIZE_MAX	= 16l*1024l*1024l;	///Max. size in byte of SDRAM
 
@@ -875,6 +873,9 @@ public:
 	uint8_t _fontheight;
 	uint8_t _cursorXsize;
 	uint8_t _cursorYsize;
+
+	const ru32 SPIspeed = 5000000; // Default to a relatively slow speed for breadboard testing
+					   //A "good" PCB can get up to 75000000 (75MHz) with a Teensy 4
 
 	volatile bool	RA8876_BUSY; //This is used to show an SPI transaction is in progress. 
 
@@ -954,6 +955,7 @@ public:
 	void bte_DestinationImageWidth(ru16 width);
 	void bte_DestinationWindowStartXY(ru16 x0,ru16 y0);
 	void bte_WindowSize(ru16 width, ru16 height);
+	void bte_WindowAlpha(ru8 alpha);
 
 	/*PWM function*/
 	void pwm_Prescaler(ru8 prescaler);
@@ -1083,6 +1085,9 @@ public:
 							   ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 copy_width,ru16 copy_height,ru8 rop_code);
 	void bteMemoryCopyWithChromaKey(ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
 								   ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 copy_width,ru16 copy_height,ru16 chromakey_color);
+	void bteMemoryCopyWindowAlpha(ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
+									ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,
+								   ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 copy_width,ru16 copy_height,ru8 alpha);
 	void bteMpuWriteWithROPData8(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
 							ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned char *data);
 	void bteMpuWriteWithROPData16(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
@@ -1111,12 +1116,12 @@ public:
 	void dma_32bitAddressBlockMode(ru8 scs_selct,ru8 clk_div,ru16 x0,ru16 y0,ru16 width,ru16 height,ru16 picture_width,ru32 addr);
 
 
-	//SPI Functions
+	//SPI Functions - should these be private?
 	inline __attribute__((always_inline)) 
 	void startSend(){
 		if(!RA8876_BUSY) {
 	        RA8876_BUSY = true;
-			SPI.beginTransaction(SPISettings(_maxspeed, MSBFIRST, SPI_MODE0));
+			SPI.beginTransaction(SPISettings(SPIspeed, MSBFIRST, SPI_MODE0));
 		}
 	    digitalWriteFast(_cs, LOW);
 	}
