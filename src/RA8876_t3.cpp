@@ -670,9 +670,9 @@ void RA8876_t3::readTouchADC(uint16_t *x, uint16_t *y) {
 //	touchReadAdc(x, y);//we using 10bit adc data here
 }
 
-// Setup graphic mouse cursor// Draw an ellipse. TODO: Add line thickness size
-void RA8876_t3::gCursorSet(boolean gcursoronoff, uint8_t gcursortype, uint8_t gcursorcolor1, uint8_t gcursorcolor2) {
-	if (gcursoronoff == 0)
+// Setup graphic mouse cursor
+void RA8876_t3::gCursorSet(boolean gCursorEnable, uint8_t gcursortype, uint8_t gcursorcolor1, uint8_t gcursorcolor2) {
+	if (!gCursorEnable)
 		Disable_Graphic_Cursor();
 	else
 		Enable_Graphic_Cursor();

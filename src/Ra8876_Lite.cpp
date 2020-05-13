@@ -240,6 +240,8 @@ boolean Ra8876_Lite::ra8876Initialize(void) {
 	// Init Global Variables
 	currentPage = PAGE1_START_ADDR; // set default screen page address
 	pageOffset = 0;
+	gCursorX = 0;
+	gCursorY = 0;
 	_cursorX = 0;
 	_cursorY = 0;
 	CharPosX = 0;
@@ -1776,8 +1778,7 @@ void Ra8876_Lite::CGRAM_initial(uint32_t charAddr, const uint8_t *data, uint16_t
 
 //***************************************************************************//
 /* Initialize graphic cursor RAM with 4 available graphic cursor shapes      */
-/* These are 16x16 byte arrays, 256 bytes per image * 4 images (2048 bytes)  */  
-/* Need to change this code to use User Defined cursor shapes                */
+/* These are 8x32 byte arrays, 256 bytes per image * 4 images (2048 bytes)   */  
 //***************************************************************************//
 void Ra8876_Lite::Graphic_cursor_initial(void)
 {
@@ -1819,6 +1820,49 @@ void Ra8876_Lite::Graphic_cursor_initial(void)
     Set_Graphic_Cursor_Color_1(0xff); // White foreground color
     Set_Graphic_Cursor_Color_2(0x00); // Background outline color
     Graphic_Cursor_XY(0,0);
+}
+
+//***************************************************************************//
+/* Initialize graphic cursor RAM with user-supplied data                     */
+/* These are 8x32 byte arrays, 256 bytes per image * 4 images (2048 bytes)  */  
+/*                                                                           */
+/* The 4 colors used in the graphic cursor are:   (Binary)                   */
+/*       00  Color 1 (usually white)                                         */
+/*       01  Color 2 (usually black)                                         */
+/*       10  Background (transparent)                                        */
+/*       11  Invert background (annoying flashy, don't normally use it)      */
+//***************************************************************************//
+void Ra8876_Lite::Upload_Graphic_Cursor(uint8_t cursorNum, uint8_t *data)
+{
+	unsigned int i ;
+
+    check2dBusy();
+	graphicMode(true);
+    Memory_Select_Graphic_Cursor_RAM(); 
+
+	// awkward way to select which cursor to upload, but it works
+	switch(cursorNum) {
+		case 1: 
+		    Select_Graphic_Cursor_1();
+			break;
+		case 2: 
+		    Select_Graphic_Cursor_2();
+			break;
+		case 3: 
+		    Select_Graphic_Cursor_3();
+			break;
+		case 4: 
+		    Select_Graphic_Cursor_4();
+			break;
+	}
+
+	ramAccessPrepare();
+    for(i=0;i<256;i++)
+    {					 
+     lcdDataWrite(data[i], false);
+    }
+	Memory_Select_SDRAM();// Reselect image SDRAM
+    // Don't set colors or position
 }
 
 //***************************************************//
@@ -2009,7 +2053,7 @@ Select one from four graphic cursor types. (00b to 11b)
 //************************************************/
 /* Position graphic cursor                       */
 //************************************************/
-void Ra8876_Lite::Graphic_Cursor_XY(unsigned short WX,unsigned short HY)
+void Ra8876_Lite::Graphic_Cursor_XY(int16_t WX,int16_t HY)
 {
 /*
 REG[40h] Graphic Cursor Horizontal Location[7:0]
@@ -2018,6 +2062,12 @@ REG[42h] Graphic Cursor Vertical Location[7:0]
 REG[43h] Graphic Cursor Vertical Location[12:8]
 Reference main Window coordinates.
 */	
+	gCursorX = WX;
+	gCursorY = HY;
+
+	if(WX < 0 && WX > -32) WX = 0; //cursor partially visible off the left/top of the screen is coerced onto the screen
+	if(HY < 0 && HY > -32) HY = 0;
+
 	lcdRegDataWrite(RA8876_GCHP0,WX, false);
 	lcdRegDataWrite(RA8876_GCHP1,WX>>8, false);
 
