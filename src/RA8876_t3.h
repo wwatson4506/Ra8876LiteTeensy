@@ -201,7 +201,7 @@ public:
 	void fillTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color);
 	void cursorInit(void);
 	void setCursor(uint16_t x, uint16_t y);
-	void gCursorSet(boolean gcursoronoff, uint8_t gcursortype, uint8_t gcursorcolor1, uint8_t gcursorcolor2);
+	void gCursorSet(boolean gCursorEnable, uint8_t gcursortype, uint8_t gcursorcolor1, uint8_t gcursorcolor2);
 	void gcursorxy(uint16_t gcx, uint16_t gcy);
 	void initButton(struct Gbuttons *button, uint16_t x, uint16_t y, uint8_t w, uint8_t h,
 	 uint16_t outline, uint16_t fill, uint16_t textcolor,

@@ -868,6 +868,7 @@ public:
 	boolean			  _textMode;
 	int16_t 		 			  _width, 			  _height;
 	int16_t						  _cursorX, 		  _cursorY;
+	int16_t						  gCursorX, 		  gCursorY;
 	uint8_t						  _scaleX,			  _scaleY;
 	uint8_t						  _FNTwidth, 		  _FNTheight;
 	uint8_t _fontheight;
@@ -988,12 +989,13 @@ public:
 	void Select_Graphic_Cursor_2(void);
 	void Select_Graphic_Cursor_3(void);
 	void Select_Graphic_Cursor_4(void);
+	void Upload_Graphic_Cursor(uint8_t cursorNum, uint8_t *data);
 	void Memory_Select_CGRAM(void);
 	void CGRAM_initial(uint32_t charAddr, const uint8_t *data, uint16_t count);
 	void Memory_XY_Mode(void);
 	void Memory_Linear_Mode(void);
 	//**[40h][41h][42h][43h]**//
-	void Graphic_Cursor_XY(unsigned short WX,unsigned short HY);
+	void Graphic_Cursor_XY(int16_t WX,int16_t HY);
 	//**[44]**//
 	void Set_Graphic_Cursor_Color_1(unsigned char temp);
 	//**[45]**//
