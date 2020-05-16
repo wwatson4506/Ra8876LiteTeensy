@@ -38,6 +38,9 @@
 #include "Ra8876_Lite.h"
 #include "Arduino.h"
 #include "SPI.h"
+#ifdef SPI_HAS_TRANSFER_ASYNC
+#include "EventResponder.h"
+#endif
 
 //**************************************************************//
 // Graphic Cursor Image (Busy)
@@ -127,6 +130,17 @@ PROGMEM unsigned char gImage_pen_il[256] = { /* 0X00,0X02,0X20,0X00,0X20,0X00, *
 0XAA,0XAA,0XAA,0XAA,0XAA,0XAA,0XAA,0XAA,0XAA,0XAA,0XAA,0XAA,0XAA,0XAA,0XAA,0XAA,
 };
 
+#ifdef SPI_HAS_TRANSFER_ASYNC
+//**************************************************************//
+// If using DMA, must close transaction and de-assert _CS
+// after the data has been sent.
+//**************************************************************//
+void asyncEventResponder(EventResponderRef event_responder) {
+  Ra8876_Lite *tft = (Ra8876_Lite*)event_responder.getContext();
+  tft->activeDMA = false;
+  tft->endSend(true);
+}
+#endif
 //**************************************************************//
 // Ra8876_Lite()
 //**************************************************************//
@@ -159,6 +173,11 @@ boolean Ra8876_Lite::Ra8876_begin(void)
 	}
 	pinMode(_cs, OUTPUT);
 	SPI.begin();
+
+	#ifdef SPI_HAS_TRANSFER_ASYNC
+		finishedDMAEvent.setContext(this);	// Set the contxt to us
+		finishedDMAEvent.attachImmediate(asyncEventResponder);
+	#endif
   
 	// toggle RST low to reset
 	if (_rst < 255) {
@@ -425,7 +444,7 @@ A large filled rectangle might take 3300 microseconds
 *****************************************************************/
 void Ra8876_Lite::check2dBusy(void)  
 {  ru32 i; 
-   for(i=0;i<5000000;i++)   //Please according to your usage to modify i value.
+   for(i=0;i<50000;i++)   //Please according to your usage to modify i value.
    { 
    delayMicroseconds(1);
     if( (lcdStatusRead()&0x08)==0x00 )
@@ -1229,7 +1248,8 @@ void  Ra8876_Lite::drawPixel(ru16 x,ru16 y,ru16 color)
 }
 
 //**************************************************************//
-/* Write 16bpp(RGB565) picture data for user operation */
+/* Write 16bpp(RGB565) picture data for user operation          */
+/* Not recommended for future use - use BTE instead             */
 //**************************************************************//
 void  Ra8876_Lite::putPicture_16bpp(ru16 x,ru16 y,ru16 width, ru16 height)
 {
@@ -1243,11 +1263,11 @@ void  Ra8876_Lite::putPicture_16bpp(ru16 x,ru16 y,ru16 width, ru16 height)
 
 //*******************************************************************//
 /* write 16bpp(RGB565) picture data in byte format from data pointer */
+/* Not recommended for future use - use BTE instead                  */
 //*******************************************************************//
 void  Ra8876_Lite::putPicture_16bppData8(ru16 x,ru16 y,ru16 width, ru16 height, const unsigned char *data)
 {
 	ru16 i,j;
-
 	graphicMode(true);
 	activeWindowXY(x,y);
 	activeWindowWH(width,height);
@@ -1270,15 +1290,12 @@ void  Ra8876_Lite::putPicture_16bppData8(ru16 x,ru16 y,ru16 width, ru16 height, 
 
 //****************************************************************//
 /* Write 16bpp(RGB565) picture data word format from data pointer */
+/* Not recommended for future use - use BTE instead               */
 //****************************************************************//
 void  Ra8876_Lite::putPicture_16bppData16(ru16 x,ru16 y,ru16 width, ru16 height, const unsigned short *data)
 {
 	ru16 i,j;
-	graphicMode(true);
-	activeWindowXY(x,y);	
-	activeWindowWH(width,height);
-	setPixelCursor(x,y);
-	ramAccessPrepare();
+	putPicture_16bpp(x, y, width, height);
 	for(j=0;j<height;j++) {
 		for(i=0;i<width;i++) {
 			//checkWriteFifoNotFull();//if high speed mcu and without Xnwait check
@@ -2589,6 +2606,7 @@ uint32_t Ra8876_Lite::boxGet(uint32_t vPageAddr, uint16_t x0, uint16_t y0,
 
 /*BTE function*/
 //**************************************************************//
+// Copy from place to place in memory (eg. from a non-displayed page to the current page)
 //**************************************************************//
 void Ra8876_Lite::bteMemoryCopy(ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
 								ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,
@@ -2616,6 +2634,8 @@ void Ra8876_Lite::bteMemoryCopy(ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 
 } 
 
 //**************************************************************//
+// Memory copy with Raster OPeration blend from two sources
+// One source may be the destination, if blending with something already on the screen
 //**************************************************************//
 void Ra8876_Lite::bteMemoryCopyWithROP(
 	ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
@@ -2640,6 +2660,7 @@ void Ra8876_Lite::bteMemoryCopyWithROP(
   lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4);//90h
 } 
 //**************************************************************//
+// Memory copy with one color set to transparent
 //**************************************************************//
 void Ra8876_Lite::bteMemoryCopyWithChromaKey(
 		ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
@@ -2661,6 +2682,7 @@ void Ra8876_Lite::bteMemoryCopyWithChromaKey(
   lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4);//90h
 }
 //**************************************************************//
+// Blend two source images with a simple transparency 0-32
 //**************************************************************//
 void Ra8876_Lite::bteMemoryCopyWindowAlpha(
 		ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
@@ -2685,62 +2707,46 @@ void Ra8876_Lite::bteMemoryCopyWindowAlpha(
   lcdRegDataWrite(RA8876_BTE_COLR,RA8876_S0_COLOR_DEPTH_16BPP<<5|RA8876_S1_COLOR_DEPTH_16BPP<<2|RA8876_DESTINATION_COLOR_DEPTH_16BPP);//92h
   lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4);//90h
 }
+
 //**************************************************************//
+// Send data from the microcontroller to the RA8876
+// Does a Raster OPeration to combine with an image already in memory
+// For a simple overwrite operation, use ROP 12
 //**************************************************************//
 void Ra8876_Lite::bteMpuWriteWithROPData8(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
 ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned char *data)
 {
-  ru16 i,j;
-  check2dBusy();
-  graphicMode(true);
-  bte_Source1_MemoryStartAddr(s1_addr);
-  bte_Source1_ImageWidth(s1_image_width);
-  bte_Source1_WindowStartXY(s1_x,s1_y);
-  bte_DestinationMemoryStartAddr(des_addr);
-  bte_DestinationImageWidth(des_image_width);
-  bte_DestinationWindowStartXY(des_x,des_y);
-  bte_WindowSize(width,height);
-  lcdRegDataWrite(RA8876_BTE_CTRL1,rop_code<<4|RA8876_BTE_MPU_WRITE_WITH_ROP);//91h
-  lcdRegDataWrite(RA8876_BTE_COLR,RA8876_S0_COLOR_DEPTH_16BPP<<5|RA8876_S1_COLOR_DEPTH_16BPP<<2|RA8876_DESTINATION_COLOR_DEPTH_16BPP);//92h
-  lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4);//90h
-  ramAccessPrepare();
+  bteMpuWriteWithROP(s1_addr, s1_image_width, s1_x, s1_y, des_addr, des_image_width, des_x, des_y, width, height, rop_code);
   
   startSend();
   SPI.transfer(RA8876_SPI_DATAWRITE);
-  for(i=0;i< height;i++)
-  {	
-    for(j=0;j<width;j++)
-    {
-      SPI.transfer16(data[0]<<8 | data[1]);
-      data+=2;
-    }
-  }
-  endSend(true);
-}
 
+#ifdef SPI_HAS_TRANSFER_ASYNC
+  activeDMA = true;
+  SPI.transfer(data, NULL, width*height*2, finishedDMAEvent);
+#else
+  //If you try SPI.transfer(data, length) then this tries to write received data into the data buffer
+  //but if we were given a PROGMEM (unwriteable) data pointer then SPI.transfer will lock up totally.
+  //So we explicitly tell it we don't care about any return data.
+  SPI.transfer(data, NULL, width*height*2);
+  endSend(true);
+#endif
+}
 //**************************************************************//
+// For 16-bit byte-reversed data.
+// Note this is 4-5 milliseconds slower than the 8-bit version above
+// as the bulk byte-reversing SPI transfer operation is not available
+// on all Teensys.
 //**************************************************************//
 void Ra8876_Lite::bteMpuWriteWithROPData16(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
 ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned short *data)
 {
   ru16 i,j;
-  check2dBusy();
-  graphicMode(true);
-  bte_Source1_MemoryStartAddr(s1_addr);
-  bte_Source1_ImageWidth(s1_image_width);
-  bte_Source1_WindowStartXY(s1_x,s1_y);
-  bte_DestinationMemoryStartAddr(des_addr);
-  bte_DestinationImageWidth(des_image_width);
-  bte_DestinationWindowStartXY(des_x,des_y);
-  bte_WindowSize(width,height);
-  lcdRegDataWrite(RA8876_BTE_CTRL1,rop_code<<4|RA8876_BTE_MPU_WRITE_WITH_ROP);//91h
-  lcdRegDataWrite(RA8876_BTE_COLR,RA8876_S0_COLOR_DEPTH_16BPP<<5|RA8876_S1_COLOR_DEPTH_16BPP<<2|RA8876_DESTINATION_COLOR_DEPTH_16BPP);//92h
-  lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4);//90h
-  ramAccessPrepare();
+  bteMpuWriteWithROP(s1_addr, s1_image_width, s1_x, s1_y, des_addr, des_image_width, des_x, des_y, width, height, rop_code);
 
   startSend();
   SPI.transfer(RA8876_SPI_DATAWRITE);
-  //SPI.transfer(data, width * height *2); //why doesn't this work?
+  
   for(j=0;j<height;j++)
   {
     for(i=0;i<width;i++)
@@ -2749,6 +2755,7 @@ ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned short *
       data++;
     }
   } 
+  
   endSend(true);
 }
 //**************************************************************//
@@ -2770,52 +2777,33 @@ void Ra8876_Lite::bteMpuWriteWithROP(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,
   lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4);//90h
   ramAccessPrepare();
 }
+
 //**************************************************************//
+// Send data from the microcontroller to the RA8876
+// Does a chromakey (transparent color) to combine with the image already in memory
 //**************************************************************//
 void Ra8876_Lite::bteMpuWriteWithChromaKeyData8(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 chromakey_color,const unsigned char *data)
 {
-  ru16 i,j;
-  check2dBusy();
-  graphicMode(true);
-  bte_DestinationMemoryStartAddr(des_addr);
-  bte_DestinationImageWidth(des_image_width);
-  bte_DestinationWindowStartXY(des_x,des_y);
-  bte_WindowSize(width,height);
-  backGroundColor16bpp(chromakey_color);
-  lcdRegDataWrite(RA8876_BTE_CTRL1,RA8876_BTE_MPU_WRITE_WITH_CHROMA);//91h
-  lcdRegDataWrite(RA8876_BTE_COLR,RA8876_S0_COLOR_DEPTH_16BPP<<5|RA8876_S1_COLOR_DEPTH_16BPP<<2|RA8876_DESTINATION_COLOR_DEPTH_16BPP);//92h
-  lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4);//90h
-  ramAccessPrepare();
-  
+  bteMpuWriteWithChromaKey(des_addr, des_image_width, des_x, des_y, width, height, chromakey_color);  
+
   startSend();
   SPI.transfer(RA8876_SPI_DATAWRITE);
-  for(i=0;i< height;i++)
-  {	
-    for(j=0;j<width;j++)
-    {
-      SPI.transfer16(data[0]<<8 | data[1]);
-      data+=2;
-     }
-  }
-  endSend(true);
-}
 
+#ifdef SPI_HAS_TRANSFER_ASYNC
+  activeDMA = true;
+  SPI.transfer(data, NULL, width*height*2, finishedDMAEvent);
+#else
+  SPI.transfer(data, NULL, width*height*2);
+  endSend(true);
+#endif
+}
 //**************************************************************//
+// Chromakey for 16-bit byte-reversed data. (Slower than 8-bit.)
 //**************************************************************//
 void Ra8876_Lite::bteMpuWriteWithChromaKeyData16(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height, ru16 chromakey_color,const unsigned short *data)
 {
   ru16 i,j;
-  check2dBusy();
-  graphicMode(true);
-  bte_DestinationMemoryStartAddr(des_addr);
-  bte_DestinationImageWidth(des_image_width);
-  bte_DestinationWindowStartXY(des_x,des_y);
-  bte_WindowSize(width,height);
-  backGroundColor16bpp(chromakey_color);
-  lcdRegDataWrite(RA8876_BTE_CTRL1,RA8876_BTE_MPU_WRITE_WITH_CHROMA);//91h
-  lcdRegDataWrite(RA8876_BTE_COLR,RA8876_S0_COLOR_DEPTH_16BPP<<5|RA8876_S1_COLOR_DEPTH_16BPP<<2|RA8876_DESTINATION_COLOR_DEPTH_16BPP);//92h
-  lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4);//90h
-  ramAccessPrepare();
+  bteMpuWriteWithChromaKey(des_addr, des_image_width, des_x, des_y, width, height, chromakey_color);
   
   startSend();
   SPI.transfer(RA8876_SPI_DATAWRITE);
