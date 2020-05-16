@@ -862,6 +862,9 @@ private:
 	int _cs;
 	int _rst;
 	int	_errorCode;
+#ifdef SPI_HAS_TRANSFER_ASYNC
+	EventResponder finishedDMAEvent;
+#endif
 
 public:
 	// Global Variables
@@ -879,6 +882,7 @@ public:
 					   //A "good" PCB can get up to 75000000 (75MHz) with a Teensy 4
 
 	volatile bool	RA8876_BUSY; //This is used to show an SPI transaction is in progress. 
+	volatile bool   activeDMA=false; //Unfortunately must be public so asyncEventResponder() can set it
 
 	uint32_t currentPage;
 	uint32_t lastPage;
@@ -978,9 +982,9 @@ public:
 	void setPixelCursor(ru16 x,ru16 y);
 	void drawPixel(ru16 x, ru16 y, ru16 color);
 	ru16 getPixel(ru16 x, ru16 y);
-	void putPicture_16bpp(ru16 x,ru16 y,ru16 width, ru16 height);
-	void putPicture_16bppData8(ru16 x,ru16 y,ru16 width, ru16 height, const unsigned char *data);
-	void putPicture_16bppData16(ru16 x,ru16 y,ru16 width, ru16 height, const unsigned short *data);
+	void putPicture_16bpp(ru16 x,ru16 y,ru16 width, ru16 height);  //not recommended: use BTE instead
+	void putPicture_16bppData8(ru16 x,ru16 y,ru16 width, ru16 height, const unsigned char *data);  //not recommended: use BTE instead
+	void putPicture_16bppData16(ru16 x,ru16 y,ru16 width, ru16 height, const unsigned short *data);  //not recommended: use BTE instead
 	void Memory_Select_SDRAM(void);
 	void Memory_Select_Graphic_Cursor_RAM(void);
 	void Enable_Graphic_Cursor(void);
@@ -1094,6 +1098,7 @@ public:
 							ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned char *data);
 	void bteMpuWriteWithROPData16(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
 							ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned short *data);
+	bool DMAFinished() {return !activeDMA;}
 	void bteMpuWriteWithROP(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
 							ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code);                     
 	void bteMpuWriteWithChromaKeyData8(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 chromakey_color,
@@ -1121,6 +1126,9 @@ public:
 	//SPI Functions - should these be private?
 	inline __attribute__((always_inline)) 
 	void startSend(){
+		#ifdef SPI_HAS_TRANSFER_ASYNC
+		while(activeDMA) {}; //wait forever while DMA is finishing- can't start a new transfer
+		#endif
 		if(!RA8876_BUSY) {
 	        RA8876_BUSY = true;
 			SPI.beginTransaction(SPISettings(SPIspeed, MSBFIRST, SPI_MODE0));
