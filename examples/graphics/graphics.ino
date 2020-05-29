@@ -331,7 +331,7 @@ void setup() {
     
 	tft.begin();
 	//initVT100();
-  tft.setTextAt(0,0);
+  tft.setTextCursor(0,0);
 	tft.fillScreen(myColors[11]);
 	tft.setFontSize(1,false);
 }
