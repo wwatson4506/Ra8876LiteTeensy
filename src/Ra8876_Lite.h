@@ -849,6 +849,16 @@ memory size. For example : page_size = 1024*600*2byte(16bpp) = 1228800byte, maxi
 #define	cClrb6		0xbf
 #define	cClrb7		0x7f
 
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//    Font Parameters
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//index:x -> w,h,baselineLowOffset,baselineTopOffset,variableWidth
+	const static uint8_t fontDimPar[4][5] = {
+		{8,16,2,4,0},// INT font
+		{8,16,3,0,0},// ROM X16
+		{12,24,2,2,0},//ROM X24
+		{16,32,2,2,0},//ROM X32
+	};
 
 const uint32_t MEM_SIZE_MAX	= 16l*1024l*1024l;	///Max. size in byte of SDRAM
 
@@ -905,7 +915,19 @@ public:
 	uint16_t	_scrollXL,_scrollXR,_scrollYT,_scrollYB;
 	uint16_t	_TXTForeColor;
 	uint16_t	_TXTBackColor;
-
+	
+	volatile uint8_t			  _TXTparameters;
+	/* It contains several parameters in one byte
+	bit			 parameter
+	0	->		_extFontRom 		i's using an ext rom font
+	1	->		_autoAdvance		after a char the pointer move ahead
+	2	->		_textWrap
+	3	->		_fontFullAlig		
+	4	->		_fontRotation       (actually not used)
+	5	->		_alignXToCenter;
+	6	->		_alignYToCenter;
+	7	->		_renderFont active;
+	*/
 
 	Ra8876_Lite(int CSp, int RSTp, int mosi_pin, int sclk_pin, int miso_pin);
 	/* Initialize RA8876 */
@@ -1053,11 +1075,7 @@ public:
 	void putString(ru16 x0,ru16 y0, const char *str);
 	void writeStatusLine(ru16 x0, uint16_t fgcolor, uint16_t bgcolor, const char *str);
 
-	// overwrite print functions:
-	virtual size_t write(uint8_t);
-	virtual size_t write(const uint8_t *buffer, size_t size);
-	
-	size_t rawPrint(uint8_t text);
+
 	void update_xy(void);
 	void update_tft(uint8_t data);
 	void Enable_Text_Cursor(void);

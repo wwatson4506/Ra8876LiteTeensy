@@ -292,6 +292,19 @@ boolean Ra8876_Lite::ra8876Initialize(void) {
 	_TXTForeColor = COLOR65K_WHITE;
 	_TXTBackColor = COLOR65K_DARKBLUE;
 	RA8876_BUSY = false;
+	//_FNTrender = false;
+	/* set-->  _TXTparameters  <--
+	0:_extFontRom = false;
+	1:_autoAdvance = true;
+	2:_textWrap = user defined
+	3:_fontFullAlig = false;
+	4:_fontRotation = false;//not used
+	5:_alignXToCenter = false;
+	6:_alignYToCenter = false;
+	7: render         = false;
+	*/
+	_TXTparameters = 0b00000010;
+	
   return true;
 }
 
@@ -1211,12 +1224,15 @@ void Ra8876_Lite::backGroundColor16bpp(ru16 color, bool finalize)
 void Ra8876_Lite::graphicMode(boolean on)
 {
   if(_textMode == on) {  
-	if(on)
-		lcdRegDataWrite(RA8876_ICR,RA8877_LVDS_FORMAT<<3|RA8876_GRAPHIC_MODE<<2|RA8876_MEMORY_SELECT_IMAGE);//03h  //switch to graphic mode
-	else
-		lcdRegDataWrite(RA8876_ICR,RA8877_LVDS_FORMAT<<3|RA8876_TEXT_MODE<<2|RA8876_MEMORY_SELECT_IMAGE);//03h  //switch back to text mode
+		if(on) {
+			lcdRegDataWrite(RA8876_ICR,RA8877_LVDS_FORMAT<<3|RA8876_GRAPHIC_MODE<<2|RA8876_MEMORY_SELECT_IMAGE);//03h  //switch to graphic mode
+			bitWrite(_TXTparameters,7,1);
+	   } else {
+			lcdRegDataWrite(RA8876_ICR,RA8877_LVDS_FORMAT<<3|RA8876_TEXT_MODE<<2|RA8876_MEMORY_SELECT_IMAGE);//03h  //switch back to text mode
+			bitWrite(_TXTparameters,7,0);
+	  }
 	_textMode = !on;
-  }
+	}
 }
 
 //**************************************************************//
@@ -1319,10 +1335,14 @@ void  Ra8876_Lite::putPicture_16bppData16(ru16 x,ru16 y,ru16 width, ru16 height,
 void Ra8876_Lite::textMode(boolean on)
 {
   if(on != _textMode) {
-	if(on)
+	if(on) {
 		lcdRegDataWrite(RA8876_ICR,RA8877_LVDS_FORMAT<<3|RA8876_TEXT_MODE<<2|RA8876_MEMORY_SELECT_IMAGE);//03h  //switch to text mode
-	else
+		//_TXTparameters &= ~(1 << 7);//render OFF
+		bitWrite(_TXTparameters,7,0);
+	} else {	
 		lcdRegDataWrite(RA8876_ICR,RA8877_LVDS_FORMAT<<3|RA8876_GRAPHIC_MODE<<2|RA8876_MEMORY_SELECT_IMAGE);//03h  //switch back to graphic mode
+		bitWrite(_TXTparameters,7, 1);
+	}
 	_textMode = on;
   }
 }
@@ -1557,106 +1577,6 @@ void Ra8876_Lite::clearActiveScreen(void)
 /* For control code 7 (BELL Character in tftPrint())            */
 //**************************************************************//
 extern void tone(uint8_t pin, uint16_t frequency, uint32_t duration);
-
-//**************************************************************//
-/* Print a character to current active screen                   */
-/* This function processes most ASCII control codes and will    */
-/* scroll the screen up when text position is past bottom line  */
-//**************************************************************//
-// overwrite functions from class Print:
-size_t Ra8876_Lite::write(uint8_t c) {
-	return write(&c, 1);
-}
-
-size_t Ra8876_Lite::write(const uint8_t *buffer, size_t size) {
-
-	size_t cb = size;
-	while (cb) {
-		uint8_t text = *buffer++;
-		cb--;
-		vdata = text;
-		if (text == 13){//'\r'
-			//Ignore carriage-return
-		} else if(text == '\n') {
-			_cursorY += (_FNTheight * _scaleY);
-			prompt_line = _cursorY + _scrollYT;
-			_cursorX = _scrollXL;
-			update_xy();
-		} else if(text == 127) { // Destructive Backspace
-				if((_cursorX > (prompt_size +_scrollXL)) || (_cursorY > (prompt_line + _scrollYT)))
-				{
-					_cursorX-=(_FNTwidth * _scaleX);
-					update_xy();
-					vdata = 0x20;
-					update_tft(vdata);
-					update_xy();
-				}
-				if((_cursorY > (prompt_line + _scrollYT)) && ((_cursorX + _scrollXL) < 0)) {
-					_cursorY -= (_FNTheight * _scaleY);
-					_cursorX = _width-(_FNTwidth * _scaleX);
-					if(_FNTwidth == 12)
-						_cursorX -= 4; // 1024 / 12 = 85.3 so adjust
-					update_xy();
-
-				}
-		} else if(text == 0x09) { // TAB Character
-				_cursorX += (tab_size*(_FNTwidth * _scaleX));
-				update_xy();
-		} else if(text == 0x07) { // BELL Character
-				tone(35,1000,500); // Need Pin variable for tone output (now pin #35)
-		} else if(text == 0x0c) { // form feed
-			drawSquareFill(_scrollXL, _scrollYT, _scrollXR, _scrollYB, _TXTBackColor);
-			textColor(_TXTForeColor,_TXTBackColor);
-			setTextCursor(_scrollXL,_scrollYT);
-		} else {
-			update_tft(vdata);
-			_cursorX += (_FNTwidth * _scaleX);
-			switch(_FNTwidth) {
-				case 12: // Font width is 12, 1024 / 12 =  85.3, have to
-						 // subtract 12 to keep within screen width.
-					if(_cursorX >= _scrollXR-(_FNTwidth * _scaleX)) {
-					_cursorY += (_FNTheight * _scaleY);
-					_cursorX = _scrollXL;
-				}
-				break;
-				default:
-					if(_cursorX >= _scrollXR) {
-					_cursorY += (_FNTheight * _scaleY);
-					_cursorX = _scrollXL;
-				}
-			}
-			update_xy();
-		}
-	}
-	return 1;
-}
-
-//************************************************//
-/* Print a character to current active screen.    */
-/* This function does not process ASCII control   */
-/* codes and will scroll the screen up when text  */
-/* position is past bottom line.                  */
-//************************************************//
-size_t Ra8876_Lite::rawPrint(uint8_t text) {
-		update_tft(text);
-		_cursorX += (_FNTwidth * _scaleX);
-		switch(_FNTwidth) {
-			case 12: // Font width is 12, 1024 / 12 =  85.3, have to
-					 // subtract 12 to keep within screen width.
-				if(_cursorX >= _scrollXR-(_FNTwidth * _scaleX)) {
-				_cursorY += (_FNTheight * _scaleY);
-				_cursorX = _scrollXL;
-			}
-			break;
-			default:
-				if(_cursorX >= _scrollXR) {
-				_cursorY += (_FNTheight * _scaleY);
-				_cursorX = _scrollXL;
-			}
-		}
-		update_xy();
-	return 1;
-}
 
 //**************************************************************//
 /* update display coordinates and scroll screen if needed        */

@@ -24,6 +24,67 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+ 
+
+// Documentation on the ILI9488_t3 font data format:
+// https://forum.pjrc.com/threads/54316-ILI9488_t-font-structure-format
+/*
+typedef struct {
+	const unsigned char *index;
+	const unsigned char *unicode;
+	const unsigned char *data;
+	unsigned char version;
+	unsigned char reserved;
+	unsigned char index1_first;
+	unsigned char index1_last;
+	unsigned char index2_first;
+	unsigned char index2_last;
+	unsigned char bits_index;
+	unsigned char bits_width;
+	unsigned char bits_height;
+	unsigned char bits_xoffset;
+	unsigned char bits_yoffset;
+	unsigned char bits_delta;
+	unsigned char line_space;
+	unsigned char cap_height;
+} ILI9341_t3_font_t;
+*/
+#include "ILI9341_fonts.h"
+
+#if !defined(swapvals)
+	#if defined(ESP8266)
+		#define swapvals(a, b) { int16_t t = a; a = b; b = t; }
+		//#define swapvals(a, b) { typeid(a) t = a; a = b; b = t; }
+	#else
+		#define swapvals(a, b) { typeof(a) t = a; a = b; b = t; }
+	#endif
+#endif
+
+// Lets see about supporting Adafruit fonts as well?
+#ifndef _GFXFONT_H_
+#define _GFXFONT_H_
+
+/// Font data stored PER GLYPH
+typedef struct {
+	uint16_t bitmapOffset;     ///< Pointer into GFXfont->bitmap
+	uint8_t  width;            ///< Bitmap dimensions in pixels
+    uint8_t  height;           ///< Bitmap dimensions in pixels
+	uint8_t  xAdvance;         ///< Distance to advance cursor (x axis)
+	int8_t   xOffset;          ///< X dist from cursor pos to UL corner
+    int8_t   yOffset;          ///< Y dist from cursor pos to UL corner
+} GFXglyph;
+
+/// Data stored for FONT AS A WHOLE
+typedef struct { 
+	uint8_t  *bitmap;      ///< Glyph bitmaps, concatenated
+	GFXglyph *glyph;       ///< Glyph array
+	uint8_t   first;       ///< ASCII extents (first char)
+    uint8_t   last;        ///< ASCII extents (last char)
+	uint8_t   yAdvance;    ///< Newline distance (y axis)
+} GFXfont;
+
+#endif // _GFXFONT_H_ 
+ 
 #ifndef RA8876_T3_H__
 #define RA8876_T3_H__
 #include "Arduino.h"
@@ -145,6 +206,23 @@ struct Gbuttons {
 #define BLUEVIOLET	0x8010
 #define ORCHID		0xA145 
 
+/*--------------------------------------*/
+/* [RENDER TEXT OPTIMIZATIONS] +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ 
+From 0.70b11 the Font Rendering Engine has some optimizations for render font faster but this require much more code.
+Not all users need this so you can select if include Render Text Optimizations or not by comment the following line. */
+#define _RA8875_TXTRNDOPTIMIZER								// [default uncommented]
+//#define RA8875_VISPIXDEBUG 								// [default commented]
+#define FORCE_RA8875_TXTREND_FOLLOW_CURS 					// [default uncommented]
+
+#ifndef bitRead
+	#define bitRead(a,b) ((a) & (1<<(b)))
+#endif
+#ifndef bitWrite
+	#define __bitSet(value, bit) ((value) |= (1UL << (bit)))
+	#define __bitClear(value, bit) ((value) &= ~(1UL << (bit)))
+	#define bitWrite(value, bit, bitvalue) (bitvalue ? __bitSet(value, bit) : __bitClear(value, bit))
+#endif
+
 class RA8876_t3 : public Ra8876_Lite
 {
 public:
@@ -223,7 +301,243 @@ public:
 	void putPicture(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const unsigned char *data);
 
 	void scrollUp(void);
-};
+	
+//Hack fonts
+	// setOrigin sets an offset in display pixels where drawing to (0,0) will appear
+	// for example: setOrigin(10,10); drawPixel(5,5); will cause a pixel to be drawn at hardware pixel (15,15)
+	void setOrigin(int16_t x = 0, int16_t y = 0) { 
+		_originx = x; _originy = y; 
+		//if (Serial) Serial.printf("Set Origin %d %d\n", x, y);
+		updateDisplayClip();
+	}
+	void getOrigin(int16_t* x, int16_t* y) { *x = _originx; *y = _originy; }
 
+	// setClipRect() sets a clipping rectangle (relative to any set origin) for drawing to be limited to.
+	// Drawing is also restricted to the bounds of the display
+
+	void setClipRect(int16_t x1, int16_t y1, int16_t w, int16_t h) 
+		{ _clipx1 = x1; _clipy1 = y1; _clipx2 = x1+w; _clipy2 = y1+h; 
+			//if (Serial) Serial.printf("Set clip Rect %d %d %d %d\n", x1, y1, w, h);
+			updateDisplayClip();
+		}
+	void setClipRect() {
+			 _clipx1 = 0; _clipy1 = 0; _clipx2 = _width; _clipy2 = _height; 
+			//if (Serial) Serial.printf("clear clip Rect\n");
+			 updateDisplayClip(); 
+		}
+		
+	bool _invisible = false; 
+	bool _standard = true; // no bounding rectangle or origin set. 
+
+	inline void updateDisplayClip() {
+		_displayclipx1 = max(0,min(_clipx1+_originx,width()));
+		_displayclipx2 = max(0,min(_clipx2+_originx,width()));
+
+		_displayclipy1 = max(0,min(_clipy1+_originy,height()));
+		_displayclipy2 = max(0,min(_clipy2+_originy,height()));
+		_invisible = (_displayclipx1 == _displayclipx2 || _displayclipy1 == _displayclipy2);
+		_standard =  (_displayclipx1 == 0) && (_displayclipx2 == _width) && (_displayclipy1 == 0) && (_displayclipy2 == _height);
+		if (Serial) {
+			//Serial.printf("UDC (%d %d)-(%d %d) %d %d\n", _displayclipx1, _displayclipy1, _displayclipx2, 
+			//	_displayclipy2, _invisible, _standard);
+
+		}
+	}
+	
+	inline void setFontDefault() { 
+		_use_default = 1; 
+		//if(_portrait && (!_use_gfx_font || !_use_ili_font)) {
+		//	_cursorX += _cursorY;
+		//_cursorY -= _cursorX;
+		//}
+		_use_ili_font=0; 
+		_use_gfx_font=0;
+		_use_int_font=1;
+		_use_tfont=0;
+		setActiveWindow();
+		_textPosition(_cursorX, _cursorY, false);
+		};
+	void setFontDef();
+	void setFont(const ILI9341_t3_font_t &f);
+    void setFont(const GFXfont *f = NULL);
+	void setFontAdafruit(void) { setFont(); }
+	void drawFontChar(unsigned int c);
+	void drawGFXFontChar(unsigned int c);
+	
+    void setTextSize(uint8_t sx, uint8_t sy);
+	void inline setTextSize(uint8_t s) { setTextSize(s,s); }
+	
+	void drawChar(int16_t x, int16_t y, unsigned char c, uint16_t color, uint16_t bg, uint8_t size_x, uint8_t size_y);
+	void inline drawChar(int16_t x, int16_t y, unsigned char c, uint16_t color, uint16_t bg, uint8_t size) 
+	    { drawChar(x, y, c, color, bg, size);}
+	void drawFontBits(bool opaque, uint32_t bits, uint32_t numbits, int32_t x, int32_t y, uint32_t repeat);
+	void Pixel(int16_t x, int16_t y, uint16_t color);
+	
+	void charBounds(char c, int16_t *x, int16_t *y,
+		int16_t *minx, int16_t *miny, int16_t *maxx, int16_t *maxy);
+    void getTextBounds(const uint8_t *buffer, uint16_t len, int16_t x, int16_t y,
+      int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h);
+    void getTextBounds(const char *string, int16_t x, int16_t y,
+      int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h);
+    void getTextBounds(const String &str, int16_t x, int16_t y,
+      int16_t *x1, int16_t *y1, uint16_t *w, uint16_t *h);
+	int16_t strPixelLen(const char * str);
+
+	void drawFontPixel( uint8_t alpha, uint32_t x, uint32_t y );
+
+	void    	drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color);
+	void    	drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color);
+	void setCursor(int16_t x, int16_t y, bool autocenter);
+
+	void getCursor(int16_t &x, int16_t &y); 
+	int16_t getCursorX(void);
+	int16_t getCursorY(void);
+	
+	// overwrite print functions:
+	virtual size_t write(uint8_t);
+	virtual size_t write(const uint8_t *buffer, size_t size);
+	
+	size_t rawPrint(uint8_t text);
+	
+using Print::write;
+	
+private:
+ //HACK
+	uint8_t  _use_ili_font = 0;
+	uint8_t _use_gfx_font = 0;
+	uint8_t _use_tfont = 0;
+	uint8_t  _use_int_font = 0;
+	uint8_t _use_default = 1;
+	uint8_t textsize, textsize_x, textsize_y;
+	uint16_t textcolor, textbgcolor; 
+	//anti-alias font
+	uint8_t fontbpp = 1;
+	uint8_t fontbppindex = 0;
+	uint8_t fontbppmask = 1;
+	uint8_t fontppb = 8;
+	uint8_t* fontalphalut;
+	float fontalphamx = 1;
+	
+	bool							_backTransparent;
+
+	
+	//centering -------------------------------
+	bool							_relativeCenter;
+	bool							_absoluteCenter;
+	bool							_portrait;
+	int16_t  _activeWindowXL,_activeWindowXR,_activeWindowYT,_activeWindowYB;
+
+	//text vars-------------------------------------------------		
+	uint8_t							_FNTspacing;
+	uint8_t							_FNTinterline;
+	int							    _spaceCharWidth;
+	//const tFont 			  	 *  _currentFont;
+	
+	uint32_t fetchbit(const uint8_t *p, uint32_t index);
+	uint32_t fetchbits_unsigned(const uint8_t *p, uint32_t index, uint32_t required);
+	uint32_t fetchbits_signed(const uint8_t *p, uint32_t index, uint32_t required);
+	void 	 _fontWrite(const uint8_t* buffer, uint16_t len);
+	
+	/**
+	 * Found in a pull request for the Adafruit framebuffer library. Clever!
+	 * https://github.com/tricorderproject/arducordermini/pull/1/files#diff-d22a481ade4dbb4e41acc4d7c77f683d
+	 * Converts  0000000000000000rrrrrggggggbbbbb
+	 *     into  00000gggggg00000rrrrr000000bbbbb
+	 * with mask 00000111111000001111100000011111
+	 * This is useful because it makes space for a parallel fixed-point multiply
+	 * This implements the linear interpolation formula: result = bg * (1.0 - alpha) + fg * alpha
+	 * This can be factorized into: result = bg + (fg - bg) * alpha
+	 * alpha is in Q1.5 format, so 0.0 is represented by 0, and 1.0 is represented by 32
+	 * @param	fg		Color to draw in RGB565 (16bit)
+	 * @param	bg		Color to draw over in RGB565 (16bit)
+	 * @param	alpha	Alpha in range 0-255
+	 **/
+	uint16_t alphaBlendRGB565( uint32_t fg, uint32_t bg, uint8_t alpha )
+	 __attribute__((always_inline)) {
+	 	alpha = ( alpha + 4 ) >> 3; // from 0-255 to 0-31
+		bg = (bg | (bg << 16)) & 0b00000111111000001111100000011111;
+		fg = (fg | (fg << 16)) & 0b00000111111000001111100000011111;
+		uint32_t result = ((((fg - bg) * alpha) >> 5) + bg) & 0b00000111111000001111100000011111;
+		return (uint16_t)((result >> 16) | result); // contract result
+	}
+	
+	/**
+	 * Same as above, but fg and bg are premultiplied, and alpah is already in range 0-31
+	 */
+	uint16_t alphaBlendRGB565Premultiplied( uint32_t fg, uint32_t bg, uint8_t alpha )
+	 __attribute__((always_inline)) {
+		uint32_t result = ((((fg - bg) * alpha) >> 5) + bg) & 0b00000111111000001111100000011111;
+		return (uint16_t)((result >> 16) | result); // contract result
+	}
+	
+	uint32_t fetchpixel(const uint8_t *p, uint32_t index, uint32_t x);
+	
+
+	// Hack to see about combining outputs for speed.
+	int16_t _combine_x_start = 0;
+	int16_t _combine_y = 0;
+	int16_t _combine_count = 0;
+	uint16_t _combine_color = 0;
+
+	inline void combineAndDrawPixel(int16_t x, int16_t y, uint16_t color) {
+		if (_combine_count && (color == _combine_color)) _combine_count++;
+		else {
+			if (_combine_count)drawLine(_combine_x_start, _combine_y, _combine_x_start+_combine_count-1, _combine_y, _combine_color);
+			_combine_x_start = x;
+			_combine_y = y;
+			_combine_count = 1;
+			_combine_color = color;
+		}
+	}
+
+	inline void forceCombinedPixelsOut() {
+		if (_combine_count)fillRect(_combine_x_start, _combine_y, _combine_count, 1, _combine_color);
+		_combine_count = 0;
+	}
+	
+ protected:
+ 	uint32_t textcolorPrexpanded, textbgcolorPrexpanded;
+	boolean wrap; // If set, 'wrap' text at right edge of display
+	const ILI9341_t3_font_t *font;
+	
+	int16_t  _clipx1, _clipy1, _clipx2, _clipy2;
+	int16_t  _originx, _originy;
+	int16_t  _displayclipx1, _displayclipy1, _displayclipx2, _displayclipy2;
+	
+ 	// GFX Font support
+	const GFXfont *gfxFont = nullptr;
+	int8_t _gfxFont_min_yOffset = 0;
+	
+	// Opaque font chracter overlap?
+	unsigned int _gfx_c_last;
+	int16_t   _gfx_last__cursorX, _gfx_last__cursorY;
+	int16_t	 _gfx_last_char_x_write = 0;
+	uint16_t _gfx_last_char_textcolor;
+	uint16_t _gfx_last_char_textbgcolor;
+	bool gfxFontLastCharPosFG(int16_t x, int16_t y);
+ 
+	void setActiveWindow(int16_t XL,int16_t XR ,int16_t YT ,int16_t YB);
+	void setActiveWindow(void);
+	void _updateActiveWindow(bool full);
+	
+	void    	_textWrite(const char* buffer, uint16_t len=0);//thanks to Paul Stoffregen for the initial version of this one
+	void 		_charWrite(const char c,uint8_t offset);
+	void _charWriteR(const char c,uint8_t offset,uint16_t fcolor,uint16_t bcolor);
+
+	int 		_getCharCode(uint8_t ch);
+	#if defined(_RA8875_TXTRNDOPTIMIZER)
+		void 		_drawChar_unc(int16_t x,int16_t y,int charW,int index,uint16_t fcolor);
+	#else
+		void 		_drawChar_unc(int16_t x,int16_t y,int16_t w,const uint8_t *data,uint16_t fcolor,uint16_t bcolor);
+	#endif
+	void _charLineRender(bool lineBuffer[],int charW,int16_t x,int16_t y,int16_t currentYposition,uint16_t fcolor);
+
+	//void 		_drawChar_com(int16_t x,int16_t y,int16_t w,const uint8_t *data);
+	void 		_textPosition(int16_t x, int16_t y,bool update);
+	void 		_setFNTdimensions(uint8_t index);
+	int16_t 	_STRlen_helper(const char* buffer,uint16_t len=0);
+	uint8_t		 _FNTbaselineLow, 	  _FNTbaselineTop;
+
+};
 #endif
 
