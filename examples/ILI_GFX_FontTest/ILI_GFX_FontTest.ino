@@ -2,7 +2,7 @@
 
 #include <SPI.h>
 
-#include <ili9341_t3n_font_ComicSansMS.h>
+#include <_font_ComicSansMS.h>
 #include "Fonts/FreeSansOblique12pt7b.h"
 
 #include "Arduino.h"
