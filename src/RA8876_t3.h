@@ -256,7 +256,7 @@ public:
 	uint8_t fontLoadMEM(char *fontsrc);
 	void setFontSource(uint8_t source);
 	boolean setFontSize(uint8_t scale, boolean runflag=false);
-	void setTextSize(uint8_t scale, boolean runflag=false) { setFontSize(scale, runflag);}
+	//void setTextSize(uint8_t scale, boolean runflag=false) { setFontSize(scale, runflag);}
 	int16_t getTextY(void);
 	int16_t getTwidth(void);
 	int16_t getTheight(void);
