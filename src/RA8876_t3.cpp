@@ -87,6 +87,10 @@ boolean RA8876_t3::begin(void) {
 	_portrait = true;
 	_backTransparent = false;
 
+	setClipRect();
+	setOrigin();
+	setTextSize(1, 1);
+
 
 	// Setup graphic cursor
 	Set_Graphic_Cursor_Color_1(0xff); // Foreground color
@@ -1294,7 +1298,7 @@ void RA8876_t3::drawFontChar(unsigned int c)
 	//uint32_t loopcount = 0;
 	int32_t y = origin_y;
 	
-	bool opaque = !_backTransparent; //(_TXTBackColor != _TXTForeColor);
+	bool opaque = (_TXTBackColor != _TXTForeColor);
 
 
 	// Going to try a fast Opaque method which works similar to drawChar, which is near the speed of writerect
@@ -1814,10 +1818,10 @@ void RA8876_t3::drawGFXFontChar(unsigned int c) {
 
     uint16_t bo = glyph->bitmapOffset;
     uint8_t  xx, yy, bits = 0, bit = 0;
-    //Serial.printf("DGFX_char: %c (%d,%d) : %u %u %u %u %d %d %x %x %d\n", c, _cursorX, _cursorY, w, h,  
-    //			glyph->xAdvance, gfxFont->yAdvance, xo, yo, _TXTForeColor, _TXTBackColor, 0);  Serial.flush();
+    Serial.printf("DGFX_char: %c (%d,%d) : %u %u %u %u %d %d %x %x %d %d\n", c, _cursorX, _cursorY, w, h,  
+    			glyph->xAdvance, gfxFont->yAdvance, xo, yo, _TXTForeColor, _TXTBackColor, textsize_x, textsize_y);  Serial.flush();
 
-    if (_backTransparent) {
+    if (_TXTForeColor == _TXTBackColor) {
 
 	     //Serial.printf("DGFXChar: %c %u, %u, wh:%d %d o:%d %d\n", c, _cursorX, _cursorY, w, h, xo, yo);
 	    // Todo: Add character clipping here
@@ -1911,7 +1915,9 @@ void RA8876_t3::drawGFXFontChar(unsigned int c) {
 		{
 			// But remember to first update the cursor position
 			_cursorX += glyph->xAdvance * (int16_t)textsize_x;
-			Serial.println("CLIPPED RETURN");
+			Serial.printf("CLIPPED RETURN XY(%d %d %d %d) CLIP(%d %d %d %d)\n", 
+				x_start, x_end, y_start, y_end, 
+				_displayclipx1, _displayclipx2, _displayclipy1, _displayclipy2);
 			return;
 		}
 
