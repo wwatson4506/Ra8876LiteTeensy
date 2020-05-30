@@ -1911,6 +1911,7 @@ void RA8876_t3::drawGFXFontChar(unsigned int c) {
 		{
 			// But remember to first update the cursor position
 			_cursorX += glyph->xAdvance * (int16_t)textsize_x;
+			Serial.println("CLIPPED RETURN");
 			return;
 		}
 
@@ -2240,26 +2241,6 @@ void RA8876_t3::_setFNTdimensions(uint8_t index)
 	_FNTheight 		= 	fontDimPar[index][1];
 	_FNTbaselineLow  = 	fontDimPar[index][2];
 	_FNTbaselineTop  = 	fontDimPar[index][3];
-}
-
-
-/**************************************************************************/
-/*!  
-		choose from internal/external (if exist) Font Rom
-		Parameters:
-		s: Font source (INTFONT,EXTFONT)
-*/
-/**************************************************************************/
-void RA8876_t3::setFontDef() 
-{
-	_use_int_font = 1;
-	_use_tfont = 0;
-	_use_ili_font = 0;
-	_use_gfx_font = 0;
-	
-	// Select internal fonts or user defined fonts (0 for internal or 1 for user defined)
-	//setFontSource(0);
-
 }
 
 
