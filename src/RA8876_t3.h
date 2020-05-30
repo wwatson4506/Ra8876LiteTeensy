@@ -49,7 +49,7 @@ typedef struct {
 	unsigned char cap_height;
 } ILI9341_t3_font_t;
 */
-#include "ILI9341_fonts.h"
+#include "_fonts.h"
 
 #if !defined(swapvals)
 	#if defined(ESP8266)
@@ -344,7 +344,7 @@ public:
 		}
 	}
 	
-	inline void setFontDefault() { 
+	inline void setFontDef() { 
 		_use_default = 1; 
 		//if(_portrait && (!_use_gfx_font || !_use_ili_font)) {
 		//	_cursorX += _cursorY;
@@ -357,7 +357,6 @@ public:
 		setActiveWindow();
 		_textPosition(_cursorX, _cursorY, false);
 		};
-	void setFontDef();
 	void setFont(const ILI9341_t3_font_t &f);
     void setFont(const GFXfont *f = NULL);
 	void setFontAdafruit(void) { setFont(); }
