@@ -447,6 +447,9 @@ void RA8876_t3::fillStatusLine(uint16_t color) {
 void RA8876_t3::setTextColor(uint16_t color)
 {
 	foreGroundColor16bpp(color);
+	_backTransparent = true;  // used for ILI and GFX Fonts
+	_TXTForeColor = color;
+
 }
 
 //**************************************************************//
@@ -459,6 +462,7 @@ void RA8876_t3::setBackGroundColor(uint16_t color)
 // Set text foreground + background colors
 void RA8876_t3::setTextColor(uint16_t fgc, uint16_t bgc) {
 	textColor(fgc,bgc);
+	_backTransparent = false;  // used for ILI and GFX Fonts
 }
 
 
@@ -1298,7 +1302,7 @@ void RA8876_t3::drawFontChar(unsigned int c)
 	//uint32_t loopcount = 0;
 	int32_t y = origin_y;
 	
-	bool opaque = (_TXTBackColor != _TXTForeColor);
+	bool opaque = !_backTransparent; //(_TXTBackColor != _TXTForeColor);
 
 
 	// Going to try a fast Opaque method which works similar to drawChar, which is near the speed of writerect
@@ -1818,10 +1822,10 @@ void RA8876_t3::drawGFXFontChar(unsigned int c) {
 
     uint16_t bo = glyph->bitmapOffset;
     uint8_t  xx, yy, bits = 0, bit = 0;
-    Serial.printf("DGFX_char: %c (%d,%d) : %u %u %u %u %d %d %x %x %d %d\n", c, _cursorX, _cursorY, w, h,  
-    			glyph->xAdvance, gfxFont->yAdvance, xo, yo, _TXTForeColor, _TXTBackColor, textsize_x, textsize_y);  Serial.flush();
+    //Serial.printf("DGFX_char: %c (%d,%d) : %u %u %u %u %d %d %x %x %d %d\n", c, _cursorX, _cursorY, w, h,  
+    //			glyph->xAdvance, gfxFont->yAdvance, xo, yo, _TXTForeColor, _TXTBackColor, textsize_x, textsize_y);  Serial.flush();
 
-    if (_TXTForeColor == _TXTBackColor) {
+    if (_backTransparent) {
 
 	     //Serial.printf("DGFXChar: %c %u, %u, wh:%d %d o:%d %d\n", c, _cursorX, _cursorY, w, h, xo, yo);
 	    // Todo: Add character clipping here
