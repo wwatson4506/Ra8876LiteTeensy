@@ -3187,6 +3187,16 @@ Function bit will be configured for relative PIP window.
 	lcdRegDataWrite(RA8876_PWIULX0, WX);    // [34h] PIP 1 or 2 Window Image Upper-Left corner X-coordination [7:0]
 	lcdRegDataWrite(RA8876_PWIULX1, WX>>8); // [35h] PIP Window Image Upper-Left corner X-coordination [12:8]
 
+/*
+Reference PIP Image coordination.
+Unit: Pixel
+Y-axis coordination plus PIP window height should less than 8191.
+According to bit of Select Configure PIP 1 or 2 Window¡Šs parameters. 
+Function bit will be configured for relative PIP window.
+*/
+	lcdRegDataWrite(RA8876_PWIULY0, HY);    // [36h] PIP Windows Display Upper-Left corner Y-coordination [7:0]
+	lcdRegDataWrite(RA8876_PWIULY1, HY>>8); // [37h] PIP Windows Image Upper-Left corner Y-coordination [12:8]
+
 }
 
 //[38h][39h][3Ah][3Bh]=========================================================================
