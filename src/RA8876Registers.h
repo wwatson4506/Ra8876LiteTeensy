@@ -995,6 +995,12 @@ Not all users need this so you can select if include Render Text Optimizations o
 //#define RA8875_VISPIXDEBUG 								// [default commented]
 #define FORCE_RA8875_TXTREND_FOLLOW_CURS 					// [default uncommented]
 
+	#define CENTER 				9998
+	#define ARC_ANGLE_MAX 		360		
+	#define ARC_ANGLE_OFFSET 	-90	
+	#define ANGLE_OFFSET		-90
+
+
 #ifndef bitRead
 	#define bitRead(a,b) ((a) & (1<<(b)))
 #endif

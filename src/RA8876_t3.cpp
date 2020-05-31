@@ -3668,9 +3668,81 @@ void RA8876_t3::cursorInit(void)
 	Enable_Text_Cursor_Blinking();	// Turn blinking cursor on
 }
 
-void RA8876_t3::setCursor(uint16_t x, uint16_t y)
+//void RA8876_t3::setCursor(uint16_t x, uint16_t y)
+//{
+//	setTextCursor(x, y);
+//}
+
+
+/**************************************************************************/
+/*!   
+		Set the Text position for write Text only.
+		Parameters:
+		x:horizontal in pixels or CENTER(of the screen)
+		y:vertical in pixels or CENTER(of the screen)
+		autocenter:center text to choosed x,y regardless text lenght
+		false: |ABCD
+		true:  AB|CD
+		NOTE: works with any font
+*/
+/**************************************************************************/
+void RA8876_t3::setCursor(int16_t x, int16_t y, bool autocenter) 
 {
-	setTextCursor(x, y);
+	if(_use_default) {
+		setTextCursor(x, y);
+		return;
+	}
+	
+	if (x < 0) x = 0;
+	if (y < 0) y = 0;
+	
+	_absoluteCenter = autocenter;
+	
+	//if (_portrait) {//rotation 1,3
+		//if (_use_default) swapvals(x,y);
+		if (y == CENTER) {//swapped OK
+			y = _width/2;
+			if (!autocenter) {
+				_relativeCenter = true;
+				_TXTparameters |= (1 << 6);//set x flag
+			}
+		}
+		if (x == CENTER) {//swapped
+			x = _height/2;
+			if (!autocenter) {
+				_relativeCenter = true;
+				_TXTparameters |= (1 << 5);//set y flag
+			}
+		}
+	/*} else {//rotation 0,2
+		if (x == CENTER) {
+			x = _width/2;
+			if (!autocenter) {
+				_relativeCenter = true;
+				_TXTparameters |= (1 << 5);
+			}
+		}
+		if (y == CENTER) {
+			y = _height/2;
+			if (!autocenter) {
+				_relativeCenter = true;
+				_TXTparameters |= (1 << 6);
+			}
+		}
+	}*/
+	//TODO: This one? Useless?
+	if (bitRead(_TXTparameters,2) == 0){//textWrap
+		if (x >= _width) x = _width-1;
+		if (y >= _height) y = _height-1;
+	}
+	
+	_cursorX = x;
+	_cursorY = y;
+
+	//if _relativeCenter or _absoluteCenter do not apply to registers yet!
+	// Have to go to _textWrite first to calculate the lenght of the entire string and recalculate the correct x,y
+	if (_relativeCenter || _absoluteCenter) return;
+	if (bitRead(_TXTparameters,7) == 0) _textPosition(x,y,false);
 }
 
 /**************************************************************************/
