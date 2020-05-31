@@ -182,23 +182,85 @@ RA8876_t3::RA8876_t3(const uint8_t CSp, const uint8_t RSTp, const uint8_t mosi_p
 //**************************************************************//
 // Ra8876_begin()
 //**************************************************************//
-boolean RA8876_t3::begin(void) 
+FLASHMEM boolean RA8876_t3::begin(uint32_t spi_clock) 
 { 
   //initialize the bus for Teensy 3.6/4.0
-	if ((_mosi == 11 || _mosi == 7) && (_miso == 12 || _miso == 8) && (_sclk == 13 || _sclk == 14)) {//valid SPI pins?
-		if (_mosi != 11) SPI.setMOSI(_mosi);
-		if (_miso != 12) SPI.setMISO(_miso);
-		if (_sclk != 13) SPI.setSCK(_sclk);
+  // Figure out which SPI Buss to use.  
+  _SPI_CLOCK = spi_clock;				// #define ILI9341_SPICLOCK 30000000
+	if (SPI.pinIsMOSI(_mosi) && ((_miso == 0xff) || SPI.pinIsMISO(_miso)) && SPI.pinIsSCK(_sclk)) {
+		_pspi = &SPI;
+		_spi_num = 0;          // Which buss is this spi on? 
+		#ifdef KINETISK
+		_pkinetisk_spi = &KINETISK_SPI0;  // Could hack our way to grab this from SPI object, but...
+		_fifo_full_test = (3 << 12);
+		#elif defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x 
+		_pimxrt_spi = &IMXRT_LPSPI4_S;  // Could hack our way to grab this from SPI object, but...
+		#else
+		_pkinetisl_spi = &KINETISL_SPI0;
+		#endif				
+	
+	#if defined(__MK64FX512__) || defined(__MK66FX1M0__) || defined(__IMXRT1062__) || defined(__MKL26Z64__)
+	} else if (SPI1.pinIsMOSI(_mosi) && ((_miso == 0xff) || SPI1.pinIsMISO(_miso)) && SPI1.pinIsSCK(_sclk)) {
+		_pspi = &SPI1;
+		_spi_num = 1;          // Which buss is this spi on? 
+		#ifdef KINETISK
+		_pkinetisk_spi = &KINETISK_SPI1;  // Could hack our way to grab this from SPI object, but...
+		_fifo_full_test = (0 << 12);
+		#elif defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x 
+		_pimxrt_spi = &IMXRT_LPSPI3_S;  // Could hack our way to grab this from SPI object, but...
+		#else
+		_pkinetisl_spi = &KINETISL_SPI1;
+		#endif				
+	#if !defined(__MKL26Z64__)
+	} else if (SPI2.pinIsMOSI(_mosi) && ((_miso == 0xff) || SPI2.pinIsMISO(_miso)) && SPI2.pinIsSCK(_sclk)) {
+		_pspi = &SPI2;
+		_spi_num = 2;          // Which buss is this spi on? 
+		#ifdef KINETISK
+		_pkinetisk_spi = &KINETISK_SPI2;  // Could hack our way to grab this from SPI object, but...
+		_fifo_full_test = (0 << 12);
+		#elif defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x 
+		_pimxrt_spi = &IMXRT_LPSPI1_S;  // Could hack our way to grab this from SPI object, but...
+		#endif				
+	#endif
+	#endif
 	} else {
+		Serial.println("RA8876_t3: The IO pins on the constructor are not valid SPI pins");
+	
+		Serial.printf("    mosi:%d miso:%d SCLK:%d CS:%d\n", _mosi, _miso, _sclk, _cs); Serial.flush();
 		_errorCode |= (1 << 1);//set
-		return false;
+		return false;  // most likely will go bomb
+
 	}
-	if (!SPI.pinIsChipSelect(_cs)) {
-		_errorCode |= (1 << 2);//set
-		return false;
-	}
+	// Make sure we have all of the proper SPI pins selected.
+	_pspi->setMOSI(_mosi);
+	_pspi->setSCK(_sclk);
+	if (_miso != 0xff) _pspi->setMISO(_miso);
+
+	// And startup SPI...
+	_pspi->begin();
+
+	// for this round will punt on trying to use CS as hardware CS...
+#ifdef KINETISK
 	pinMode(_cs, OUTPUT);
-	SPI.begin();
+	_csport    = portOutputRegister(digitalPinToPort(_cs));
+	_cspinmask = digitalPinToBitMask(_cs);
+	*_csport |= _cspinmask;
+
+#elif defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x 
+	// Serial.println("   T4 setup CS/DC"); Serial.flush();
+	_csport = portOutputRegister(_cs);
+	_cspinmask = digitalPinToBitMask(_cs);
+	pinMode(_cs, OUTPUT);	
+	DIRECT_WRITE_HIGH(_csport, _cspinmask);
+//	maybeUpdateTCR(_tcr_dc_not_assert | LPSPI_TCR_FRAMESZ(7));
+
+#else
+	// TLC
+	pinMode(_cs, OUTPUT);
+	_csport    = portOutputRegister(digitalPinToPort(_cs));
+	_cspinmask = digitalPinToBitMask(_cs);
+	*_csport |= _cspinmask;
+#endif	
 
 	#ifdef SPI_HAS_TRANSFER_ASYNC
 		finishedDMAEvent.setContext(this);	// Set the contxt to us
@@ -419,7 +481,7 @@ void RA8876_t3::lcdRegWrite(ru8 reg, bool finalize)
   ru16 _data = (RA8876_SPI_CMDWRITE16 | reg);
   
   startSend();
-  SPI.transfer16(_data);
+  _pspi->transfer16(_data);
   endSend(finalize);
 }
 
@@ -430,7 +492,7 @@ void RA8876_t3::lcdDataWrite(ru8 data, bool finalize)
 {
   ru16 _data = (RA8876_SPI_DATAWRITE16 | data);
   startSend();
-  SPI.transfer16(_data);
+  _pspi->transfer16(_data);
   endSend(finalize);
 }
 
@@ -442,7 +504,7 @@ ru8 RA8876_t3::lcdDataRead(bool finalize)
   ru16 _data = (RA8876_SPI_DATAREAD16 | 0x00);
   
   startSend();
-  ru8 data = SPI.transfer16(_data);
+  ru8 data = _pspi->transfer16(_data);
   endSend(finalize);
   return data;
 }
@@ -453,7 +515,7 @@ ru8 RA8876_t3::lcdDataRead(bool finalize)
 ru8 RA8876_t3::lcdStatusRead(bool finalize) 
 {
   startSend();
-  ru8 data = SPI.transfer16(RA8876_SPI_STATUSREAD16);
+  ru8 data = _pspi->transfer16(RA8876_SPI_STATUSREAD16);
   endSend(finalize);
   return data;
 }
@@ -469,8 +531,8 @@ void RA8876_t3::lcdRegDataWrite(ru8 reg, ru8 data, bool finalize)
   ru16 _data = (RA8876_SPI_DATAWRITE16 | data);
   
   startSend();
-  SPI.transfer16(_reg);
-  SPI.transfer16(_data);
+  _pspi->transfer16(_reg);
+  _pspi->transfer16(_data);
   endSend(finalize);
 }
 
@@ -489,8 +551,8 @@ ru8 RA8876_t3::lcdRegDataRead(ru8 reg, bool finalize)
 void RA8876_t3::lcdDataWrite16bbp(ru16 data, bool finalize) 
 {
 	startSend();
-	SPI.transfer(RA8876_SPI_DATAWRITE);
-	SPI.transfer16(data);
+	_pspi->transfer(RA8876_SPI_DATAWRITE);
+	_pspi->transfer16(data);
 	endSend(finalize);
 }
 
@@ -2722,16 +2784,16 @@ ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned char *d
   bteMpuWriteWithROP(s1_addr, s1_image_width, s1_x, s1_y, des_addr, des_image_width, des_x, des_y, width, height, rop_code);
   
   startSend();
-  SPI.transfer(RA8876_SPI_DATAWRITE);
+  _pspi->transfer(RA8876_SPI_DATAWRITE);
 
 #ifdef SPI_HAS_TRANSFER_ASYNC
   activeDMA = true;
-  SPI.transfer(data, NULL, width*height*2, finishedDMAEvent);
+  _pspi->transfer(data, NULL, width*height*2, finishedDMAEvent);
 #else
-  //If you try SPI.transfer(data, length) then this tries to write received data into the data buffer
-  //but if we were given a PROGMEM (unwriteable) data pointer then SPI.transfer will lock up totally.
+  //If you try _pspi->transfer(data, length) then this tries to write received data into the data buffer
+  //but if we were given a PROGMEM (unwriteable) data pointer then _pspi->transfer will lock up totally.
   //So we explicitly tell it we don't care about any return data.
-  SPI.transfer(data, NULL, width*height*2);
+  _pspi->transfer(data, NULL, width*height*2);
   endSend(true);
 #endif
 }
@@ -2748,13 +2810,13 @@ ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned short *
   bteMpuWriteWithROP(s1_addr, s1_image_width, s1_x, s1_y, des_addr, des_image_width, des_x, des_y, width, height, rop_code);
 
   startSend();
-  SPI.transfer(RA8876_SPI_DATAWRITE);
+  _pspi->transfer(RA8876_SPI_DATAWRITE);
   
   for(j=0;j<height;j++)
   {
     for(i=0;i<width;i++)
     {
-	  SPI.transfer16(*data);	  
+	  _pspi->transfer16(*data);	  
       data++;
     }
   } 
@@ -2790,13 +2852,13 @@ void RA8876_t3::bteMpuWriteWithChromaKeyData8(ru32 des_addr,ru16 des_image_width
   bteMpuWriteWithChromaKey(des_addr, des_image_width, des_x, des_y, width, height, chromakey_color);  
 
   startSend();
-  SPI.transfer(RA8876_SPI_DATAWRITE);
+  _pspi->transfer(RA8876_SPI_DATAWRITE);
 
 #ifdef SPI_HAS_TRANSFER_ASYNC
   activeDMA = true;
-  SPI.transfer(data, NULL, width*height*2, finishedDMAEvent);
+  _pspi->transfer(data, NULL, width*height*2, finishedDMAEvent);
 #else
-  SPI.transfer(data, NULL, width*height*2);
+  _pspi->transfer(data, NULL, width*height*2);
   endSend(true);
 #endif
 }
@@ -2809,12 +2871,12 @@ void RA8876_t3::bteMpuWriteWithChromaKeyData16(ru32 des_addr,ru16 des_image_widt
   bteMpuWriteWithChromaKey(des_addr, des_image_width, des_x, des_y, width, height, chromakey_color);
   
   startSend();
-  SPI.transfer(RA8876_SPI_DATAWRITE);
+  _pspi->transfer(RA8876_SPI_DATAWRITE);
   for(j=0;j<height;j++)
   {
     for(i=0;i<width;i++)
     {
-	  SPI.transfer16(*data);
+	  _pspi->transfer16(*data);
       data++;
     }
   } 
@@ -4997,8 +5059,9 @@ int16_t RA8876_t3::strPixelLen(const char * str)
 void RA8876_t3::charBounds(char c, int16_t *x, int16_t *y,
   int16_t *minx, int16_t *miny, int16_t *maxx, int16_t *maxy) {
 
-  	uint8_t offset, _x, _y;
-	int charW = 0;
+
+  	//uint8_t offset, _x, _y;
+	//int charW = 0;
 
 	// BUGBUG:: Not handling offset/clip
     if (font) {

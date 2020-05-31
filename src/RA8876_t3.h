@@ -131,7 +131,7 @@ public:
 	volatile bool   activeDMA=false; //Unfortunately must be public so asyncEventResponder() can set it
 
 	/* Initialize RA8876 */
-	boolean begin(void);
+	boolean begin(uint32_t spi_clock=SPIspeed);
 	boolean ra8876Initialize(void); 
 	boolean ra8876PllInitial (void);
 	boolean ra8876SdramInitial(void);
@@ -552,6 +552,15 @@ public:
 	int16_t getCursorX(void);
 	int16_t getCursorY(void);
 	
+//. From Onewire utility files
+	#if defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x
+	void DIRECT_WRITE_LOW(volatile uint32_t * base, uint32_t mask)  __attribute__((always_inline)) {
+		*(base+34) = mask;
+	}
+	void DIRECT_WRITE_HIGH(volatile uint32_t * base, uint32_t mask)  __attribute__((always_inline)) {
+		*(base+33) = mask;
+	}
+	#endif
 
 	//SPI Functions - should these be private?
 	inline __attribute__((always_inline)) 
@@ -561,16 +570,24 @@ public:
 		#endif
 		if(!RA8876_BUSY) {
 	        RA8876_BUSY = true;
-			SPI.beginTransaction(SPISettings(SPIspeed, MSBFIRST, SPI_MODE0));
+			_pspi->beginTransaction(SPISettings(_SPI_CLOCK, MSBFIRST, SPI_MODE0));
 		}
-	    digitalWriteFast(_cs, LOW);
+		#if defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x 
+		DIRECT_WRITE_LOW(_csport, _cspinmask);
+		#else
+			*_csport  &= ~_cspinmask;
+		#endif
 	}
 
 	inline __attribute__((always_inline)) 
 	void endSend(bool finalize){
-		digitalWriteFast(_cs, HIGH);
+		#if defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x 
+		DIRECT_WRITE_HIGH(_csport, _cspinmask);
+		#else
+		*_csport |= _cspinmask;
+		#endif
 		if(finalize) {
-			SPI.endTransaction();
+			_pspi->endTransaction();
 			RA8876_BUSY = false;
 		}
 	} 
@@ -591,8 +608,33 @@ private:
 	int _cs;
 	int _rst;
 	int	_errorCode;
+	SPIClass *_pspi = nullptr;
+	SPIClass::SPI_Hardware_t *_spi_hardware;
+
+  	uint8_t   	_spi_num;         	// Which buss is this spi on? 
+	uint32_t 	_SPI_CLOCK;			// #define ILI9341_SPICLOCK 30000000
+	uint32_t	_SPI_CLOCK_READ; 	//#define ILI9341_SPICLOCK_READ 2000000
+
+#if defined(KINETISK)
+ 	KINETISK_SPI_t *_pkinetisk_spi;
+#elif defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x
+ 	IMXRT_LPSPI_t *_pimxrt_spi;
+
+#elif defined(KINETISL)
+ 	KINETISL_SPI_t *_pkinetisl_spi;
+#endif
+
 #ifdef SPI_HAS_TRANSFER_ASYNC
 	EventResponder finishedDMAEvent;
+#endif
+	// add support to allow only one hardware CS (used for dc)
+#if defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x
+    uint32_t _cspinmask;
+    volatile uint32_t *_csport;
+    uint32_t _spi_tcr_current;
+#else
+    uint8_t _cspinmask;
+    volatile uint8_t *_csport;
 #endif
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
