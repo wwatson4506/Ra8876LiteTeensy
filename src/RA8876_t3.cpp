@@ -527,12 +527,13 @@ void RA8876_t3::lcdRegDataWrite(ru8 reg, ru8 data, bool finalize)
 {
   //write the register we wish to write to, then send the data
   //don't need to release _CS between the two transfers
-  ru16 _reg = (RA8876_SPI_CMDWRITE16 | reg);
-  ru16 _data = (RA8876_SPI_DATAWRITE16 | data);
-  
+  //ru16 _reg = (RA8876_SPI_CMDWRITE16 | reg);
+  //ru16 _data = (RA8876_SPI_DATAWRITE16 | data);
+  uint8_t buf[4] = {RA8876_SPI_CMDWRITE, reg, RA8876_SPI_DATAWRITE, data };
   startSend();
-  _pspi->transfer16(_reg);
-  _pspi->transfer16(_data);
+  //_pspi->transfer16(_reg);
+  //_pspi->transfer16(_data);
+  _pspi->transfer(buf, nullptr, 4);
   endSend(finalize);
 }
 

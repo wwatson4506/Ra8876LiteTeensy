@@ -113,7 +113,7 @@ void loop()
   Serial.printf("\nRotation: %d\n", test_screen_rotation);
   //tft.setRotation(test_screen_rotation);
   tft.fillScreen(RED);
-  tft.setCursor(tft.width()/2, tft.height()/2/*, true*/);
+  tft.setCursor(tft.width()/2, tft.height()/2, true);
   tft.printf("Rotation: %d", test_screen_rotation);
   test_screen_rotation = (test_screen_rotation + 1) & 0x3;
   tft.setCursor(200, 300);
@@ -181,7 +181,7 @@ uint32_t displayStuff1()
     tft.drawFastHLine(rect_x + 1, y, 98, PINK);
   for (uint16_t x = rect_x + 5; x < rect_x + 100; x += 5)
     tft.drawFastVLine(x, rect_y+1, 48, PINK);
-  tft.setCursor(width / 2, height - 50/*, true*/);
+  tft.setCursor(width / 2, height - 50, true);
   tft.print("Center");
 
   // Lets try again with CENTER X keyword.
@@ -191,7 +191,7 @@ uint32_t displayStuff1()
     tft.drawFastHLine(rect_x + 1, y, 98, CYAN);
   for (uint16_t x = rect_x + 5; x < rect_x + 100; x += 5)
     tft.drawFastVLine(x, rect_y+1, 48, CYAN);
-//  tft.setCursor(CENTER, rect_y);
+  tft.setCursor(CENTER, rect_y);
   tft.print("XCENTR");
 
   // Lets try again with CENTER Y keyword.
@@ -201,7 +201,7 @@ uint32_t displayStuff1()
   for (uint16_t y = rect_y + 5; y < rect_y + 50; y += 5)
     tft.drawFastHLine(rect_x + 1, y, 98, PINK);
   for (uint16_t x = rect_x + 5; x < rect_x + 100; x += 5)
-//  tft.setCursor(50, CENTER);
+  tft.setCursor(50, CENTER);
   tft.print("YCENTR");
   
   // Lets see how close the getTextBounds gets the bounds of the text
