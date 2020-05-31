@@ -3769,6 +3769,13 @@ void RA8876_t3::setBackGroundColor(uint16_t color)
 
 // Set text foreground + background colors
 void RA8876_t3::setTextColor(uint16_t fgc, uint16_t bgc) {
+	if(_use_ili_font){
+	  //for anti-alias font only
+	  // pre-expand colors for fast alpha-blending later
+	  textcolorPrexpanded = (fgc | (fgc << 16)) & 0b00000111111000001111100000011111;
+	  textbgcolorPrexpanded = (bgc | (bgc << 16)) & 0b00000111111000001111100000011111;
+	}  
+	
 	textColor(fgc,bgc);
 	_backTransparent = false;  // used for ILI and GFX Fonts
 }
