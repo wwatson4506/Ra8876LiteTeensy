@@ -34,11 +34,8 @@ Version   : v1.0
  * SOFTWARE.
  */
 //**************************************************************//
-#include "Arduino.h"
-#include "SPI.h"
-
-#ifndef _RA8876_LITE
-#define _RA8876_LITE
+#ifndef _RA8876CONF_H_
+#define _RA8876CONF_H_
 
 typedef int8_t		rs8;
 typedef int16_t		rs16;
@@ -849,361 +846,176 @@ memory size. For example : page_size = 1024*600*2byte(16bpp) = 1228800byte, maxi
 #define	cClrb6		0xbf
 #define	cClrb7		0x7f
 
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//    Font Parameters
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-//index:x -> w,h,baselineLowOffset,baselineTopOffset,variableWidth
-	const static uint8_t fontDimPar[4][5] = {
-		{8,16,2,4,0},// INT font
-		{8,16,3,0,0},// ROM X16
-		{12,24,2,2,0},//ROM X24
-		{16,32,2,2,0},//ROM X32
-	};
+// Lets see about supporting Adafruit fonts as well?
+#ifndef _GFXFONT_H_
+#define _GFXFONT_H_
+/// Font data stored PER GLYPH
+typedef struct {
+	uint16_t bitmapOffset;     ///< Pointer into GFXfont->bitmap
+	uint8_t  width;            ///< Bitmap dimensions in pixels
+    uint8_t  height;           ///< Bitmap dimensions in pixels
+	uint8_t  xAdvance;         ///< Distance to advance cursor (x axis)
+	int8_t   xOffset;          ///< X dist from cursor pos to UL corner
+    int8_t   yOffset;          ///< Y dist from cursor pos to UL corner
+} GFXglyph;
 
-const uint32_t MEM_SIZE_MAX	= 16l*1024l*1024l;	///Max. size in byte of SDRAM
+/// Data stored for FONT AS A WHOLE
+typedef struct { 
+	uint8_t  *bitmap;      ///< Glyph bitmaps, concatenated
+	GFXglyph *glyph;       ///< Glyph array
+	uint8_t   first;       ///< ASCII extents (first char)
+    uint8_t   last;        ///< ASCII extents (last char)
+	uint8_t   yAdvance;    ///< Newline distance (y axis)
+} GFXfont;
 
-class Ra8876_Lite : public Print
-{
-private:
-	// int _xnscs, _xnreset;
-	int _mosi;
-	int _miso;
-	int _sclk;
-	int _cs;
-	int _rst;
-	int	_errorCode;
-#ifdef SPI_HAS_TRANSFER_ASYNC
-	EventResponder finishedDMAEvent;
+#endif // _GFXFONT_H_ 
+
+// Define USE_FF_FONTLOAD to 1 if using FatFS to load user defined fonts
+// from a disk drive. Needs FatFS, SDFat or SD. fontLoad() is currently
+// setup to use FatFS.
+// Else, set to 0
+#define USE_FF_FONTLOAD 0
+
+/* Screen Page Addresses */
+#define SCREEN_1  0
+#define SCREEN_2  1024*600*2
+#define SCREEN_3  1024*600*2*2
+#define SCREEN_4  1024*600*2*3
+#define SCREEN_5  1024*600*2*4
+#define SCREEN_6  1024*600*2*5
+#define SCREEN_7  1024*600*2*6
+#define SCREEN_8  1024*600*2*7
+#define SCREEN_9  1024*600*2*8
+//#define SCREEN_10  1024*600*2*9 // Used for CGRAM at this time
+
+typedef struct boxSaveGet boxSaveGet_t;
+
+/* Struct used for BTE block xfers */
+struct boxSaveGet {
+	uint8_t id;
+	uint8_t id_next;
+	uint16_t x0;
+	uint16_t y0;
+	uint16_t x1;
+	uint16_t y1;
+	uint32_t vpage;
+};
+
+
+/* Struct for saving and retrieving screen page parameters */
+struct tftSave {
+	int16_t	 width;
+	int16_t  height;
+	int16_t	 cursorX;
+	int16_t  cursorY;
+	uint8_t  scaleX;
+	uint16_t scaleY;
+	uint8_t	 FNTwidth;
+	uint8_t  FNTheight;
+	uint8_t  fontheight;
+	uint8_t  fontSource;
+	uint8_t  TXTparameters;
+	uint8_t  cursorXsize;
+	uint8_t  cursorYsize;
+	uint32_t currentPage;
+	uint32_t pageOffset;
+// Text Sreen Vars
+	uint16_t  prompt_size; // prompt ">"
+	uint16_t prompt_line; // current text prompt row
+	uint8_t	 vdata;
+	uint8_t  leftmarg;
+	uint8_t  topmarg;
+	uint8_t  rightmarg;
+	uint8_t  bottommarg;
+	uint8_t  tab_size;
+	uint16_t CharPosX;
+	uint16_t CharPosY;
+	boolean	 UDFont;
+//scroll vars ----------------------------
+	uint16_t  scrollXL;
+	uint16_t  scrollXR;
+	uint16_t  scrollYT;
+	uint16_t  scrollYB;
+// Color vars ----------------------------
+	uint16_t TXTForeColor;
+    uint16_t TXTBackColor;
+};
+
+typedef struct tftSave tftSave_t;
+
+
+typedef struct Gbuttons gbuttons_t;
+/* Struct for graphic buttons */
+/* Based on Adafruit graphic buttons */
+/* Not completly implemented at this time */
+struct Gbuttons {
+  boolean initialzed;
+  uint16_t x;
+  uint16_t y;
+  uint16_t w;
+  uint16_t h;
+  uint16_t outlinecolor;
+  uint16_t fillcolor;
+  uint16_t textcolor;
+  uint16_t textsize;
+  boolean currstate;
+  boolean laststate;
+  char     label[10];
+};
+
+//https://i.pinimg.com/736x/4b/50/12/4b5012fc9d868d0394da7fa8217d7f92.jpg
+#define BLACK		0x0000
+#define WHITE		0xffff
+#define RED			0xf800
+#define LIGHTRED	0xfc10
+#define CRIMSON		0x8000
+#define GREEN		0x07e0
+#define PALEGREEN	0x87f0
+#define DARKGREEN	0x0400
+#define BLUE		0x001f
+#define LIGHTBLUE	0x051f
+#define SKYBLUE		0x841f
+#define DARKBLUE	0x0010
+#define YELLOW		0xffe0
+#define LIGHTYELLOW	0xfff0
+#define DARKYELLOW	0x8400 // mustard
+#define CYAN		0x07ff
+#define LIGHTCYAN	0x87ff
+#define DARKCYAN	0x0410
+#define MAGENTA		0xf81f
+#define VIOLET		0xfc1f
+#define BLUEVIOLET	0x8010
+#define ORCHID		0xA145 
+
+/*--------------------------------------*/
+/* [RENDER TEXT OPTIMIZATIONS] +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ 
+From 0.70b11 the Font Rendering Engine has some optimizations for render font faster but this require much more code.
+Not all users need this so you can select if include Render Text Optimizations or not by comment the following line. */
+#define _RA8875_TXTRNDOPTIMIZER								// [default uncommented]
+//#define RA8875_VISPIXDEBUG 								// [default commented]
+#define FORCE_RA8875_TXTREND_FOLLOW_CURS 					// [default uncommented]
+
+#ifndef bitRead
+	#define bitRead(a,b) ((a) & (1<<(b)))
+#endif
+#ifndef bitWrite
+	#define __bitSet(value, bit) ((value) |= (1UL << (bit)))
+	#define __bitClear(value, bit) ((value) &= ~(1UL << (bit)))
+	#define bitWrite(value, bit, bitvalue) (bitvalue ? __bitSet(value, bit) : __bitClear(value, bit))
 #endif
 
-public:
-	// Global Variables
-	boolean			  _textMode;
-	int16_t 		 			  _width, 			  _height;
-	int16_t						  _cursorX, 		  _cursorY;
-	int16_t						  gCursorX, 		  gCursorY;
-	uint8_t						  _scaleX,			  _scaleY;
-	uint8_t						  _FNTwidth, 		  _FNTheight;
-	uint8_t _fontheight;
-	uint8_t _cursorXsize;
-	uint8_t _cursorYsize;
-
-	const ru32 SPIspeed = 5000000; // Default to a relatively slow speed for breadboard testing
-					   //A "good" PCB can get up to 75000000 (75MHz) with a Teensy 4
-
-	volatile bool	RA8876_BUSY; //This is used to show an SPI transaction is in progress. 
-	volatile bool   activeDMA=false; //Unfortunately must be public so asyncEventResponder() can set it
-
-	uint32_t currentPage;
-	uint32_t lastPage;
-	uint32_t pageOffset;
-	uint8_t currentFont;
-
-	// Text Sreen Vars
-	uint8_t	vdata;
-	uint8_t leftmarg;
-	uint8_t topmarg;
-	uint8_t rightmarg;
-	uint8_t bottommarg;
-	uint8_t tab_size;
-	uint16_t prompt_size; // prompt ">"
-	uint16_t prompt_line; // current text prompt row
-	uint16_t CharPosX, CharPosY;
-	boolean UDFont;
-
-	//scroll vars ----------------------------
-	uint16_t	_scrollXL,_scrollXR,_scrollYT,_scrollYB;
-	uint16_t	_TXTForeColor;
-	uint16_t	_TXTBackColor;
-	
-	volatile uint8_t			  _TXTparameters;
-	/* It contains several parameters in one byte
-	bit			 parameter
-	0	->		_extFontRom 		i's using an ext rom font
-	1	->		_autoAdvance		after a char the pointer move ahead
-	2	->		_textWrap
-	3	->		_fontFullAlig		
-	4	->		_fontRotation       (actually not used)
-	5	->		_alignXToCenter;
-	6	->		_alignYToCenter;
-	7	->		_renderFont active;
-	*/
-
-	Ra8876_Lite(int CSp, int RSTp, int mosi_pin, int sclk_pin, int miso_pin);
-	/* Initialize RA8876 */
-	boolean Ra8876_begin(void);
-	boolean ra8876Initialize(void); 
-	boolean ra8876PllInitial (void);
-	boolean ra8876SdramInitial(void);
-
-	/*access*/
-	void lcdRegWrite(ru8 reg, bool finalize = true);
-	void lcdDataWrite(ru8 data, bool finalize = true);
-	ru8 lcdDataRead(bool finalize = true);
-	ru16 lcdDataRead16bpp(bool finalize = true);
-	ru8 lcdStatusRead(bool finalize = true);
-	void lcdRegDataWrite(ru8 reg,ru8 data, bool finalize = true);
-	ru8 lcdRegDataRead(ru8 reg, bool finalize = true);
-	void lcdDataWrite16bbp(ru16 data, bool finalize = true); 
-	/*Status*/
-	void checkWriteFifoNotFull(void);
-	void checkWriteFifoEmpty(void);
-	void checkReadFifoNotFull(void);
-	void checkReadFifoFull(void);
-	void checkReadFifoNotEmpty(void);
-	void check2dBusy(void);
-	boolean checkSdramReady(void);
-	ru8 powerSavingStatus(void);
-	boolean checkIcReady(void);//
-
-	void displayOn(boolean on);
-	void lcdHorizontalWidthVerticalHeight(ru16 width,ru16 height);
-	void lcdHorizontalNonDisplay(ru16 numbers);
-	void lcdHsyncStartPosition(ru16 numbers);
-	void lcdHsyncPulseWidth(ru16 numbers);
-	void lcdVerticalNonDisplay(ru16 numbers);
-	void lcdVsyncStartPosition(ru16 numbers);
-	void lcdVsyncPulseWidth(ru16 numbers);
-	void displayImageStartAddress(ru32 addr);
-	void displayImageWidth(ru16 width);
-	void displayWindowStartXY(ru16 x0,ru16 y0);
-	void canvasImageStartAddress(ru32 addr);
-	void canvasImageWidth(ru16 width);
-	void activeWindowXY(ru16 x0,ru16 y0);
-	void activeWindowWH(ru16 width,ru16 height);
-
-	void bte_Source0_MemoryStartAddr(ru32 addr);
-	void bte_Source0_ImageWidth(ru16 width);
-	void bte_Source0_WindowStartXY(ru16 x0,ru16 y0);
-	void bte_Source1_MemoryStartAddr(ru32 addr);
-	void bte_Source1_ImageWidth(ru16 width);
-	void bte_Source1_WindowStartXY(ru16 x0,ru16 y0);
-	void bte_DestinationMemoryStartAddr(ru32 addr);
-	void bte_DestinationImageWidth(ru16 width);
-	void bte_DestinationWindowStartXY(ru16 x0,ru16 y0);
-	void bte_WindowSize(ru16 width, ru16 height);
-	void bte_WindowAlpha(ru8 alpha);
-
-	/*PWM function*/
-	void pwm_Prescaler(ru8 prescaler);
-	void pwm_ClockMuxReg(ru8 pwm1_clk_div, ru8 pwm0_clk_div, ru8 xpwm1_ctrl, ru8 xpwm0_ctrl);
-	void pwm_Configuration(ru8 pwm1_inverter,ru8 pwm1_auto_reload,ru8 pwm1_start,ru8 
-						  pwm0_dead_zone, ru8 pwm0_inverter, ru8 pwm0_auto_reload,ru8 pwm0_start);
-
-	void pwm0_ClocksPerPeriod(ru16 clocks_per_period);
-	void pwm0_Duty(ru16 duty);
-	void pwm1_ClocksPerPeriod(ru16 clocks_per_period);
-	void pwm1_Duty(ru16 duty);
-			
-	void ramAccessPrepare(void);
-	void foreGroundColor16bpp(ru16 color, bool finalize = true);
-	void backGroundColor16bpp(ru16 color, bool finalize = true);
-
-	/*graphic function*/
-	void graphicMode(boolean on);
-	void setPixelCursor(ru16 x,ru16 y);
-	void drawPixel(ru16 x, ru16 y, ru16 color);
-	ru16 getPixel(ru16 x, ru16 y);
-	void putPicture_16bpp(ru16 x,ru16 y,ru16 width, ru16 height);  //not recommended: use BTE instead
-	void putPicture_16bppData8(ru16 x,ru16 y,ru16 width, ru16 height, const unsigned char *data);  //not recommended: use BTE instead
-	void putPicture_16bppData16(ru16 x,ru16 y,ru16 width, ru16 height, const unsigned short *data);  //not recommended: use BTE instead
-	void Memory_Select_SDRAM(void);
-	void Memory_Select_Graphic_Cursor_RAM(void);
-	void Enable_Graphic_Cursor(void);
-	void Disable_Graphic_Cursor(void);
-	void Select_Graphic_Cursor_1(void);
-	void Select_Graphic_Cursor_2(void);
-	void Select_Graphic_Cursor_3(void);
-	void Select_Graphic_Cursor_4(void);
-	void Upload_Graphic_Cursor(uint8_t cursorNum, uint8_t *data);
-	void Memory_Select_CGRAM(void);
-	void CGRAM_initial(uint32_t charAddr, const uint8_t *data, uint16_t count);
-	void Memory_XY_Mode(void);
-	void Memory_Linear_Mode(void);
-	//**[40h][41h][42h][43h]**//
-	void Graphic_Cursor_XY(int16_t WX,int16_t HY);
-	//**[44]**//
-	void Set_Graphic_Cursor_Color_1(unsigned char temp);
-	//**[45]**//
-	void Set_Graphic_Cursor_Color_2(unsigned char temp);
-	void Graphic_cursor_initial(void);
-
-	uint32_t boxPut(uint32_t vPageAddr, uint16_t x0, uint16_t y0,uint16_t x1, uint16_t y1, uint16_t dx0, uint16_t dy0);
-	uint32_t boxGet(uint32_t vPageAddr, uint16_t x0, uint16_t y0,uint16_t x1, uint16_t y1, uint16_t dx0, uint16_t dy0);
-
-	void initButton(struct Gbuttons *button, uint16_t x, uint16_t y, uint8_t w, uint8_t h,
-	 uint16_t outline, uint16_t fill, uint16_t textcolor,
-	 char *label, uint8_t textsize);
-
-	void drawButton(struct Gbuttons *buttons, bool inverted);
-	bool buttonContains(struct Gbuttons *buttons,uint16_t x, uint16_t y);
-	void buttonPress(struct Gbuttons *buttons, bool p);
-	bool buttonIsPressed(struct Gbuttons *buttons);
-	bool buttonJustPressed(struct Gbuttons *buttons);
-	bool buttonJustReleased(struct Gbuttons *buttons);
-	void Color_Bar_ON(void);
-	void Color_Bar_OFF(void);
-
-	/*text function*/
-	void textMode(boolean on);
-	void textColor(ru16 foreground_color,ru16 background_color);
-	void setTextCursor(ru16 x,ru16 y);
-	void textxy(ru16 x, ru16 y);
-	void buildTextScreen(void);
-	void setFontSource(uint8_t source);
-	//**[5Fh]~[62h]**//
-	void linearAddressSet(ru32 addr);
-
-	ru8 vmemReadData(ru32 addr);
-	ru16 vmemReadData16(ru32 addr);
-	void vmemWriteData(ru32 addr, ru8 vmemData);
-	void vmemWriteData16(ru32 addr, ru16 vmemData);
-
-	//**[DBh]~[DEh]**//
-	void CGRAM_Start_address(uint32_t Addr);
-	void setTextParameter1(ru8 source_select,ru8 size_select,ru8 iso_select);//cch
-	void setTextParameter2(ru8 align, ru8 chroma_key, ru8 width_enlarge, ru8 height_enlarge);//cdh
-	void genitopCharacterRomParameter(ru8 scs_select, ru8 clk_div, ru8 rom_select, ru8 character_select, ru8 gt_width);//b7h,bbh,ceh,cfh
-
-	void clearActiveScreen(void);
-	void clreol(void);
-	void clreos(void);
-	void clrbol(void);
-	void clrbos(void);
-	void clrlin(void);
-	void clearStatusLine(uint16_t color); 
-	void putString(ru16 x0,ru16 y0, const char *str);
-	void writeStatusLine(ru16 x0, uint16_t fgcolor, uint16_t bgcolor, const char *str);
-
-
-	void update_xy(void);
-	void update_tft(uint8_t data);
-	void Enable_Text_Cursor(void);
-	void Disable_Text_Cursor(void);
-	void Enable_Text_Cursor_Blinking(void);
-	void Disable_Text_Cursor_Blinking(void);
-	void Blinking_Time_Frames(unsigned char temp);
-	void Text_Cursor_H_V(unsigned short WX,unsigned short HY);
-	void scroll(void);
-	void scrollDown(void);
-	 
-	/*draw function*/
-	void drawLine(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color);
-	void drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color);
-	void drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color);
-	void drawSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color);
-	void drawSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color);
-	void drawCircleSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru16 yr, ru16 color);
-	void drawCircleSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru16 yr, ru16 color);
-	void drawTriangle(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru16 color);
-	void drawTriangleFill(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru16 color);
-	void drawCircle(ru16 x0,ru16 y0,ru16 r,ru16 color);
-	void drawCircleFill(ru16 x0,ru16 y0,ru16 r,ru16 color);
-	void drawEllipse(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color);
-	void drawEllipseFill(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color);
-	 
-	/*BTE function*/
-	void bteMemoryCopy(ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,ru32 des_addr,ru16 des_image_width, 
-					   ru16 des_x,ru16 des_y,ru16 copy_width,ru16 copy_height);
-	void bteMemoryCopyWithROP(ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,
-							   ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 copy_width,ru16 copy_height,ru8 rop_code);
-	void bteMemoryCopyWithChromaKey(ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
-								   ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 copy_width,ru16 copy_height,ru16 chromakey_color);
-	void bteMemoryCopyWindowAlpha(ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
-									ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,
-								   ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 copy_width,ru16 copy_height,ru8 alpha);
-	void bteMpuWriteWithROPData8(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
-							ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned char *data);
-	void bteMpuWriteWithROPData16(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
-							ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned short *data);
-	bool DMAFinished() {return !activeDMA;}
-	void bteMpuWriteWithROP(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
-							ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code);                     
-	void bteMpuWriteWithChromaKeyData8(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 chromakey_color,
-								 const unsigned char *data);
-	void bteMpuWriteWithChromaKeyData16(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 chromakey_color,
-								 const unsigned short *data);
-	void bteMpuWriteWithChromaKey(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 chromakey_color);
-	void bteMpuWriteColorExpansionData(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 foreground_color,ru16 background_color,const unsigned char *data);
-	void bteMpuWriteColorExpansion(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 foreground_color,ru16 background_color);
-	void bteMpuWriteColorExpansionWithChromaKeyData(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,
-												ru16 foreground_color,ru16 background_color,const unsigned char *data);
-	void bteMpuWriteColorExpansionWithChromaKey(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,
-												ru16 width,ru16 height,ru16 foreground_color,ru16 background_color);
-
-	void btePatternFill(ru8 p8x8or16x16, ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
-					   ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height);
-	void btePatternFillWithChromaKey(ru8 p8x8or16x16, ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
-									ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 chromakey_color);
-	/*DMA function*/
-	void setSerialFlash4BytesMode(ru8 scs_select);
-	void dma_24bitAddressBlockMode(ru8 scs_selct,ru8 clk_div,ru16 x0,ru16 y0,ru16 width,ru16 height,ru16 picture_width,ru32 addr);
-	void dma_32bitAddressBlockMode(ru8 scs_selct,ru8 clk_div,ru16 x0,ru16 y0,ru16 width,ru16 height,ru16 picture_width,ru32 addr);
-
-
-	//SPI Functions - should these be private?
-	inline __attribute__((always_inline)) 
-	void startSend(){
-		#ifdef SPI_HAS_TRANSFER_ASYNC
-		while(activeDMA) {}; //wait forever while DMA is finishing- can't start a new transfer
-		#endif
-		if(!RA8876_BUSY) {
-	        RA8876_BUSY = true;
-			SPI.beginTransaction(SPISettings(SPIspeed, MSBFIRST, SPI_MODE0));
-		}
-	    digitalWriteFast(_cs, LOW);
-	}
-
-	inline __attribute__((always_inline)) 
-	void endSend(bool finalize){
-		digitalWriteFast(_cs, HIGH);
-		if(finalize) {
-			SPI.endTransaction();
-			RA8876_BUSY = false;
-		}
-	} 
-
-	/* PIP window funtions */
-	void PIP
-	(
-	 unsigned char On_Off // 0 : disable PIP, 1 : enable PIP, 2 : To maintain the original state
-	,unsigned char Select_PIP // 1 : use PIP1 , 2 : use PIP2
-	,unsigned long PAddr //start address of PIP
-	,unsigned short XP //coordinate X of PIP Window, It must be divided by 4.
-	,unsigned short YP //coordinate Y of PIP Window, It must be divided by 4.
-	,unsigned long ImageWidth //Image Width of PIP (recommend = canvas image width)
-	,unsigned short X_Dis //coordinate X of Display Window
-	,unsigned short Y_Dis //coordinate Y of Display Window
-	,unsigned short X_W //width of PIP and Display Window, It must be divided by 4.
-	,unsigned short Y_H //height of PIP and Display Window , It must be divided by 4.
-	);
-
-	void PIP_Display_Start_XY(unsigned short WX,unsigned short HY);	
-	void PIP_Image_Start_Address(unsigned long Addr);	
-	void PIP_Image_Width(unsigned short WX);	
-	void PIP_Window_Image_Start_XY(unsigned short WX,unsigned short HY);	
-	void PIP_Window_Width_Height(unsigned short WX,unsigned short HY);	
-
-	//**[10h]**//
-	void Enable_PIP1(void);
-	void Disable_PIP1(void);
-	void Enable_PIP2(void);
-	void Disable_PIP2(void);
-	void Select_PIP1_Parameter(void);
-	void Select_PIP2_Parameter(void);
-	void Select_Main_Window_8bpp(void);
-	void Select_Main_Window_16bpp(void);
-	void Select_Main_Window_24bpp(void);
-	void Select_LCD_Sync_Mode(void);
-	void Select_LCD_DE_Mode(void);
-	//**[11h]**//
-	void Select_PIP1_Window_8bpp(void);
-	void Select_PIP1_Window_16bpp(void);
-	void Select_PIP1_Window_24bpp(void);
-	void Select_PIP2_Window_8bpp(void);
-	void Select_PIP2_Window_16bpp(void);
-	void Select_PIP2_Window_24bpp(void);
-
+/*   Font Sizes   */
+const static uint8_t fontDimPar[4][5] = {
+	{8,16,2,4,0},// INT font
+	{8,16,3,0,0},// ROM X16
+	{12,24,2,2,0},//ROM X24
+	{16,32,2,2,0},//ROM X32
 };
 
 #endif
+
+
+
+
+
+
