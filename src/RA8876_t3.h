@@ -113,8 +113,8 @@ typedef struct {
 #endif // _GFXFONT_H_ 
 
 
-// Default to a relatively slow speed for breadboard testing.  A "good" PCB can get up to 75000000 (75MHz) with a Teensy 4
-const ru32 SPIspeed = 5000000;
+// Default to a relatively slow speed for breadboard testing. 
+const ru32 SPIspeed = 3000000;
 
 // Max. size in byte of SDRAM
 const uint32_t MEM_SIZE_MAX	= 16l*1024l*1024l;
@@ -505,6 +505,7 @@ public:
 
 		}
 	}
+
 	
 	inline void setFontDef() { 
 		_use_default = 1; 

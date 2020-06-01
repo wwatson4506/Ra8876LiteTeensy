@@ -433,34 +433,34 @@ boolean RA8876_t3::ra8876Initialize(void) {
 	currentPage = 999; // Don't repeat screen page 1 init.
 	selectScreen(PAGE1_START_ADDR);	// Init page 1 screen
 	fillScreen(COLOR65K_DARKBLUE);     // Not sure why we need to clear the screen twice
-	fillStatusLine(COLOR65K_DARKBLUE);
+	//fillStatusLine(COLOR65K_DARKBLUE);
 	selectScreen(PAGE2_START_ADDR);	// Init page 2 screen
 	fillScreen(COLOR65K_DARKBLUE);
-	fillStatusLine(COLOR65K_DARKBLUE);
+	//fillStatusLine(COLOR65K_DARKBLUE);
 	selectScreen(PAGE3_START_ADDR);	// Init page 3 screen
 	fillScreen(COLOR65K_DARKBLUE);
-	fillStatusLine(COLOR65K_DARKBLUE);
+	//fillStatusLine(COLOR65K_DARKBLUE);
 	selectScreen(PAGE4_START_ADDR);	// Init page 4 screen
 	fillScreen(COLOR65K_DARKBLUE);
-	fillStatusLine(COLOR65K_DARKBLUE);
+	//fillStatusLine(COLOR65K_DARKBLUE);
 	selectScreen(PAGE5_START_ADDR);	// Init page 5 screen
 	fillScreen(COLOR65K_DARKBLUE);
-	fillStatusLine(COLOR65K_DARKBLUE);
+	//fillStatusLine(COLOR65K_DARKBLUE);
 	selectScreen(PAGE6_START_ADDR);	// Init page 6 screen
 	fillScreen(COLOR65K_DARKBLUE);
-	fillStatusLine(COLOR65K_DARKBLUE);
+	//fillStatusLine(COLOR65K_DARKBLUE);
 	selectScreen(PAGE7_START_ADDR);	// Init page 7 screen
-	fillScreen(COLOR65K_DARKBLUE);
+	//fillScreen(COLOR65K_DARKBLUE);
 	fillStatusLine(COLOR65K_DARKBLUE);
 	selectScreen(PAGE8_START_ADDR);	// Init page 8 screen
 	fillScreen(COLOR65K_DARKBLUE);
-	fillStatusLine(COLOR65K_DARKBLUE);
+	//fillStatusLine(COLOR65K_DARKBLUE);
 	selectScreen(PAGE9_START_ADDR);	// Init page 9 screen
 	fillScreen(COLOR65K_DARKBLUE);
-	fillStatusLine(COLOR65K_DARKBLUE);
+	//fillStatusLine(COLOR65K_DARKBLUE);
 	selectScreen(PAGE10_START_ADDR);	// Init page 10 screen
 	fillScreen(COLOR65K_DARKBLUE);
-	fillStatusLine(COLOR65K_DARKBLUE);
+	//fillStatusLine(COLOR65K_DARKBLUE);
 	selectScreen(PAGE1_START_ADDR); // back to page 1 screen
 
 	// Set graphic mouse cursor to center of screen
@@ -1751,7 +1751,7 @@ void RA8876_t3::update_xy(void)
 {
    if(_cursorY >= _scrollYB) 
    {
-      scroll();
+      //scroll();
       _cursorY -= (_FNTheight * _scaleY);
 	  _cursorX = _scrollXL;
    }
@@ -2356,6 +2356,15 @@ Display Test Color Bar
 //**************************************************************//
 void RA8876_t3::drawLine(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 {
+	x0 += _originx; x1 += _originx;
+	y0 += _originy; y1 += _originy;
+	
+	if ((x0 == x1 && y0 == y1)) {//Thanks MrTOM
+		drawPixel(x0,y0,color);
+		return;
+	}
+	//if (_portrait) { swapvals(x0,y0); swapvals(x1,y1);}
+	
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
@@ -2378,6 +2387,27 @@ void RA8876_t3::drawLine(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 //**************************************************************//
 void RA8876_t3::drawSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 {
+	x0 += _originx; x1 += _originx;
+	y0 += _originy; y1 += _originy;
+	
+	int16_t x_end = x1;
+	int16_t y_end = y1;
+	if((x0 >= _displayclipx2)   || // Clip right
+		 (y0 >= _displayclipy2) || // Clip bottom
+		 (x_end < _displayclipx1)    || // Clip left
+		 (y_end < _displayclipy1))  	// Clip top 
+	{
+		// outside the clip rectangle
+		return;
+	}
+	if (x0 < _displayclipx1) x0 = _displayclipx1;
+	if (y0 < _displayclipy1) y0 = _displayclipy1;
+	if (x_end > _displayclipx2) x_end = _displayclipx2;
+	if (y_end > _displayclipy2) y_end = _displayclipy2;
+	
+	x1 = x_end;
+	y1 = y_end;
+	
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
@@ -2400,6 +2430,28 @@ void RA8876_t3::drawSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 //**************************************************************//
 void RA8876_t3::drawSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 {
+	
+	x0 += _originx; x1 += _originx;
+	y0 += _originy; y1 += _originy;
+	
+	int16_t x_end = x1;
+	int16_t y_end = y1;
+	if((x0 >= _displayclipx2)   || // Clip right
+		 (y0 >= _displayclipy2) || // Clip bottom
+		 (x_end < _displayclipx1)    || // Clip left
+		 (y_end < _displayclipy1))  	// Clip top 
+	{
+		// outside the clip rectangle
+		return;
+	}
+	if (x0 < _displayclipx1) x0 = _displayclipx1;
+	if (y0 < _displayclipy1) y0 = _displayclipy1;
+	if (x_end > _displayclipx2) x_end = _displayclipx2;
+	if (y_end > _displayclipy2) y_end = _displayclipy2;
+	
+	x1 = x_end;
+	y1 = y_end;
+	
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
@@ -2423,6 +2475,8 @@ void RA8876_t3::drawSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 //**************************************************************//
 void RA8876_t3::drawCircleSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru16 yr, ru16 color)
 {
+
+  	
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
@@ -2450,6 +2504,8 @@ void RA8876_t3::drawCircleSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru
 //**************************************************************//
 void RA8876_t3::drawCircleSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru16 yr, ru16 color)
 {
+  
+	
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
@@ -2476,6 +2532,17 @@ void RA8876_t3::drawCircleSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr
 //**************************************************************//
 void RA8876_t3::drawTriangle(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru16 color)
 {
+  x0 += _originx;
+  y0 += _originy;
+	
+	if (x0 >= _width || x1 >= _width || x2 >= _width) return;
+	if (y0 >= _height || y1 >= _height || y2 >= _height) return;
+	//if (_portrait) {swapvals(x0,y0); swapvals(x1,y1); swapvals(x2,y2);}
+	if (x0 == x1 && y0 == y1 && x0 == x2 && y0 == y2) {			// All points are same
+		drawPixel(x0,y0, color);
+		return;
+	}
+	
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
@@ -2502,6 +2569,17 @@ void RA8876_t3::drawTriangle(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru1
 //**************************************************************//
 void RA8876_t3::drawTriangleFill(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru16 color)
 {
+  x0 += _originx;
+  y0 += _originy;
+	
+	if (x0 >= _width || x1 >= _width || x2 >= _width) return;
+	if (y0 >= _height || y1 >= _height || y2 >= _height) return;
+	//if (_portrait) {swapvals(x0,y0); swapvals(x1,y1); swapvals(x2,y2);}
+	if (x0 == x1 && y0 == y1 && x0 == x2 && y0 == y2) {			// All points are same
+		drawPixel(x0,y0, color);
+		return;
+	}
+	
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
@@ -2528,6 +2606,16 @@ void RA8876_t3::drawTriangleFill(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2
 //**************************************************************//
 void RA8876_t3::drawCircle(ru16 x0,ru16 y0,ru16 r,ru16 color)
 {
+  x0 += _originx;
+  y0 += _originy;
+  
+	if (r < 1) r = 1;
+	if (r < 2) {//NEW
+		drawPixel(x0,y0,color);
+		return;
+	}
+	if (r > SCREEN_HEIGHT / 2) r = (SCREEN_HEIGHT / 2) - 1;//this is the (undocumented) hardware limit of RA8875
+	
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
@@ -2551,6 +2639,16 @@ void RA8876_t3::drawCircle(ru16 x0,ru16 y0,ru16 r,ru16 color)
 //**************************************************************//
 void RA8876_t3::drawCircleFill(ru16 x0,ru16 y0,ru16 r,ru16 color)
 {
+  x0 += _originx;
+  y0 += _originy;
+  
+	if (r < 1) r = 1;
+	if (r < 2) {//NEW
+		drawPixel(x0,y0,color);
+		return;
+	}
+	if (r > SCREEN_HEIGHT / 2) r = (SCREEN_HEIGHT / 2) - 1;//this is the (undocumented) hardware limit of RA8875
+	
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
@@ -2569,11 +2667,30 @@ void RA8876_t3::drawCircleFill(ru16 x0,ru16 y0,ru16 r,ru16 color)
 //**************************************************************//
 // Draw an ellipse
 // x0,y0 is ellipse start
-// x1,y1 is ellipse x radius
-// x2,y2 is ellipse y radius
+// xr is ellipse x radius, major axis
+// yr is ellipse y radius, minor axis
 //**************************************************************//
 void RA8876_t3::drawEllipse(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color)
 {
+	
+  x0 += _originx;
+  y0 += _originy;
+  
+	//if (_portrait) {
+	//	swapvals(xCenter,yCenter);
+	//	swapvals(longAxis,shortAxis);
+	//	if (longAxis > _height/2) longAxis = (_height / 2) - 1;
+	//	if (shortAxis > _width/2) shortAxis = (_width / 2) - 1;
+	//} else {
+		if (xr > _width/2) xr = (_width / 2) - 1;
+		if (yr > _height/2) yr = (_height / 2) - 1;
+	//}
+	if (xr == 1 && yr == 1) {
+		drawPixel(x0,y0,color);
+		return;
+	}
+	
+	
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
@@ -2581,7 +2698,7 @@ void RA8876_t3::drawEllipse(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color)
   lcdRegDataWrite(RA8876_DEHR1,x0>>8, false);//7ch
   lcdRegDataWrite(RA8876_DEVR0,y0, false);//7dh
   lcdRegDataWrite(RA8876_DEVR1,y0>>8, false);//7eh
-  lcdRegDataWrite(RA8876_ELL_A0,xr, false);//77h    
+  lcdRegDataWrite(RA8876_ELL_A0,xr, false);//77h  
   lcdRegDataWrite(RA8876_ELL_A1,xr>>8, false);//78h 
   lcdRegDataWrite(RA8876_ELL_B0,yr, false);//79h    
   lcdRegDataWrite(RA8876_ELL_B1,yr>>8, false);//7ah
@@ -2596,6 +2713,23 @@ void RA8876_t3::drawEllipse(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color)
 //**************************************************************//
 void RA8876_t3::drawEllipseFill(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color)
 {
+  x0 += _originx;
+  y0 += _originy;
+  
+	//if (_portrait) {
+	//	swapvals(xCenter,yCenter);
+	//	swapvals(longAxis,shortAxis);
+	//	if (longAxis > _height/2) longAxis = (_height / 2) - 1;
+	//	if (shortAxis > _width/2) shortAxis = (_width / 2) - 1;
+	//} else {
+		if (xr > _width/2) xr = (_width / 2) - 1;
+		if (yr > _height/2) yr = (_height / 2) - 1;
+	//}
+	if (xr == 1 && yr == 1) {
+		drawPixel(x0,y0,color);
+		return;
+	}
+	
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
@@ -3752,8 +3886,8 @@ void RA8876_t3::cursorInit(void)
 void RA8876_t3::setCursor(int16_t x, int16_t y, bool autocenter) 
 {
 	if(_use_default) {
-		setTextCursor(x, y);
-		return;
+		//setTextCursor(x, y);
+		//return;
 	}
 	
 	if (x < 0) x = 0;
@@ -4124,26 +4258,14 @@ uint8_t RA8876_t3::getFontWidth(void) {
 
 // Draw a rectangle. Note: damages text color register
 void RA8876_t3::drawRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t color) {
+
 	drawSquare(x, y, x+w-1, y+h-1, color);
 }
 
 // Draw a filled rectangle. Note: damages text color register
 void RA8876_t3::fillRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t color) {
-	int16_t x_end = x+w-1;
-	int16_t y_end = y+h-1;
-	if((x >= _displayclipx2)   || // Clip right
-		 (y >= _displayclipy2) || // Clip bottom
-		 (x_end < _displayclipx1)    || // Clip left
-		 (y_end < _displayclipy1))  	// Clip top 
-	{
-		// outside the clip rectangle
-		return;
-	}
-	if (x < _displayclipx1) x = _displayclipx1;
-	if (y < _displayclipy1) y = _displayclipy1;
-	if (x_end > _displayclipx2) x_end = _displayclipx2;
-	if (y_end > _displayclipy2) y_end = _displayclipy2;
-	drawSquareFill(x, y, x_end, y_end, color);
+
+	drawSquareFill(x, y, x+w-1, y+h-1, color);
 }
 
 // Draw a round rectangle. 
@@ -4153,6 +4275,8 @@ void RA8876_t3::drawRoundRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, ui
 
 // Draw a filed round rectangle.
 void RA8876_t3::fillRoundRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t xr, uint16_t yr, uint16_t color) {
+	
+	
 	drawCircleSquareFill(x, y, x+w-1, y+h-1, xr, yr, color);
 }
 
@@ -5738,6 +5862,30 @@ size_t RA8876_t3::write(uint8_t c) {
 size_t RA8876_t3::write(const uint8_t *buffer, size_t size) {
   if(_use_default){
 	size_t cb = size;
+	// Lets try to handle some of the special font centering code that was done for default fonts.
+	if (_absoluteCenter || _relativeCenter ) {
+		int16_t x, y;
+	  	uint16_t strngWidth, strngHeight;
+	  	getTextBounds(buffer, cb, 0, 0, &x, &y, &strngWidth, &strngHeight);
+	  	Serial.printf("_fontwrite bounds: %d %d %u %u\n", x, y, strngWidth, strngHeight);
+	  	// Note we may want to play with the x ane y returned if they offset some
+		if (_absoluteCenter && strngWidth > 0){//Avoid operations for strngWidth = 0
+			_absoluteCenter = false;
+			_cursorX = _cursorX - ((x + strngWidth) / 2);
+			_cursorY = _cursorY - ((y + strngHeight) / 2);
+		} else if (_relativeCenter && strngWidth > 0){//Avoid operations for strngWidth = 0
+			_relativeCenter = false;
+			if (bitRead(_TXTparameters,5)) {//X = center
+				_cursorX = (_width / 2) - ((x + strngWidth) / 2);
+				_TXTparameters &= ~(1 << 5);//reset
+			}
+			if (bitRead(_TXTparameters,6)) {//Y = center
+				_cursorY = (_height / 2) - ((y + strngHeight) / 2) ;
+				_TXTparameters &= ~(1 << 6);//reset
+			}
+		}
+	}
+	
 	while (cb) {
 		uint8_t text = *buffer++;
 		cb--;
@@ -5750,7 +5898,7 @@ size_t RA8876_t3::write(const uint8_t *buffer, size_t size) {
 			_cursorX = _scrollXL;
 			update_xy();
 		} else if(text == 127) { // Destructive Backspace
-				if((_cursorX > (prompt_size +_scrollXL)) || (_cursorY > (prompt_line + _scrollYT)))
+				//if((_cursorX > (prompt_size +_scrollXL)) || (_cursorY > (prompt_line + _scrollYT)))
 				{
 					_cursorX-=(_FNTwidth * _scaleX);
 					update_xy();
@@ -5776,6 +5924,7 @@ size_t RA8876_t3::write(const uint8_t *buffer, size_t size) {
 			textColor(_TXTForeColor,_TXTBackColor);
 			setTextCursor(_scrollXL,_scrollYT);
 		} else {
+			textColor(_TXTForeColor,_TXTBackColor);
 			update_tft(vdata);
 			_cursorX += (_FNTwidth * _scaleX);
 			switch(_FNTwidth) {
