@@ -61,6 +61,7 @@ void setup() {
   while (!Serial && ((millis () - debug_start) <= 5000)) ;
   Serial.println("Setup");
   tft.begin(30000000);
+  tft.backlight(true);
   pinMode(BACKLITE, OUTPUT);
   digitalWrite(BACKLITE, HIGH);
 
