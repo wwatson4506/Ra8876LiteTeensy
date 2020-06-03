@@ -955,15 +955,48 @@ ru16	Auto_Refresh;
 //**************************************************************//
 // Turn Display ON/Off (true = ON)
 //**************************************************************//
- void RA8876_t3::displayOn(boolean on)
- {
+void RA8876_t3::displayOn(boolean on)
+{
   if(on)
    lcdRegDataWrite(RA8876_DPCR, XPCLK_INV<<7|RA8876_DISPLAY_ON<<6|RA8876_OUTPUT_RGB);
   else
    lcdRegDataWrite(RA8876_DPCR, XPCLK_INV<<7|RA8876_DISPLAY_OFF<<6|RA8876_OUTPUT_RGB);
    
   delay(20);
- }
+}
+
+//**************************************************************//
+//**************************************************************//
+// Turn Backlight ON/Off (true = ON)
+//**************************************************************//
+void RA8876_t3::backlight(boolean on)
+{
+
+  if(on) {
+	//Enable_PWM0_Interrupt();
+	//Clear_PWM0_Interrupt_Flag();
+ 	//Mask_PWM0_Interrupt_Flag();
+	//Select_PWM0_Clock_Divided_By_2();
+ 	//Select_PWM0();
+ 	pwm_ClockMuxReg(0, RA8876_PWM_TIMER_DIV2, 0, RA8876_XPWM0_OUTPUT_PWM_TIMER0);
+ 	//Enable_PWM0_Dead_Zone();
+	//Auto_Reload_PWM0();
+	//Start_PWM0();
+	pwm_Configuration(RA8876_PWM_TIMER1_INVERTER_OFF, RA8876_PWM_TIMER1_AUTO_RELOAD,RA8876_PWM_TIMER1_STOP,
+					RA8876_PWM_TIMER0_DEAD_ZONE_ENABLE, RA8876_PWM_TIMER1_INVERTER_OFF,
+					RA8876_PWM_TIMER0_AUTO_RELOAD, RA8876_PWM_TIMER0_START);
+
+	pwm0_Duty(0xffff);
+
+  }
+  else 
+  {
+	pwm_Configuration(RA8876_PWM_TIMER1_INVERTER_OFF, RA8876_PWM_TIMER1_AUTO_RELOAD,RA8876_PWM_TIMER1_STOP,
+					RA8876_PWM_TIMER0_DEAD_ZONE_ENABLE, RA8876_PWM_TIMER1_INVERTER_OFF,
+					RA8876_PWM_TIMER0_AUTO_RELOAD, RA8876_PWM_TIMER0_STOP);
+
+  }
+}
 
 //**************************************************************//
 //**************************************************************//

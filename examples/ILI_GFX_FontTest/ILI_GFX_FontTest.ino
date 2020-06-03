@@ -9,18 +9,31 @@
 #include "RA8876_t3.h"
 #define RA8876_CS 10
 #define RA8876_RESET 9
-#define BACKLITE 7 //External backlight control connected to this Arduino pin
+//#define BACKLITE 7 //External backlight control connected to this Arduino pin
 RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
 
 void setup() {
+#ifdef BACKLITE
   pinMode(BACKLITE, OUTPUT);
   digitalWrite(BACKLITE, HIGH);
-
+#endif
   Serial.begin(38400);
   long unsigned debug_start = millis ();
   while (!Serial && ((millis () - debug_start) <= 5000)) ;
   Serial.println("Setup");
   tft.begin();
+
+#ifndef BACKLITE
+  tft.backlight(true);
+  tft.fillScreen(RED);
+  delay(2000);
+  tft.pwm0_Duty(0x0000);
+  delay(2000);
+  tft.pwm0_Duty(0x0ff0);
+  delay(2000);
+  tft.pwm0_Duty(0xffff);
+  delay(2000);
+#endif
 
   //tft.setRotation(1);
   tft.fillScreen(BLACK);
