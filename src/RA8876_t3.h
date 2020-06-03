@@ -129,7 +129,8 @@ public:
 	
 	volatile bool	RA8876_BUSY; //This is used to show an SPI transaction is in progress. 
 	volatile bool   activeDMA=false; //Unfortunately must be public so asyncEventResponder() can set it
-
+	void textRotate(boolean on);
+	void Rotate();
 	/* Initialize RA8876 */
 	boolean begin(uint32_t spi_clock=SPIspeed);
 	boolean ra8876Initialize(void); 
@@ -782,8 +783,16 @@ private:
 		if (_combine_count)fillRect(_combine_x_start, _combine_y, _combine_count, 1, _combine_color);
 		_combine_count = 0;
 	}
-
 	
+	//rotation functions
+	void MemWrite_Left_Right_Top_Down(void);
+	void MemWrite_Right_Left_Top_Down(void);
+	void MemWrite_Top_Down_Left_Right(void);
+	void MemWrite_Down_Top_Left_Right(void);
+	void VSCAN_T_to_B(void);
+	void VSCAN_B_to_T(void);
+	
+
 protected:
 	/* Hack for ILIXXXX and GFX fonts */
  	uint32_t textcolorPrexpanded, textbgcolorPrexpanded;

@@ -4,11 +4,10 @@
  * Basic graphics test for RA8876 based display
  ***************************************************************/
 #include "Arduino.h"
-#include "Ra8876_Lite.h"
 #include "RA8876_t3.h"
 #define RA8876_CS 10
 #define RA8876_RESET 8
-#define BACKLITE 7 //External backlight control connected to this Arduino pin
+#define BACKLITE 5 //External backlight control connected to this Arduino pin
 RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
 
 // Array of Simple RA8876 Basic Colors
@@ -56,7 +55,7 @@ void rectangles(uint16_t thickness) {
 		if(y1 > tft.height()) y1 = tft.height();
 		if(thickness > 0) {
 			for(j = 1; j <= thickness; j++) {
-				tft.drawRect(x0,y0,x1,y1,myColors[c]);
+				tft.drawRect(x0,y0,x1-x0,y1-y0,myColors[c]);
 				if(x0 <= tft.width())
 					x0++;
 				if(y0 <= tft.height())
@@ -67,7 +66,7 @@ void rectangles(uint16_t thickness) {
 					y1--;
 			}
 		} else {
-			tft.drawRect(x0,y0,x1,y1,myColors[c]);
+			tft.drawRect(x0,y0,x1-y0,y1-y0,myColors[c]);
 		}
 	}
 	tft.fillStatusLine(myColors[11]);
@@ -82,7 +81,7 @@ void filledRectangles(void) {
 		x1 = (uint16_t)random(1023);
 		y1 = (uint16_t)random(575);
 		c = (uint16_t)random(21);
-		tft.fillRect(x0,y0,x1,y1,myColors[c+1]);
+		tft.fillRect(x0,y0,x1-x0,y1-y0,myColors[c+1]);
 	}
 	tft.fillStatusLine(myColors[11]);
 }
@@ -115,7 +114,7 @@ void rRectangles(uint16_t thickness) {
 			yr = (y1 - y0) / 2 - 1;
 		if(thickness > 0) {
 			for(j = 1; j <= thickness; j++) {
-				tft.drawRoundRect(x0,y0,x1,y1,xr,yr,myColors[c]);
+				tft.drawRoundRect(x0,y0,x1-x0,y1-y0,xr,yr,myColors[c]);
 				if(x0 <= tft.width())
 					x0++;
 				if(y0 <= tft.height())
@@ -130,7 +129,7 @@ void rRectangles(uint16_t thickness) {
 					yr--;
 			}
 		} else {
-			tft.drawRoundRect(x0,y0,x1,y1,xr,yr,myColors[c]);
+			tft.drawRoundRect(x0,y0,x1-x0,y1-y0,xr,yr,myColors[c]);
 		}
 	}
 	tft.fillStatusLine(myColors[11]);
@@ -163,7 +162,7 @@ void filledRRectangles(void) {
 		// Same for minor radius (yr)
 		if((yr * 2 + 1) >= (y1 - y0))
 			yr = (y1 - y0) / 2 - 1;
-		tft.fillRoundRect(x0, y0, x1, y1, xr, yr, myColors[c]);
+		tft.fillRoundRect(x0, y0, x1-x0, y1-y0, xr, yr, myColors[c]);
 	}
 	tft.fillStatusLine(myColors[11]);
 }

@@ -469,7 +469,7 @@ boolean RA8876_t3::ra8876Initialize(void) {
 	setClipRect();
 	setOrigin();
 	setTextSize(1, 1);
-	
+
   return true;
 }
 
@@ -2387,26 +2387,6 @@ void RA8876_t3::drawLine(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 //**************************************************************//
 void RA8876_t3::drawSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 {
-	x0 += _originx; x1 += _originx;
-	y0 += _originy; y1 += _originy;
-	
-	int16_t x_end = x1;
-	int16_t y_end = y1;
-	if((x0 >= _displayclipx2)   || // Clip right
-		 (y0 >= _displayclipy2) || // Clip bottom
-		 (x_end < _displayclipx1)    || // Clip left
-		 (y_end < _displayclipy1))  	// Clip top 
-	{
-		// outside the clip rectangle
-		return;
-	}
-	if (x0 < _displayclipx1) x0 = _displayclipx1;
-	if (y0 < _displayclipy1) y0 = _displayclipy1;
-	if (x_end > _displayclipx2) x_end = _displayclipx2;
-	if (y_end > _displayclipy2) y_end = _displayclipy2;
-	
-	x1 = x_end;
-	y1 = y_end;
 	
   check2dBusy();
   graphicMode(true);
@@ -2431,27 +2411,6 @@ void RA8876_t3::drawSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 void RA8876_t3::drawSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 {
 	
-	x0 += _originx; x1 += _originx;
-	y0 += _originy; y1 += _originy;
-	
-	int16_t x_end = x1;
-	int16_t y_end = y1;
-	if((x0 >= _displayclipx2)   || // Clip right
-		 (y0 >= _displayclipy2) || // Clip bottom
-		 (x_end < _displayclipx1)    || // Clip left
-		 (y_end < _displayclipy1))  	// Clip top 
-	{
-		// outside the clip rectangle
-		return;
-	}
-	if (x0 < _displayclipx1) x0 = _displayclipx1;
-	if (y0 < _displayclipy1) y0 = _displayclipy1;
-	if (x_end > _displayclipx2) x_end = _displayclipx2;
-	if (y_end > _displayclipy2) y_end = _displayclipy2;
-	
-	x1 = x_end;
-	y1 = y_end;
-	
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
@@ -2462,7 +2421,7 @@ void RA8876_t3::drawSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
   lcdRegDataWrite(RA8876_DLHER0,x1, false);//6ch
   lcdRegDataWrite(RA8876_DLHER1,x1>>8, false);//6dh
   lcdRegDataWrite(RA8876_DLVER0,y1, false);//6eh
-  lcdRegDataWrite(RA8876_DLVER1,y1>>8, false);//6fh    
+  lcdRegDataWrite(RA8876_DLVER1,y1>>8, false);//6fh     
   lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_SQUARE_FILL, true);//76h,0xE0  
 }
 
@@ -3852,7 +3811,7 @@ void RA8876_t3::useCanvas()
 void RA8876_t3::updateScreen() {
 	bteMemoryCopy(PAGE2_START_ADDR,_width,0,0,
 				  PAGE1_START_ADDR,_width, 0,0,
-				 _width,_height);	
+				 _width,_height);
 }
 
 // Setup text cursor
@@ -4256,28 +4215,89 @@ uint8_t RA8876_t3::getFontWidth(void) {
 	return _FNTwidth * _scaleX;
 }
 
+
 // Draw a rectangle. Note: damages text color register
 void RA8876_t3::drawRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t color) {
-
-	drawSquare(x, y, x+w-1, y+h-1, color);
+	x += _originx;
+	y += _originy;
+	int16_t x_end = x+w-1;
+	int16_t y_end = y+h-1;
+	if((x >= _displayclipx2)   || // Clip right
+		 (y >= _displayclipy2) || // Clip bottom
+		 (x_end < _displayclipx1)    || // Clip left
+		 (y_end < _displayclipy1))  	// Clip top 
+	{
+		// outside the clip rectangle
+		return;
+	}
+	if (x < _displayclipx1) x = _displayclipx1;
+	if (y < _displayclipy1) y = _displayclipy1;
+	if (x_end > _displayclipx2) x_end = _displayclipx2;
+	if (y_end > _displayclipy2) y_end = _displayclipy2;
+	drawSquare(x, y, x_end, y_end, color);
 }
 
 // Draw a filled rectangle. Note: damages text color register
 void RA8876_t3::fillRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t color) {
-
-	drawSquareFill(x, y, x+w-1, y+h-1, color);
+	x += _originx;
+	y += _originy;
+	int16_t x_end = x+w-1;
+	int16_t y_end = y+h-1;
+	if((x >= _displayclipx2)   || // Clip right
+		 (y >= _displayclipy2) || // Clip bottom
+		 (x_end < _displayclipx1)    || // Clip left
+		 (y_end < _displayclipy1))  	// Clip top 
+	{
+		// outside the clip rectangle
+		return;
+	}
+	if (x < _displayclipx1) x = _displayclipx1;
+	if (y < _displayclipy1) y = _displayclipy1;
+	if (x_end > _displayclipx2) x_end = _displayclipx2;
+	if (y_end > _displayclipy2) y_end = _displayclipy2;
+	drawSquareFill(x, y, x_end, y_end, color);
 }
 
 // Draw a round rectangle. 
 void RA8876_t3::drawRoundRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t xr, uint16_t yr, uint16_t color) {
-	drawCircleSquare(x, y, x+w-1, y+h-1, xr, yr, color);
+	x += _originx;
+	y += _originy;
+	int16_t x_end = x+w-1;
+	int16_t y_end = y+h-1;
+	if((x >= _displayclipx2)   || // Clip right
+		 (y >= _displayclipy2) || // Clip bottom
+		 (x_end < _displayclipx1)    || // Clip left
+		 (y_end < _displayclipy1))  	// Clip top 
+	{
+		// outside the clip rectangle
+		return;
+	}
+	if (x < _displayclipx1) x = _displayclipx1;
+	if (y < _displayclipy1) y = _displayclipy1;
+	if (x_end > _displayclipx2) x_end = _displayclipx2;
+	if (y_end > _displayclipy2) y_end = _displayclipy2;
+	drawCircleSquare(x, y, x_end, y_end, xr, yr, color);
 }
 
 // Draw a filed round rectangle.
 void RA8876_t3::fillRoundRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t xr, uint16_t yr, uint16_t color) {
-	
-	
-	drawCircleSquareFill(x, y, x+w-1, y+h-1, xr, yr, color);
+		x += _originx;
+	y += _originy;
+	int16_t x_end = x+w-1;
+	int16_t y_end = y+h-1;
+	if((x >= _displayclipx2)   || // Clip right
+		 (y >= _displayclipy2) || // Clip bottom
+		 (x_end < _displayclipx1)    || // Clip left
+		 (y_end < _displayclipy1))  	// Clip top 
+	{
+		// outside the clip rectangle
+		return;
+	}
+	if (x < _displayclipx1) x = _displayclipx1;
+	if (y < _displayclipy1) y = _displayclipy1;
+	if (x_end > _displayclipx2) x_end = _displayclipx2;
+	if (y_end > _displayclipy2) y_end = _displayclipy2;
+	drawCircleSquareFill(x, y, x_end, y_end, xr, yr, color);
 }
 
 // Enable Touch Screen.
@@ -5979,3 +5999,129 @@ size_t RA8876_t3::rawPrint(uint8_t text) {
 }
 
 
+//**************************************************************//
+/* JB ADD FOR ROTATING TEXT                                     */
+/* Turn RA8876 text rotate mode ON/OFF (True = ON)              */
+//**************************************************************//
+void RA8876_t3::Rotate()
+{
+
+	VSCAN_T_to_B();
+	MemWrite_Down_Top_Left_Right();
+	 	
+	displayWindowStartXY(0,0);
+	activeWindowXY(0,0);
+    activeWindowWH(600,1024);
+	lcdRegWrite(0x04);
+ 
+}
+
+//**************************************************************//
+/* JB ADD FOR ROTATING TEXT                                     */
+/* Turn RA8876 text rotate mode ON/OFF (True = ON)              */
+//**************************************************************//
+void RA8876_t3::textRotate(boolean on)
+{
+    if(on)
+    {
+        lcdRegDataWrite(RA8876_CCR1, RA8876_TEXT_ROTATION<<4);//cdh
+    }
+    else
+    {
+        lcdRegDataWrite(RA8876_CCR1, RA8876_TEXT_NO_ROTATION<<4);//cdh
+    }
+}
+
+
+
+void RA8876_t3::MemWrite_Left_Right_Top_Down(void)
+{
+/* Host Write Memory Direction (Only for Graphic Mode)
+00b: Left .. Right then Top ..Bottom.
+Ignored if canvas in linear addressing mode.		*/
+	unsigned char temp;
+	lcdDataWrite(0x02);
+	temp = lcdDataRead();
+	temp &= cClrb2;
+	temp &= cClrb1;
+	lcdDataWrite(temp, true);
+}
+
+void RA8876_t3::MemWrite_Right_Left_Top_Down(void)
+{
+/* Host Write Memory Direction (Only for Graphic Mode)
+01b: Right .. Left then Top .. Bottom.
+Ignored if canvas in linear addressing mode.		*/
+	unsigned char temp;
+	lcdDataWrite(0x02);
+	temp = lcdDataRead();
+	temp &= cClrb2;
+	temp |= cSetb1;
+	lcdDataWrite(temp, true);
+}
+
+void RA8876_t3::MemWrite_Top_Down_Left_Right(void)
+{
+/* Host Write Memory Direction (Only for Graphic Mode)
+10b: Top .. Bottom then Left .. Right.
+Ignored if canvas in linear addressing mode.		*/
+	unsigned char temp;
+	lcdDataWrite(0x02);
+	temp = lcdDataRead();
+	temp |= cSetb2;
+    temp &= cClrb1;
+	lcdDataWrite(temp, true);
+}
+
+void RA8876_t3::MemWrite_Down_Top_Left_Right(void)
+{
+/* Host Write Memory Direction (Only for Graphic Mode)
+11b: Bottom .. Top then Left .. Right.
+Ignored if canvas in linear addressing mode.		*/
+	unsigned char temp;
+	lcdDataWrite(0x02,false);
+	temp = lcdDataRead(true);
+	Serial.println(temp, BIN);
+	
+	temp |= cSetb2;
+	temp |= cSetb1;
+	Serial.println(temp, BIN);
+	lcdRegDataWrite(0x02, temp,true);
+	
+	lcdDataWrite(0x02, false);
+	temp = lcdDataRead(true);
+	Serial.println(temp, BIN);
+	
+}
+
+void RA8876_t3::VSCAN_T_to_B(void)
+{
+/*	
+Vertical Scan direction
+0 : From Top to Bottom
+1 : From bottom to Top
+PIP window will be disabled when VDIR set as 1.
+*/
+	unsigned char temp;
+	
+	lcdDataWrite(0x12, false);
+	temp = lcdDataRead(true);
+	temp &= cClrb3;
+	lcdDataWrite(temp,true);
+}
+
+void RA8876_t3::VSCAN_B_to_T(void)
+{
+/*	
+Vertical Scan direction
+0 : From Top to Bottom
+1 : From bottom to Top
+PIP window will be disabled when VDIR set as 1.
+*/
+	unsigned char temp;
+	
+	lcdDataWrite(0x12);
+	temp = lcdDataRead();
+	temp |= cSetb3;
+	lcdDataWrite(temp,true);
+}
