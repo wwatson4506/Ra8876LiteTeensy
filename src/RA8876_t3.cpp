@@ -297,7 +297,7 @@ FLASHMEM boolean RA8876_t3::begin(uint32_t spi_clock)
 // Initialize RA8876 to default settings.
 // Return true on success.
 //**************************************************************//
-boolean RA8876_t3::ra8876Initialize(void) {
+boolean RA8876_t3::ra8876Initialize() {
 	
 	// Init PLL
 	if(!ra8876PllInitial())
@@ -332,7 +332,7 @@ boolean RA8876_t3::ra8876Initialize(void) {
 	/* TFT timing configure (1024x600) */
 	lcdRegWrite(RA8876_DPCR);//12h
 	lcdDataWrite(XPCLK_INV<<7|RA8876_DISPLAY_OFF<<6|RA8876_OUTPUT_RGB);
- 
+	
 	lcdRegWrite(RA8876_PCSR);//13h
 	lcdDataWrite(XHSYNC_INV<<7|XVSYNC_INV<<6|XDE_INV<<5);
     
@@ -345,6 +345,9 @@ boolean RA8876_t3::ra8876Initialize(void) {
 	lcdVsyncPulseWidth(VPW);
 	
 	// Init Global Variables
+	_width = 	SCREEN_WIDTH;
+	_height = 	SCREEN_HEIGHT;
+	_rotation = 0;
 	currentPage = PAGE1_START_ADDR; // set default screen page address
 	pageOffset = 0;
 	gCursorX = 0;
@@ -358,8 +361,6 @@ boolean RA8876_t3::ra8876Initialize(void) {
 	_scaleX = 1;
 	_scaleY = 1;
 	_textMode = true;
-	_width = 	SCREEN_WIDTH;
-	_height = 	SCREEN_HEIGHT;
 	prompt_size = 1 * (_FNTwidth * _scaleX); // prompt ">"
 	vdata = 0;  // Used in tft_print()
 	leftmarg = 0;
@@ -394,10 +395,10 @@ boolean RA8876_t3::ra8876Initialize(void) {
 	_TXTparameters = 0b00000010;
 	
 	_activeWindowXL = 0;
-	_activeWindowXR = SCREEN_WIDTH;
+	_activeWindowXR = _width;
 	_activeWindowYT = 0;
-	_activeWindowYB = SCREEN_HEIGHT;
-	_portrait = true;
+	_activeWindowYB = _height;
+	_portrait = false;
 	_backTransparent = false;	
 	
 	displayOn(true);	// Turn on TFT display
@@ -957,10 +958,15 @@ ru16	Auto_Refresh;
 //**************************************************************//
 void RA8876_t3::displayOn(boolean on)
 {
+	unsigned char temp;
+	
+	// Maybe preserve some of the bits. 
+	temp = lcdRegDataRead(RA8876_DPCR) & (1 << 3);
+
   if(on)
-   lcdRegDataWrite(RA8876_DPCR, XPCLK_INV<<7|RA8876_DISPLAY_ON<<6|RA8876_OUTPUT_RGB);
+   lcdRegDataWrite(RA8876_DPCR, XPCLK_INV<<7|RA8876_DISPLAY_ON<<6|RA8876_OUTPUT_RGB|temp);
   else
-   lcdRegDataWrite(RA8876_DPCR, XPCLK_INV<<7|RA8876_DISPLAY_OFF<<6|RA8876_OUTPUT_RGB);
+   lcdRegDataWrite(RA8876_DPCR, XPCLK_INV<<7|RA8876_DISPLAY_OFF<<6|RA8876_OUTPUT_RGB|temp);
    
   delay(20);
 }
@@ -1156,6 +1162,7 @@ void RA8876_t3::activeWindowWH(ru16 width,ru16 height)
 //**************************************************************//
 void  RA8876_t3::setPixelCursor(ru16 x,ru16 y)
 {
+  	if (_portrait) swapvals(x,y);
 	lcdRegDataWrite(RA8876_CURH0,x); //5fh
 	lcdRegDataWrite(RA8876_CURH1,x>>8);//60h
 	lcdRegDataWrite(RA8876_CURV0,y);//61h
@@ -1500,7 +1507,7 @@ void  RA8876_t3::putPicture_16bppData8(ru16 x,ru16 y,ru16 width, ru16 height, co
 	} 
 	checkWriteFifoEmpty();				//if high speed mcu and without Xnwait check
 	activeWindowXY(0,0);
-    activeWindowWH(SCREEN_WIDTH,SCREEN_HEIGHT);
+    activeWindowWH(_width,_height);
 }
 
 //****************************************************************//
@@ -1521,7 +1528,7 @@ void  RA8876_t3::putPicture_16bppData16(ru16 x,ru16 y,ru16 width, ru16 height, c
 	} 
 	checkWriteFifoEmpty();//if high speed mcu and without Xnwait check
 	activeWindowXY(0,0);
-	activeWindowWH(SCREEN_WIDTH,SCREEN_HEIGHT);
+	activeWindowWH(_width,_height);
 }
 
 //***************************************************//
@@ -1767,7 +1774,7 @@ void RA8876_t3::clrlin(void)
 // Clear current Active Screen. Home Cursor. Set default forground and background colors.
 void RA8876_t3::clearActiveScreen(void)
 {
-	drawSquareFill(0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1, _TXTBackColor);
+	drawSquareFill(0, 0, _width-1, _height-1, _TXTBackColor);
 	textColor(_TXTForeColor,_TXTBackColor);
 	textxy(0,0);
 }
@@ -2401,6 +2408,7 @@ void RA8876_t3::drawLine(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
+  if (_portrait) {swapvals(x0,y0); swapvals(x1, y1);}
   lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
   lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
@@ -2424,6 +2432,7 @@ void RA8876_t3::drawSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
+  if (_portrait) {swapvals(x0,y0); swapvals(x1, y1);}
   lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
   lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
@@ -2443,10 +2452,11 @@ void RA8876_t3::drawSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 //**************************************************************//
 void RA8876_t3::drawSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 {
-	
+//  Serial.printf("DSF:(%d %d)(%d %d) %x\n", x0, y0, x1, y1, color);	
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
+  if (_portrait) {swapvals(x0,y0); swapvals(x1, y1);}
   lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
   lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
@@ -3743,12 +3753,12 @@ void RA8876_t3::selectScreen(uint32_t screenPage) {
 	pageOffset = screenPage;
 	currentPage = screenPage;
 	displayImageStartAddress(currentPage);
-	displayImageWidth(SCREEN_WIDTH);
+	displayImageWidth(_width);
 	displayWindowStartXY(0,0);
 	canvasImageStartAddress(currentPage);
-	canvasImageWidth(SCREEN_WIDTH);
+	canvasImageWidth(_width);
 	activeWindowXY(0,0);
-	activeWindowWH(SCREEN_WIDTH,600); 
+	activeWindowWH(_width,_height); 
 	setTextCursor(_cursorX, _cursorY);
 	textColor(_TXTForeColor,_TXTBackColor);
 	// Rebuild the display
@@ -5834,8 +5844,8 @@ void RA8876_t3::setActiveWindow(int16_t XL,int16_t XR ,int16_t YT ,int16_t YB)
 {
 	//if (_portrait){ swapvals(XL,YT); swapvals(XR,YB);}
 
-	if (XR >= SCREEN_WIDTH) XR = SCREEN_WIDTH;
-	if (YB >= SCREEN_HEIGHT) YB = SCREEN_HEIGHT;
+//	if (XR >= SCREEN_WIDTH) XR = SCREEN_WIDTH;
+//	if (YB >= SCREEN_HEIGHT) YB = SCREEN_HEIGHT;
 	
 	_activeWindowXL = XL; _activeWindowXR = XR;
 	_activeWindowYT = YT; _activeWindowYB = YB;
@@ -5849,8 +5859,8 @@ void RA8876_t3::setActiveWindow(int16_t XL,int16_t XR ,int16_t YT ,int16_t YB)
 /**************************************************************************/
 void RA8876_t3::setActiveWindow(void)
 {
-	_activeWindowXL = 0; _activeWindowXR = SCREEN_WIDTH;
-	_activeWindowYT = 0; _activeWindowYB = SCREEN_HEIGHT;
+	_activeWindowXL = 0; _activeWindowXR = _width;
+	_activeWindowYT = 0; _activeWindowYB = _height;
 	//if (_portrait){swapvals(_activeWindowXL,_activeWindowYT); swapvals(_activeWindowXR,_activeWindowYB);}
 	_updateActiveWindow(true);
 }
@@ -6036,17 +6046,64 @@ size_t RA8876_t3::rawPrint(uint8_t text) {
 /* JB ADD FOR ROTATING TEXT                                     */
 /* Turn RA8876 text rotate mode ON/OFF (True = ON)              */
 //**************************************************************//
-void RA8876_t3::Rotate()
+void RA8876_t3::setRotation(uint8_t rotation) //rotate text and graphics
 {
+	_rotation = rotation & 0x3;
+	uint8_t macr_settings;
 
-	VSCAN_T_to_B();
-	MemWrite_Down_Top_Left_Right();
-	 	
-	displayWindowStartXY(0,0);
-	activeWindowXY(0,0);
-    activeWindowWH(600,1024);
-	lcdRegWrite(0x04);
- 
+	switch (_rotation) {
+		case 0:
+			_width = 	SCREEN_WIDTH;
+			_height = 	SCREEN_HEIGHT;
+			_portrait = false;
+			VSCAN_T_to_B();
+			macr_settings = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_LRTB<<1;
+			break;
+		case 1:
+			_portrait = true;
+			_width = 	SCREEN_HEIGHT;
+			_height = 	SCREEN_WIDTH;
+			VSCAN_B_to_T();
+			macr_settings = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_READ_MEMORY_RLTB<<1;
+			break;
+		case 2: 
+			_width = 	SCREEN_WIDTH;
+			_height = 	SCREEN_HEIGHT;
+			_portrait = false;
+			//VSCAN_B_to_T();
+			VSCAN_T_to_B();
+			macr_settings = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_RLTB<<1;
+			break;
+		case 3: 
+			_portrait = true;
+			_width = 	SCREEN_HEIGHT;
+			_height = 	SCREEN_WIDTH;
+			VSCAN_T_to_B();
+			macr_settings = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_READ_MEMORY_BTLR<<1;
+			break;
+	}
+	lcdRegWrite(RA8876_MACR);//02h
+	lcdDataWrite(macr_settings);
+
+	_scrollXL = 0;
+	_scrollXR = _width;
+	_scrollYT = 0;
+	_scrollYB = _height;
+
+ 	setClipRect();
+	setOrigin();
+	Serial.println("Rotate: After Origins"); Serial.flush();
+
+}
+
+/**************************************************************************/
+/*!
+      Get rotation setting
+*/
+/**************************************************************************/
+uint8_t RA8876_t3::getRotation()
+{
+	return _rotation;
 }
 
 //**************************************************************//
@@ -6099,11 +6156,26 @@ void RA8876_t3::MemWrite_Top_Down_Left_Right(void)
 10b: Top .. Bottom then Left .. Right.
 Ignored if canvas in linear addressing mode.		*/
 	unsigned char temp;
+	temp = lcdRegDataRead(RA8876_MACR);
+	Serial.println(temp, BIN);
+	//lcdRegWrite(RA8876_MACR);//02h
+	//lcdDataWrite(RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_LRTB<<1);
+
+	//temp = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_BTLR<<4|RA8876_WRITE_MEMORY_BTLR<<1;
+	temp = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_TBLR<<1;
+	Serial.println(temp, BIN);
+	lcdRegDataWrite(RA8876_MACR, temp);
+	
+	temp = lcdRegDataRead(RA8876_MACR);
+	Serial.println(temp, BIN);
+/*
+	unsigned char temp;
 	lcdDataWrite(0x02);
 	temp = lcdDataRead();
 	temp |= cSetb2;
     temp &= cClrb1;
 	lcdDataWrite(temp, true);
+	*/
 }
 
 void RA8876_t3::MemWrite_Down_Top_Left_Right(void)
@@ -6112,17 +6184,17 @@ void RA8876_t3::MemWrite_Down_Top_Left_Right(void)
 11b: Bottom .. Top then Left .. Right.
 Ignored if canvas in linear addressing mode.		*/
 	unsigned char temp;
-	lcdDataWrite(0x02,false);
-	temp = lcdDataRead(true);
+	temp = lcdRegDataRead(RA8876_MACR);
 	Serial.println(temp, BIN);
-	
-	temp |= cSetb2;
-	temp |= cSetb1;
+	//lcdRegWrite(RA8876_MACR);//02h
+	//lcdDataWrite(RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_LRTB<<1);
+
+	//temp = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_BTLR<<4|RA8876_WRITE_MEMORY_BTLR<<1;
+	temp = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_BTLR<<1;
 	Serial.println(temp, BIN);
-	lcdRegDataWrite(0x02, temp,true);
+	lcdRegDataWrite(RA8876_MACR, temp);
 	
-	lcdDataWrite(0x02, false);
-	temp = lcdDataRead(true);
+	temp = lcdRegDataRead(RA8876_MACR);
 	Serial.println(temp, BIN);
 	
 }
@@ -6137,10 +6209,9 @@ PIP window will be disabled when VDIR set as 1.
 */
 	unsigned char temp;
 	
-	lcdDataWrite(0x12, false);
-	temp = lcdDataRead(true);
+	temp = lcdRegDataRead(RA8876_DPCR);
 	temp &= cClrb3;
-	lcdDataWrite(temp,true);
+	lcdRegDataWrite(RA8876_DPCR, temp);
 }
 
 void RA8876_t3::VSCAN_B_to_T(void)
@@ -6151,10 +6222,10 @@ Vertical Scan direction
 1 : From bottom to Top
 PIP window will be disabled when VDIR set as 1.
 */
-	unsigned char temp;
+	unsigned char temp, temp_in;
 	
-	lcdDataWrite(0x12);
-	temp = lcdDataRead();
+	temp_in =  temp = lcdRegDataRead(RA8876_DPCR);
 	temp |= cSetb3;
-	lcdDataWrite(temp,true);
+	lcdRegDataWrite(RA8876_DPCR, temp);
+	Serial.printf("call vscan_b_to_t %x %x\n", temp_in, temp);
 }
