@@ -129,10 +129,11 @@ public:
 	volatile bool	RA8876_BUSY; //This is used to show an SPI transaction is in progress. 
 	volatile bool   activeDMA=false; //Unfortunately must be public so asyncEventResponder() can set it
 	void textRotate(boolean on);
-	void Rotate();
+	void		setRotation(uint8_t rotation); //rotate text and graphics
+	uint8_t		getRotation(); //return the current rotation 0-3
 	/* Initialize RA8876 */
 	boolean begin(uint32_t spi_clock=SPIspeed);
-	boolean ra8876Initialize(void); 
+	boolean ra8876Initialize(); 
 	boolean ra8876PllInitial (void);
 	boolean ra8876SdramInitial(void);
 	
@@ -717,6 +718,7 @@ private:
 	bool						_relativeCenter;
 	bool						_absoluteCenter;
 	bool						_portrait;
+	uint8_t						_rotation;
 	int16_t  					_activeWindowXL,	_activeWindowXR;
 	int16_t  					_activeWindowYT,_activeWindowYB;
 
