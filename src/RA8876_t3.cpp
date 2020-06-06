@@ -996,6 +996,39 @@ void RA8876_t3::displayOn(boolean on)
  }
 
 //**************************************************************//
+// Turn Backlight ON/Off (true = ON)
+//**************************************************************//
+void RA8876_t3::backlight(boolean on)
+{
+
+  if(on) {
+	//Enable_PWM0_Interrupt();
+	//Clear_PWM0_Interrupt_Flag();
+ 	//Mask_PWM0_Interrupt_Flag();
+	//Select_PWM0_Clock_Divided_By_2();
+ 	//Select_PWM0();
+ 	pwm_ClockMuxReg(0, RA8876_PWM_TIMER_DIV2, 0, RA8876_XPWM0_OUTPUT_PWM_TIMER0);
+ 	//Enable_PWM0_Dead_Zone();
+	//Auto_Reload_PWM0();
+	//Start_PWM0();
+	pwm_Configuration(RA8876_PWM_TIMER1_INVERTER_OFF, RA8876_PWM_TIMER1_AUTO_RELOAD,RA8876_PWM_TIMER1_STOP,
+					RA8876_PWM_TIMER0_DEAD_ZONE_ENABLE, RA8876_PWM_TIMER1_INVERTER_OFF,
+					RA8876_PWM_TIMER0_AUTO_RELOAD, RA8876_PWM_TIMER0_START);
+
+	pwm0_Duty(0xffff);
+
+  }
+  else 
+  {
+	pwm_Configuration(RA8876_PWM_TIMER1_INVERTER_OFF, RA8876_PWM_TIMER1_AUTO_RELOAD,RA8876_PWM_TIMER1_STOP,
+					RA8876_PWM_TIMER0_DEAD_ZONE_ENABLE, RA8876_PWM_TIMER1_INVERTER_OFF,
+					RA8876_PWM_TIMER0_AUTO_RELOAD, RA8876_PWM_TIMER0_STOP);
+
+  }
+
+}
+
+//**************************************************************//
 //**************************************************************//
 void RA8876_t3::lcdHorizontalWidthVerticalHeight(ru16 width,ru16 height)
 {
@@ -2382,7 +2415,6 @@ void RA8876_t3::drawLine(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 		drawPixel(x0,y0,color);
 		return;
 	}
-	//if (_portrait) { swapvals(x0,y0); swapvals(x1,y1);}
 	
   check2dBusy();
   graphicMode(true);
@@ -2518,7 +2550,6 @@ void RA8876_t3::drawTriangle(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru1
 	
 	if (x0 >= _width || x1 >= _width || x2 >= _width) return;
 	if (y0 >= _height || y1 >= _height || y2 >= _height) return;
-	//if (_portrait) {swapvals(x0,y0); swapvals(x1,y1); swapvals(x2,y2);}
 	if (x0 == x1 && y0 == y1 && x0 == x2 && y0 == y2) {			// All points are same
 		drawPixel(x0,y0, color);
 		return;
@@ -2527,6 +2558,7 @@ void RA8876_t3::drawTriangle(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru1
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
+  if (_portrait) {swapvals(x0,y0); swapvals(x1,y1); swapvals(x2,y2);}
   lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h point 0
   lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h point 0
   lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah point 0
@@ -2555,12 +2587,12 @@ void RA8876_t3::drawTriangleFill(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2
 	
 	if (x0 >= _width || x1 >= _width || x2 >= _width) return;
 	if (y0 >= _height || y1 >= _height || y2 >= _height) return;
-	//if (_portrait) {swapvals(x0,y0); swapvals(x1,y1); swapvals(x2,y2);}
 	if (x0 == x1 && y0 == y1 && x0 == x2 && y0 == y2) {			// All points are same
 		drawPixel(x0,y0, color);
 		return;
 	}
 	
+  if (_portrait) {swapvals(x0,y0); swapvals(x1,y1); swapvals(x2,y2);}
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
@@ -2600,6 +2632,7 @@ void RA8876_t3::drawCircle(ru16 x0,ru16 y0,ru16 r,ru16 color)
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
+  if (_portrait) {swapvals(x0,y0);}
   lcdRegDataWrite(RA8876_DEHR0,x0, false);//7bh
   lcdRegDataWrite(RA8876_DEHR1,x0>>8, false);//7ch
   lcdRegDataWrite(RA8876_DEVR0,y0, false);//7dh
@@ -2633,6 +2666,7 @@ void RA8876_t3::drawCircleFill(ru16 x0,ru16 y0,ru16 r,ru16 color)
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
+  if (_portrait) {swapvals(x0,y0);}
   lcdRegDataWrite(RA8876_DEHR0,x0, false);//7bh
   lcdRegDataWrite(RA8876_DEHR1,x0>>8, false);//7ch
   lcdRegDataWrite(RA8876_DEVR0,y0, false);//7dh
@@ -2658,8 +2692,8 @@ void RA8876_t3::drawEllipse(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color)
   y0 += _originy;
   
 	//if (_portrait) {
-	//	swapvals(xCenter,yCenter);
-	//	swapvals(longAxis,shortAxis);
+	//	swapvals(x0,y0);
+	//	swapvals(xr,yr);
 	//	if (longAxis > _height/2) longAxis = (_height / 2) - 1;
 	//	if (shortAxis > _width/2) shortAxis = (_width / 2) - 1;
 	//} else {
@@ -4005,7 +4039,8 @@ void RA8876_t3::fillStatusLine(uint16_t color) {
 //**************************************************************//
 void RA8876_t3::setTextColor(uint16_t color)
 {
-	foreGroundColor16bpp(color);
+ 	check2dBusy();  // don't change colors until not busy
+ 	foreGroundColor16bpp(color);
 	_backTransparent = true;  // used for ILI and GFX Fonts
 	_TXTForeColor = color;
 
