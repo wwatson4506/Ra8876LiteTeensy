@@ -120,7 +120,6 @@ const ru32 SPIspeed = 3000000;
 const uint32_t MEM_SIZE_MAX	= 16l*1024l*1024l;
 
 
-
 class RA8876_t3 : public Print
 {
 public:
@@ -165,7 +164,6 @@ public:
 	
 	// Display
 	void displayOn(boolean on);
-	void backlight(boolean on);
 	void lcdHorizontalWidthVerticalHeight(ru16 width,ru16 height);
 	void lcdHorizontalNonDisplay(ru16 numbers);
 	void lcdHsyncStartPosition(ru16 numbers);
@@ -602,6 +600,18 @@ public:
 	
 	size_t rawPrint(uint8_t text);
 	
+	void LCD_CmdWrite(unsigned char cmd);
+
+	
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+//    RA8876 Parameters
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	uint32_t			currentPage;
+	uint32_t			lastPage;
+	uint32_t			pageOffset;
+	uint8_t				currentFont;
+	
+	
 using Print::write;
 
 private:
@@ -644,10 +654,10 @@ private:
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //    RA8876 Parameters
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-	uint32_t			currentPage;
-	uint32_t			lastPage;
-	uint32_t			pageOffset;
-	uint8_t				currentFont;
+	//uint32_t			currentPage;
+	//uint32_t			lastPage;
+	//uint32_t			pageOffset;
+	//uint8_t				currentFont;
 
 	// Text Sreen Vars
 	uint8_t				vdata;
@@ -794,7 +804,7 @@ private:
 	void MemWrite_Down_Top_Left_Right(void);
 	void VSCAN_T_to_B(void);
 	void VSCAN_B_to_T(void);
-	
+
 
 protected:
 	/* Hack for ILIXXXX and GFX fonts */

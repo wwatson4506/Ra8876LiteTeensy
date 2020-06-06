@@ -87,18 +87,18 @@ typedef uint32_t	ru32;
 #define XPCLK_INV  1  // 0:no inversion, 1:inversion 
 #define HPW       70   //
 #define HND       160
-#define HDW       1024
+//#define HDW       1024
 #define HST       160
 #define VPW       10
 #define VND       23
-#define VDH       600
+//#define VDH       600
 #define VST       12
 
 #define RA8877_LVDS_FORMAT  0    // 0:Format1(VESA format), 1:Format2 =(JEIDA format) 
 
 //Physical size of screen - these numbers won't change even if rotation is applied or status bar occupies some screen area
-#define SCREEN_WIDTH HDW
-#define SCREEN_HEIGHT VDH
+//#define SCREEN_WIDTH HDW
+//#define SCREEN_HEIGHT VDH
 
 //pixels to reserve for status line (if any status line functions get used)
 #define STATUS_LINE_HEIGHT 24

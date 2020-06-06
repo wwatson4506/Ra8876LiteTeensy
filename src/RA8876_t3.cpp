@@ -154,6 +154,14 @@ tftSave_t *screenPage9 = &screenSave9;
 //tftSave_t *screenPage10 = &screenSave10; // Not used at this time
 
 
+	
+	int16_t HDW = 1024;
+	int16_t VDH = 600;
+	
+	//Physical size of screen - these numbers won't change even if rotation is applied or status bar occupies some screen area
+	int16_t SCREEN_WIDTH  = HDW;
+	int16_t SCREEN_HEIGHT = VDH;
+
 #ifdef SPI_HAS_TRANSFER_ASYNC
 //**************************************************************//
 // If using DMA, must close transaction and de-assert _CS
@@ -308,26 +316,32 @@ boolean RA8876_t3::ra8876Initialize() {
 
 	lcdRegWrite(RA8876_CCR);//01h
 //  lcdDataWrite(RA8876_PLL_ENABLE<<7|RA8876_WAIT_MASK<<6|RA8876_KEY_SCAN_DISABLE<<5|RA8876_TFT_OUTPUT24<<3
-	lcdDataWrite(RA8876_PLL_ENABLE<<7|RA8876_WAIT_NO_MASK<<6|RA8876_KEY_SCAN_DISABLE<<5|RA8876_TFT_OUTPUT24<<3
-	|RA8876_I2C_MASTER_DISABLE<<2|RA8876_SERIAL_IF_ENABLE<<1|RA8876_HOST_DATA_BUS_SERIAL);
-
-	lcdRegWrite(RA8876_MACR);//02h
-	lcdDataWrite(RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_LRTB<<1);
-
-	lcdRegWrite(RA8876_ICR);//03h
-	lcdDataWrite(RA8877_LVDS_FORMAT<<3|RA8876_GRAPHIC_MODE<<2|RA8876_MEMORY_SELECT_IMAGE);
-
-	lcdRegWrite(RA8876_MPWCTR);//10h
-	lcdDataWrite(RA8876_PIP1_WINDOW_DISABLE<<7|RA8876_PIP2_WINDOW_DISABLE<<6|RA8876_SELECT_CONFIG_PIP1<<4
-	|RA8876_IMAGE_COLOCR_DEPTH_16BPP<<2|TFT_MODE);
-
-	lcdRegWrite(RA8876_PIPCDEP);//11h
-	lcdDataWrite(RA8876_PIP1_COLOR_DEPTH_16BPP<<2|RA8876_PIP2_COLOR_DEPTH_16BPP);
   
-	lcdRegWrite(RA8876_AW_COLOR);//5Eh
-	lcdDataWrite(RA8876_CANVAS_BLOCK_MODE<<2|RA8876_CANVAS_COLOR_DEPTH_16BPP);
+  lcdRegWrite(RA8876_CCR);//01h
+  lcdDataWrite(RA8876_PLL_ENABLE<<7|RA8876_WAIT_NO_MASK<<6|RA8876_KEY_SCAN_DISABLE<<5|RA8876_TFT_OUTPUT24<<3
+  |RA8876_I2C_MASTER_DISABLE<<2|RA8876_SERIAL_IF_ENABLE<<1|RA8876_HOST_DATA_BUS_SERIAL);
+
+  lcdRegWrite(RA8876_MACR);//02h
+  lcdDataWrite(RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_LRTB<<1);
+
+  lcdRegWrite(RA8876_ICR);//03h
+  lcdDataWrite(RA8877_LVDS_FORMAT<<3|RA8876_GRAPHIC_MODE<<2|RA8876_MEMORY_SELECT_IMAGE);
+
+  lcdRegWrite(RA8876_MPWCTR);//10h
+  lcdDataWrite(RA8876_PIP1_WINDOW_DISABLE<<7|RA8876_PIP2_WINDOW_DISABLE<<6|RA8876_SELECT_CONFIG_PIP1<<4
+  |RA8876_IMAGE_COLOCR_DEPTH_16BPP<<2|TFT_MODE);
+
+  lcdRegWrite(RA8876_PIPCDEP);//11h
+  lcdDataWrite(RA8876_PIP1_COLOR_DEPTH_16BPP<<2|RA8876_PIP2_COLOR_DEPTH_16BPP);
   
-	lcdRegDataWrite(RA8876_BTE_COLR,RA8876_S0_COLOR_DEPTH_16BPP<<5|RA8876_S1_COLOR_DEPTH_16BPP<<2|RA8876_S0_COLOR_DEPTH_16BPP);//92h
+  lcdRegWrite(RA8876_AW_COLOR);//5Eh
+  lcdDataWrite(RA8876_CANVAS_BLOCK_MODE<<2|RA8876_CANVAS_COLOR_DEPTH_16BPP);
+  
+  lcdRegDataWrite(RA8876_BTE_COLR,RA8876_S0_COLOR_DEPTH_16BPP<<5|RA8876_S1_COLOR_DEPTH_16BPP<<2|RA8876_S0_COLOR_DEPTH_16BPP);//92h
+  
+  /*TFT timing configure*/
+  lcdRegWrite(RA8876_DPCR);//12h
+  lcdDataWrite(XPCLK_INV<<7|RA8876_DISPLAY_OFF<<6|RA8876_OUTPUT_RGB);
   
 	/* TFT timing configure (1024x600) */
 	lcdRegWrite(RA8876_DPCR);//12h
@@ -398,7 +412,9 @@ boolean RA8876_t3::ra8876Initialize() {
 	_activeWindowXR = _width;
 	_activeWindowYT = 0;
 	_activeWindowYB = _height;
+  
 	_portrait = false;
+
 	_backTransparent = false;	
 	
 	displayOn(true);	// Turn on TFT display
@@ -466,11 +482,11 @@ boolean RA8876_t3::ra8876Initialize() {
 
 	// Set graphic mouse cursor to center of screen
 	gcursorxy(width() / 2, height() / 2);
-	
+		
 	setClipRect();
 	setOrigin();
 	setTextSize(1, 1);
-
+	
   return true;
 }
 
@@ -484,6 +500,14 @@ void RA8876_t3::lcdRegWrite(ru8 reg, bool finalize)
   startSend();
   _pspi->transfer16(_data);
   endSend(finalize);
+}
+
+void RA8876_t3::LCD_CmdWrite(unsigned char cmd)
+{	
+  startSend();
+  _pspi->transfer16(0x00);
+  _pspi->transfer(cmd);
+  endSend(true);
 }
 
 //**************************************************************//
@@ -969,40 +993,7 @@ void RA8876_t3::displayOn(boolean on)
    lcdRegDataWrite(RA8876_DPCR, XPCLK_INV<<7|RA8876_DISPLAY_OFF<<6|RA8876_OUTPUT_RGB|temp);
    
   delay(20);
-}
-
-//**************************************************************//
-//**************************************************************//
-// Turn Backlight ON/Off (true = ON)
-//**************************************************************//
-void RA8876_t3::backlight(boolean on)
-{
-
-  if(on) {
-	//Enable_PWM0_Interrupt();
-	//Clear_PWM0_Interrupt_Flag();
- 	//Mask_PWM0_Interrupt_Flag();
-	//Select_PWM0_Clock_Divided_By_2();
- 	//Select_PWM0();
- 	pwm_ClockMuxReg(0, RA8876_PWM_TIMER_DIV2, 0, RA8876_XPWM0_OUTPUT_PWM_TIMER0);
- 	//Enable_PWM0_Dead_Zone();
-	//Auto_Reload_PWM0();
-	//Start_PWM0();
-	pwm_Configuration(RA8876_PWM_TIMER1_INVERTER_OFF, RA8876_PWM_TIMER1_AUTO_RELOAD,RA8876_PWM_TIMER1_STOP,
-					RA8876_PWM_TIMER0_DEAD_ZONE_ENABLE, RA8876_PWM_TIMER1_INVERTER_OFF,
-					RA8876_PWM_TIMER0_AUTO_RELOAD, RA8876_PWM_TIMER0_START);
-
-	pwm0_Duty(0xffff);
-
-  }
-  else 
-  {
-	pwm_Configuration(RA8876_PWM_TIMER1_INVERTER_OFF, RA8876_PWM_TIMER1_AUTO_RELOAD,RA8876_PWM_TIMER1_STOP,
-					RA8876_PWM_TIMER0_DEAD_ZONE_ENABLE, RA8876_PWM_TIMER1_INVERTER_OFF,
-					RA8876_PWM_TIMER0_AUTO_RELOAD, RA8876_PWM_TIMER0_STOP);
-
-  }
-}
+ }
 
 //**************************************************************//
 //**************************************************************//
@@ -1429,16 +1420,11 @@ void RA8876_t3::backGroundColor16bpp(ru16 color, bool finalize)
 //**************************************************************//
 void RA8876_t3::graphicMode(boolean on)
 {
-  if(_textMode == on) {  
-		if(on) {
-			lcdRegDataWrite(RA8876_ICR,RA8877_LVDS_FORMAT<<3|RA8876_GRAPHIC_MODE<<2|RA8876_MEMORY_SELECT_IMAGE);//03h  //switch to graphic mode
-			bitWrite(_TXTparameters,7,1);
-	   } else {
-			lcdRegDataWrite(RA8876_ICR,RA8877_LVDS_FORMAT<<3|RA8876_TEXT_MODE<<2|RA8876_MEMORY_SELECT_IMAGE);//03h  //switch back to text mode
-			bitWrite(_TXTparameters,7,0);
-	  }
-	_textMode = !on;
-	}
+	if(on)
+		lcdRegDataWrite(RA8876_ICR,RA8877_LVDS_FORMAT<<3|RA8876_GRAPHIC_MODE<<2|RA8876_MEMORY_SELECT_IMAGE);//03h  //switch to graphic mode
+	else
+		lcdRegDataWrite(RA8876_ICR,RA8877_LVDS_FORMAT<<3|RA8876_TEXT_MODE<<2|RA8876_MEMORY_SELECT_IMAGE);//03h  //switch back to text mode
+
 }
 
 //**************************************************************//
@@ -1540,17 +1526,10 @@ void  RA8876_t3::putPicture_16bppData16(ru16 x,ru16 y,ru16 width, ru16 height, c
 //**************************************************************//
 void RA8876_t3::textMode(boolean on)
 {
-  if(on != _textMode) {
-	if(on) {
+	if(on)
 		lcdRegDataWrite(RA8876_ICR,RA8877_LVDS_FORMAT<<3|RA8876_TEXT_MODE<<2|RA8876_MEMORY_SELECT_IMAGE);//03h  //switch to text mode
-		//_TXTparameters &= ~(1 << 7);//render OFF
-		bitWrite(_TXTparameters,7,0);
-	} else {	
+	else
 		lcdRegDataWrite(RA8876_ICR,RA8877_LVDS_FORMAT<<3|RA8876_GRAPHIC_MODE<<2|RA8876_MEMORY_SELECT_IMAGE);//03h  //switch back to graphic mode
-		bitWrite(_TXTparameters,7, 1);
-	}
-	_textMode = on;
-  }
 }
 
 //**************************************************************//
@@ -2509,7 +2488,7 @@ void RA8876_t3::drawCircleSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr
   
 	
   check2dBusy();
-  graphicMode(true);
+  //graphicMode(true);
   foreGroundColor16bpp(color);
   lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
@@ -3759,6 +3738,7 @@ void RA8876_t3::selectScreen(uint32_t screenPage) {
 	canvasImageWidth(_width);
 	activeWindowXY(0,0);
 	activeWindowWH(_width,_height); 
+
 	setTextCursor(_cursorX, _cursorY);
 	textColor(_TXTForeColor,_TXTBackColor);
 	// Rebuild the display
@@ -6104,6 +6084,7 @@ void RA8876_t3::setRotation(uint8_t rotation) //rotate text and graphics
 uint8_t RA8876_t3::getRotation()
 {
 	return _rotation;
+
 }
 
 //**************************************************************//
@@ -6130,11 +6111,16 @@ void RA8876_t3::MemWrite_Left_Right_Top_Down(void)
 00b: Left .. Right then Top ..Bottom.
 Ignored if canvas in linear addressing mode.		*/
 	unsigned char temp;
-	lcdDataWrite(0x02);
-	temp = lcdDataRead();
+	
+	temp = lcdRegDataRead(RA8876_MACR);
+	Serial.println(temp, BIN);
 	temp &= cClrb2;
 	temp &= cClrb1;
-	lcdDataWrite(temp, true);
+	Serial.println(temp, BIN);
+	lcdRegDataWrite(RA8876_MACR, temp);
+	
+	temp = lcdRegDataRead(RA8876_MACR);
+	Serial.println(temp, BIN);	
 }
 
 void RA8876_t3::MemWrite_Right_Left_Top_Down(void)
@@ -6143,11 +6129,19 @@ void RA8876_t3::MemWrite_Right_Left_Top_Down(void)
 01b: Right .. Left then Top .. Bottom.
 Ignored if canvas in linear addressing mode.		*/
 	unsigned char temp;
-	lcdDataWrite(0x02);
-	temp = lcdDataRead();
+
+	temp = lcdRegDataRead(RA8876_MACR);
+	Serial.println(temp, BIN);
+	
 	temp &= cClrb2;
 	temp |= cSetb1;
-	lcdDataWrite(temp, true);
+	Serial.println(temp, BIN);
+	lcdRegDataWrite(RA8876_MACR, temp);
+	
+	temp = lcdRegDataRead(RA8876_MACR);
+	Serial.println(temp, BIN);
+	
+	
 }
 
 void RA8876_t3::MemWrite_Top_Down_Left_Right(void)
@@ -6176,6 +6170,7 @@ Ignored if canvas in linear addressing mode.		*/
     temp &= cClrb1;
 	lcdDataWrite(temp, true);
 	*/
+
 }
 
 void RA8876_t3::MemWrite_Down_Top_Left_Right(void)
@@ -6183,6 +6178,7 @@ void RA8876_t3::MemWrite_Down_Top_Left_Right(void)
 /* Host Write Memory Direction (Only for Graphic Mode)
 11b: Bottom .. Top then Left .. Right.
 Ignored if canvas in linear addressing mode.		*/
+
 	unsigned char temp;
 	temp = lcdRegDataRead(RA8876_MACR);
 	Serial.println(temp, BIN);
@@ -6196,7 +6192,7 @@ Ignored if canvas in linear addressing mode.		*/
 	
 	temp = lcdRegDataRead(RA8876_MACR);
 	Serial.println(temp, BIN);
-	
+
 }
 
 void RA8876_t3::VSCAN_T_to_B(void)
@@ -6212,6 +6208,7 @@ PIP window will be disabled when VDIR set as 1.
 	temp = lcdRegDataRead(RA8876_DPCR);
 	temp &= cClrb3;
 	lcdRegDataWrite(RA8876_DPCR, temp);
+
 }
 
 void RA8876_t3::VSCAN_B_to_T(void)
@@ -6222,10 +6219,12 @@ Vertical Scan direction
 1 : From bottom to Top
 PIP window will be disabled when VDIR set as 1.
 */
+  
 	unsigned char temp, temp_in;
 	
 	temp_in =  temp = lcdRegDataRead(RA8876_DPCR);
 	temp |= cSetb3;
 	lcdRegDataWrite(RA8876_DPCR, temp);
 	Serial.printf("call vscan_b_to_t %x %x\n", temp_in, temp);
+
 }
