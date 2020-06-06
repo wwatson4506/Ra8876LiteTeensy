@@ -1187,6 +1187,7 @@ void RA8876_t3::activeWindowWH(ru16 width,ru16 height)
 void  RA8876_t3::setPixelCursor(ru16 x,ru16 y)
 {
   	if (_portrait) swapvals(x,y);
+	if (_rotation == 2) x = _width-x; 
 	lcdRegDataWrite(RA8876_CURH0,x); //5fh
 	lcdRegDataWrite(RA8876_CURH1,x>>8);//60h
 	lcdRegDataWrite(RA8876_CURV0,y);//61h
@@ -2444,6 +2445,7 @@ void RA8876_t3::drawSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
   graphicMode(true);
   foreGroundColor16bpp(color);
   if (_portrait) {swapvals(x0,y0); swapvals(x1, y1);}
+  if (_rotation == 2) {x0 = _width-x0; x1 = _width - x1;}
   lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
   lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
@@ -2468,6 +2470,7 @@ void RA8876_t3::drawSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
   graphicMode(true);
   foreGroundColor16bpp(color);
   if (_portrait) {swapvals(x0,y0); swapvals(x1, y1);}
+  if (_rotation == 2) {x0 = _width-x0; x1 = _width - x1;}
   lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
   lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
@@ -2489,11 +2492,11 @@ void RA8876_t3::drawSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 void RA8876_t3::drawCircleSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru16 yr, ru16 color)
 {
 
-  	
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
   if (_portrait) {swapvals(x0,y0); swapvals(x1, y1); swapvals(xr, yr);}
+  if (_rotation == 2) { x0 = _width-x0; x1 = _width - x1;  }
   lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
   lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
@@ -2518,12 +2521,13 @@ void RA8876_t3::drawCircleSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru
 //**************************************************************//
 void RA8876_t3::drawCircleSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru16 yr, ru16 color)
 {
-  
 	
   check2dBusy();
   //graphicMode(true);
   foreGroundColor16bpp(color);
   if (_portrait) {swapvals(x0,y0); swapvals(x1, y1); swapvals(xr, yr);}
+  if (_rotation == 2) { x0 = _width-x0; x1 = _width - x1;}
+
   lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
   lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
@@ -2547,7 +2551,7 @@ void RA8876_t3::drawCircleSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr
 //**************************************************************//
 void RA8876_t3::drawTriangle(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru16 color)
 {
-  x0 += _originx;
+  x0 += _originx; 
   y0 += _originy;
 	
 	if (x0 >= _width || x1 >= _width || x2 >= _width) return;
@@ -2556,11 +2560,13 @@ void RA8876_t3::drawTriangle(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru1
 		drawPixel(x0,y0, color);
 		return;
 	}
-	
+
+  if (_portrait) {swapvals(x0,y0); swapvals(x1,y1); swapvals(x2,y2);}
+  if (_rotation == 2) {x0 = _width-x0; x1 = _width - x1; x2 = _width - x2;}
+
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
-  if (_portrait) {swapvals(x0,y0); swapvals(x1,y1); swapvals(x2,y2);}
   lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h point 0
   lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h point 0
   lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah point 0
@@ -2595,6 +2601,7 @@ void RA8876_t3::drawTriangleFill(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2
 	}
 	
   if (_portrait) {swapvals(x0,y0); swapvals(x1,y1); swapvals(x2,y2);}
+  if (_rotation == 2) {x0 = _width-x0; x1 = _width - x1; x2 = _width - x2;}
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
@@ -2635,6 +2642,7 @@ void RA8876_t3::drawCircle(ru16 x0,ru16 y0,ru16 r,ru16 color)
   graphicMode(true);
   foreGroundColor16bpp(color);
   if (_portrait) {swapvals(x0,y0);}
+  if (_rotation == 2) { x0 = _width-x0; }
   lcdRegDataWrite(RA8876_DEHR0,x0, false);//7bh
   lcdRegDataWrite(RA8876_DEHR1,x0>>8, false);//7ch
   lcdRegDataWrite(RA8876_DEVR0,y0, false);//7dh
@@ -2669,6 +2677,7 @@ void RA8876_t3::drawCircleFill(ru16 x0,ru16 y0,ru16 r,ru16 color)
   graphicMode(true);
   foreGroundColor16bpp(color);
   if (_portrait) {swapvals(x0,y0);}
+  if (_rotation == 2) { x0 = _width-x0; }
   lcdRegDataWrite(RA8876_DEHR0,x0, false);//7bh
   lcdRegDataWrite(RA8876_DEHR1,x0>>8, false);//7ch
   lcdRegDataWrite(RA8876_DEVR0,y0, false);//7dh
@@ -2712,6 +2721,7 @@ void RA8876_t3::drawEllipse(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color)
   graphicMode(true);
   foreGroundColor16bpp(color);
   if (_portrait) {swapvals(x0,y0); swapvals(xr,yr);}
+  if (_rotation == 2) { x0 = _width-x0; }
   lcdRegDataWrite(RA8876_DEHR0,x0, false);//7bh
   lcdRegDataWrite(RA8876_DEHR1,x0>>8, false);//7ch
   lcdRegDataWrite(RA8876_DEVR0,y0, false);//7dh
@@ -2752,6 +2762,7 @@ void RA8876_t3::drawEllipseFill(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color)
   graphicMode(true);
   foreGroundColor16bpp(color);
   if (_portrait) {swapvals(x0,y0); swapvals(xr,yr);}
+  if (_rotation == 2) { x0 = _width-x0; }
   lcdRegDataWrite(RA8876_DEHR0,x0, false);//7bh
   lcdRegDataWrite(RA8876_DEHR1,x0>>8, false);//7ch
   lcdRegDataWrite(RA8876_DEVR0,y0, false);//7dh
