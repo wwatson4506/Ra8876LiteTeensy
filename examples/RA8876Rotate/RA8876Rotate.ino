@@ -30,20 +30,21 @@ void setup() {
 }
 
 void drawTestScreen() {
-  tft.fillRect(0, 0, 50, 50, RED);
+  int centerx = tft.width() / 2;
+  int centery = tft.height() / 2;
   tft.fillRect(tft.width() - 50, 0, 50, 50, GREEN);
   tft.fillRect(tft.width() - 50, tft.height() - 50 , 50, 50, BLUE);
   tft.fillRect(0, tft.height() - 50 , 50, 50, ORCHID);
   tft.drawLine(0, 0, tft.width(), tft.height(), WHITE);
   tft.drawLine(0, tft.height(), tft.width(), 0, BLACK);
-  tft.drawTriangleFill(512, 300, 475, 400, 575, 400, PINK);
-  tft.fillCircle(tft.width() / 2, tft.height() / 2, 50, ORCHID);
-  tft.drawCircle(tft.width() / 2, tft.height() / 2, 25, BLACK);
-  tft.drawTriangle(50, 50, 50, tft.height() - 50, tft.width() / 2 - 50, tft.height() / 2, BLUE);
+  tft.drawTriangleFill(centerx, centery, centerx - 100, centery + 100, centerx + 100, centery + 100, CRIMSON);  tft.fillRect(0, 0, 50, 50, RED);
+  tft.fillCircle(centerx, centery, 50, ORCHID);
+  tft.drawCircle(centerx, centery, 25, BLACK);
+  tft.drawTriangle(50, 50, 50, tft.height() - 50, centerx - 50, centery, BLUE);
 
   tft.setFont(Arial_14);
   tft.setTextColor(BLACK);
-  tft.setCursor(25, tft.height() / 2);
+  tft.setCursor(25, centery);
   tft.printf("Rotation: %d", tft.getRotation());
   tft.setCursor(50, 50);
   tft.write('0');
