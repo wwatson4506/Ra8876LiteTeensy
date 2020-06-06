@@ -2493,6 +2493,7 @@ void RA8876_t3::drawCircleSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
+  if (_portrait) {swapvals(x0,y0); swapvals(x1, y1); swapvals(xr, yr);}
   lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
   lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
@@ -2522,6 +2523,7 @@ void RA8876_t3::drawCircleSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr
   check2dBusy();
   //graphicMode(true);
   foreGroundColor16bpp(color);
+  if (_portrait) {swapvals(x0,y0); swapvals(x1, y1); swapvals(xr, yr);}
   lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
   lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
@@ -2709,6 +2711,7 @@ void RA8876_t3::drawEllipse(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color)
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
+  if (_portrait) {swapvals(x0,y0); swapvals(xr,yr);}
   lcdRegDataWrite(RA8876_DEHR0,x0, false);//7bh
   lcdRegDataWrite(RA8876_DEHR1,x0>>8, false);//7ch
   lcdRegDataWrite(RA8876_DEVR0,y0, false);//7dh
@@ -2748,6 +2751,7 @@ void RA8876_t3::drawEllipseFill(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color)
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
+  if (_portrait) {swapvals(x0,y0); swapvals(xr,yr);}
   lcdRegDataWrite(RA8876_DEHR0,x0, false);//7bh
   lcdRegDataWrite(RA8876_DEHR1,x0>>8, false);//7ch
   lcdRegDataWrite(RA8876_DEVR0,y0, false);//7dh
@@ -6085,8 +6089,7 @@ void RA8876_t3::setRotation(uint8_t rotation) //rotate text and graphics
 			_width = 	SCREEN_WIDTH;
 			_height = 	SCREEN_HEIGHT;
 			_portrait = false;
-			//VSCAN_B_to_T();
-			VSCAN_T_to_B();
+			VSCAN_B_to_T();
 			macr_settings = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_RLTB<<1;
 			break;
 		case 3: 
