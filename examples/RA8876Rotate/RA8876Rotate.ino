@@ -2,6 +2,7 @@
 #include "RA8876_t3.h"
 #define RA8876_CS 10
 #define RA8876_RESET 9
+#define PINK        0xFC18
 #include "font_Arial.h"
 #define BACKLITE 5 //External backlight control connected to this Arduino pin
 #define REG_DUMP_CNT 0x70
@@ -35,9 +36,14 @@ void drawTestScreen() {
   tft.fillRect(0, tft.height() - 50 , 50, 50, ORCHID);
   tft.drawLine(0, 0, tft.width(), tft.height(), WHITE);
   tft.drawLine(0, tft.height(), tft.width(), 0, BLACK);
+  tft.drawTriangleFill(512, 300, 475, 400, 575, 400, PINK);
+  tft.fillCircle(tft.width() / 2, tft.height() / 2, 50, ORCHID);
+  tft.drawCircle(tft.width() / 2, tft.height() / 2, 25, BLACK);
+  tft.drawTriangle(50, 50, 50, tft.height() - 50, tft.width() / 2 - 50, tft.height() / 2, BLUE);
+
   tft.setFont(Arial_14);
   tft.setTextColor(BLACK);
-  tft.setCursor(25, tft.height()/2);
+  tft.setCursor(25, tft.height() / 2);
   tft.printf("Rotation: %d", tft.getRotation());
   tft.setCursor(50, 50);
   tft.write('0');
@@ -65,7 +71,7 @@ void loop() {
   wait_for_keyboard();  // see if all yellow
   uint8_t rotation = (tft.getRotation() + 1) & 0x3;
   tft.setRotation(rotation);
-  
+
   Serial.printf("Rotation: %d After W: %d H: %d\n", tft.getRotation(), tft.width(), tft.height());
   tft.fillScreen(YELLOW);
   //wait_for_keyboard();  // see if all yellow

@@ -164,6 +164,7 @@ public:
 	
 	// Display
 	void displayOn(boolean on);
+	void backlight(boolean on);
 	void lcdHorizontalWidthVerticalHeight(ru16 width,ru16 height);
 	void lcdHorizontalNonDisplay(ru16 numbers);
 	void lcdHsyncStartPosition(ru16 numbers);
