@@ -41,7 +41,11 @@ void drawTestScreen() {
   tft.fillCircle(centerx, centery, 50, ORCHID);
   tft.drawCircle(centerx, centery, 25, BLACK);
   tft.drawTriangle(50, 50, 50, tft.height() - 50, centerx - 50, centery, BLUE);
-
+  tft.fillRoundRect(100, centery-50, 150, 100, 25, 25, GREEN);
+  tft.drawRoundRect(110, centery-40, 130, 80, 25, 25, WHITE);
+  tft.drawEllipse(tft.width()-100, centery, 50, 35, BLUE);
+  tft.drawEllipseFill(tft.width()-100, centery, 40, 25, RED);
+    
   tft.setFont(Arial_14);
   tft.setTextColor(BLACK);
   tft.setCursor(25, centery);

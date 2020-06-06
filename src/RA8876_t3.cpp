@@ -2711,6 +2711,7 @@ void RA8876_t3::drawEllipse(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color)
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
+  if (_portrait) {swapvals(x0,y0); swapvals(xr,yr);}
   lcdRegDataWrite(RA8876_DEHR0,x0, false);//7bh
   lcdRegDataWrite(RA8876_DEHR1,x0>>8, false);//7ch
   lcdRegDataWrite(RA8876_DEVR0,y0, false);//7dh
@@ -2750,6 +2751,7 @@ void RA8876_t3::drawEllipseFill(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color)
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
+  if (_portrait) {swapvals(x0,y0); swapvals(xr,yr);}
   lcdRegDataWrite(RA8876_DEHR0,x0, false);//7bh
   lcdRegDataWrite(RA8876_DEHR1,x0>>8, false);//7ch
   lcdRegDataWrite(RA8876_DEVR0,y0, false);//7dh
