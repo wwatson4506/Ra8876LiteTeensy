@@ -1658,8 +1658,8 @@ void  RA8876_t3::putString(ru16 x0,ru16 y0, const char *str)
 /* Clear the status line                                        */
 //**************************************************************//
 void RA8876_t3::clearStatusLine(uint16_t color) {
-	_height = SCREEN_HEIGHT-STATUS_LINE_HEIGHT;
-	drawSquareFill(0,_height-1,_width,SCREEN_HEIGHT-1,color);
+	int temp_height = _height-STATUS_LINE_HEIGHT;
+	drawSquareFill(0,temp_height-1,_width,_height-1,color);
     check2dBusy();
 }
 
@@ -1673,6 +1673,7 @@ void RA8876_t3::clearStatusLine(uint16_t color) {
 void  RA8876_t3::writeStatusLine(ru16 x0, uint16_t fgcolor, uint16_t bgcolor, const char *str)
 {
 	_height = SCREEN_HEIGHT-STATUS_LINE_HEIGHT;
+	
 	uint16_t tempX = _cursorX;
 	uint16_t tempY = _cursorY;
 	uint16_t tempBGColor = _TXTBackColor;
@@ -2440,20 +2441,36 @@ void RA8876_t3::drawLine(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 //**************************************************************//
 void RA8876_t3::drawSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 {
+	x0 += _originx; x1 += _originx;
+	y1 += _originy; y1 += _originy;
+	int16_t x_end = x1;
+	int16_t y_end = y1;
+	if((x0 >= _displayclipx2)   || // Clip right
+		 (y0 >= _displayclipy2) || // Clip bottom
+		 (x_end < _displayclipx1)    || // Clip left
+		 (y_end < _displayclipy1))  	// Clip top 
+	{
+		// outside the clip rectangle
+		return;
+	}
+	if (x0 < _displayclipx1) x0 = _displayclipx1;
+	if (y0 < _displayclipy1) y0 = _displayclipy1;
+	if (x_end > _displayclipx2) x_end = _displayclipx2;
+	if (y_end > _displayclipy2) y_end = _displayclipy2;
 	
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
-  if (_portrait) {swapvals(x0,y0); swapvals(x1, y1);}
-  if (_rotation == 2) {x0 = _width-x0; x1 = _width - x1;}
+  if (_portrait) {swapvals(x0,y0); swapvals(x_end, y_end);}
+  if (_rotation == 2) {x0 = _width-x0; x1 = _width - x_end;}
   lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
   lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
   lcdRegDataWrite(RA8876_DLVSR1,y0>>8, false);//6bh
-  lcdRegDataWrite(RA8876_DLHER0,x1, false);//6ch
-  lcdRegDataWrite(RA8876_DLHER1,x1>>8, false);//6dh
+  lcdRegDataWrite(RA8876_DLHER0,x_end, false);//6ch
+  lcdRegDataWrite(RA8876_DLHER1,x_end>>8, false);//6dh
   lcdRegDataWrite(RA8876_DLVER0,y1, false);//6eh
-  lcdRegDataWrite(RA8876_DLVER1,y1>>8, false);//6fh     
+  lcdRegDataWrite(RA8876_DLVER1,y_end>>8, false);//6fh     
   lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_SQUARE, true);//76h,0xa0
 
 }
@@ -2466,19 +2483,36 @@ void RA8876_t3::drawSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 void RA8876_t3::drawSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 {
 //  Serial.printf("DSF:(%d %d)(%d %d) %x\n", x0, y0, x1, y1, color);	
+	x0 += _originx; x1 += _originx;
+	y1 += _originy; y1 += _originy;
+	int16_t x_end = x1;
+	int16_t y_end = y1;
+	if((x0 >= _displayclipx2)   || // Clip right
+		 (y0 >= _displayclipy2) || // Clip bottom
+		 (x_end < _displayclipx1)    || // Clip left
+		 (y_end < _displayclipy1))  	// Clip top 
+	{
+		// outside the clip rectangle
+		return;
+	}
+	if (x0 < _displayclipx1) x0 = _displayclipx1;
+	if (y0 < _displayclipy1) y0 = _displayclipy1;
+	if (x_end > _displayclipx2) x_end = _displayclipx2;
+	if (y_end > _displayclipy2) y_end = _displayclipy2;
+
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
-  if (_portrait) {swapvals(x0,y0); swapvals(x1, y1);}
-  if (_rotation == 2) {x0 = _width-x0; x1 = _width - x1;}
+  if (_portrait) {swapvals(x0,y0); swapvals(x_end, y_end);}
+  if (_rotation == 2) {x0 = _width-x0; x_end = _width - x_end;}
   lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
   lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
   lcdRegDataWrite(RA8876_DLVSR1,y0>>8, false);//6bh
-  lcdRegDataWrite(RA8876_DLHER0,x1, false);//6ch
-  lcdRegDataWrite(RA8876_DLHER1,x1>>8, false);//6dh
-  lcdRegDataWrite(RA8876_DLVER0,y1, false);//6eh
-  lcdRegDataWrite(RA8876_DLVER1,y1>>8, false);//6fh     
+  lcdRegDataWrite(RA8876_DLHER0,x_end, false);//6ch
+  lcdRegDataWrite(RA8876_DLHER1,x_end>>8, false);//6dh
+  lcdRegDataWrite(RA8876_DLVER0,y_end, false);//6eh
+  lcdRegDataWrite(RA8876_DLVER1,y_end>>8, false);//6fh     
   lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_SQUARE_FILL, true);//76h,0xE0  
 }
 
@@ -2491,20 +2525,36 @@ void RA8876_t3::drawSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 //**************************************************************//
 void RA8876_t3::drawCircleSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru16 yr, ru16 color)
 {
+	x0 += _originx; x1 += _originx;
+	y1 += _originy; y1 += _originy;
+	int16_t x_end = x1;
+	int16_t y_end = y1;
+	if((x0 >= _displayclipx2)   || // Clip right
+		 (y0 >= _displayclipy2) || // Clip bottom
+		 (x_end < _displayclipx1)    || // Clip left
+		 (y_end < _displayclipy1))  	// Clip top 
+	{
+		// outside the clip rectangle
+		return;
+	}
+	if (x0 < _displayclipx1) x0 = _displayclipx1;
+	if (y0 < _displayclipy1) y0 = _displayclipy1;
+	if (x_end > _displayclipx2) x_end = _displayclipx2;
+	if (y_end > _displayclipy2) y_end = _displayclipy2;	
 
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
-  if (_portrait) {swapvals(x0,y0); swapvals(x1, y1); swapvals(xr, yr);}
-  if (_rotation == 2) { x0 = _width-x0; x1 = _width - x1;  }
+  if (_portrait) {swapvals(x0,y0); swapvals(x_end, y_end); swapvals(xr, yr);}
+  if (_rotation == 2) { x0 = _width-x0; x_end = _width - x_end;  }
   lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
   lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
   lcdRegDataWrite(RA8876_DLVSR1,y0>>8, false);//6bh
-  lcdRegDataWrite(RA8876_DLHER0,x1, false);//6ch
-  lcdRegDataWrite(RA8876_DLHER1,x1>>8, false);//6dh
-  lcdRegDataWrite(RA8876_DLVER0,y1, false);//6eh
-  lcdRegDataWrite(RA8876_DLVER1,y1>>8, false);//6fh    
+  lcdRegDataWrite(RA8876_DLHER0,x_end, false);//6ch
+  lcdRegDataWrite(RA8876_DLHER1,x_end>>8, false);//6dh
+  lcdRegDataWrite(RA8876_DLVER0,y_end, false);//6eh
+  lcdRegDataWrite(RA8876_DLVER1,y_end>>8, false);//6fh    
   lcdRegDataWrite(RA8876_ELL_A0,xr, false);//77h    
   lcdRegDataWrite(RA8876_ELL_A1,xr>>8, false);//79h 
   lcdRegDataWrite(RA8876_ELL_B0,yr, false);//7ah    
@@ -2521,21 +2571,37 @@ void RA8876_t3::drawCircleSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru
 //**************************************************************//
 void RA8876_t3::drawCircleSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru16 yr, ru16 color)
 {
+	x0 += _originx; x1 += _originx;
+	y1 += _originy; y1 += _originy;
+	int16_t x_end = x1;
+	int16_t y_end = y1;
+	if((x0 >= _displayclipx2)   || // Clip right
+		 (y0 >= _displayclipy2) || // Clip bottom
+		 (x_end < _displayclipx1)    || // Clip left
+		 (y_end < _displayclipy1))  	// Clip top 
+	{
+		// outside the clip rectangle
+		return;
+	}
+	if (x0 < _displayclipx1) x0 = _displayclipx1;
+	if (y0 < _displayclipy1) y0 = _displayclipy1;
+	if (x_end > _displayclipx2) x_end = _displayclipx2;
+	if (y_end > _displayclipy2) y_end = _displayclipy2;
 	
   check2dBusy();
   //graphicMode(true);
   foreGroundColor16bpp(color);
-  if (_portrait) {swapvals(x0,y0); swapvals(x1, y1); swapvals(xr, yr);}
-  if (_rotation == 2) { x0 = _width-x0; x1 = _width - x1;}
+  if (_portrait) {swapvals(x0,y0); swapvals(x_end, y_end); swapvals(xr, yr);}
+  if (_rotation == 2) { x0 = _width-x0; x_end = _width - x_end;}
 
   lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
   lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
   lcdRegDataWrite(RA8876_DLVSR1,y0>>8, false);//6bh
-  lcdRegDataWrite(RA8876_DLHER0,x1, false);//6ch
-  lcdRegDataWrite(RA8876_DLHER1,x1>>8, false);//6dh
-  lcdRegDataWrite(RA8876_DLVER0,y1, false);//6eh
-  lcdRegDataWrite(RA8876_DLVER1,y1>>8, false);//6fh    
+  lcdRegDataWrite(RA8876_DLHER0,x_end, false);//6ch
+  lcdRegDataWrite(RA8876_DLHER1,x_end>>8, false);//6dh
+  lcdRegDataWrite(RA8876_DLVER0,y_end, false);//6eh
+  lcdRegDataWrite(RA8876_DLVER1,y_end>>8, false);//6fh    
   lcdRegDataWrite(RA8876_ELL_A0,xr, false);//77h    
   lcdRegDataWrite(RA8876_ELL_A1,xr>>8, false);//78h 
   lcdRegDataWrite(RA8876_ELL_B0,yr, false);//79h    
@@ -2551,8 +2617,8 @@ void RA8876_t3::drawCircleSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr
 //**************************************************************//
 void RA8876_t3::drawTriangle(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru16 color)
 {
-  x0 += _originx; 
-  y0 += _originy;
+  x0 += _originx; x1 += _originx; x2 += _originx; 
+  y0 += _originy; y1 += _originy; y2 += _originy;
 	
 	if (x0 >= _width || x1 >= _width || x2 >= _width) return;
 	if (y0 >= _height || y1 >= _height || y2 >= _height) return;
@@ -2590,8 +2656,8 @@ void RA8876_t3::drawTriangle(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru1
 //**************************************************************//
 void RA8876_t3::drawTriangleFill(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru16 color)
 {
-  x0 += _originx;
-  y0 += _originy;
+  x0 += _originx; x1 += _originx; x2 += _originx; 
+  y0 += _originy; y1 += _originy; y2 += _originy;
 	
 	if (x0 >= _width || x1 >= _width || x2 >= _width) return;
 	if (y0 >= _height || y1 >= _height || y2 >= _height) return;
@@ -2636,7 +2702,7 @@ void RA8876_t3::drawCircle(ru16 x0,ru16 y0,ru16 r,ru16 color)
 		drawPixel(x0,y0,color);
 		return;
 	}
-	if (r > SCREEN_HEIGHT / 2) r = (SCREEN_HEIGHT / 2) - 1;//this is the (undocumented) hardware limit of RA8875
+	if (r > _height / 2) r = (_height / 2) - 1;//this is the (undocumented) hardware limit of RA8875
 	
   check2dBusy();
   graphicMode(true);
@@ -2671,7 +2737,7 @@ void RA8876_t3::drawCircleFill(ru16 x0,ru16 y0,ru16 r,ru16 color)
 		drawPixel(x0,y0,color);
 		return;
 	}
-	if (r > SCREEN_HEIGHT / 2) r = (SCREEN_HEIGHT / 2) - 1;//this is the (undocumented) hardware limit of RA8875
+	if (r > _height / 2) r = (_height / 2) - 1;//this is the (undocumented) hardware limit of RA8875
 	
   check2dBusy();
   graphicMode(true);
@@ -4089,7 +4155,14 @@ void RA8876_t3::tftRawWrite(uint8_t data) {
 	
 // Send a string to the status line
 void RA8876_t3::printStatusLine(uint16_t x0,uint16_t fgColor,uint16_t bgColor, const char *text) {
-	writeStatusLine(x0*(_FNTwidth*_scaleX), fgColor, bgColor, text);	
+	
+	if(_use_gfx_font || _use_ili_font) {
+		setTextColor(fgColor, bgColor);
+		setTextCursor(x0, _height-STATUS_LINE_HEIGHT);
+		printf("%s", text);
+	} else {
+		writeStatusLine(x0*(_FNTwidth*_scaleX), fgColor, bgColor, text);	
+	}
 }
 
 // Load a user defined font from memory to RA8876 Character generator RAM
@@ -4307,7 +4380,22 @@ void RA8876_t3::drawRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t col
 	if (y < _displayclipy1) y = _displayclipy1;
 	if (x_end > _displayclipx2) x_end = _displayclipx2;
 	if (y_end > _displayclipy2) y_end = _displayclipy2;
-	drawSquare(x, y, x_end, y_end, color);
+	
+  check2dBusy();
+  graphicMode(true);
+  foreGroundColor16bpp(color);
+  if (_portrait) {swapvals(x,y); swapvals(x_end, y_end);}
+  if (_rotation == 2) {x = _width-x; x_end = _width - x_end;}
+  lcdRegDataWrite(RA8876_DLHSR0,x, false);//68h
+  lcdRegDataWrite(RA8876_DLHSR1,x>>8, false);//69h
+  lcdRegDataWrite(RA8876_DLVSR0,y, false);//6ah
+  lcdRegDataWrite(RA8876_DLVSR1,y>>8, false);//6bh
+  lcdRegDataWrite(RA8876_DLHER0,x_end, false);//6ch
+  lcdRegDataWrite(RA8876_DLHER1,x_end>>8, false);//6dh
+  lcdRegDataWrite(RA8876_DLVER0,y_end, false);//6eh
+  lcdRegDataWrite(RA8876_DLVER1,y_end>>8, false);//6fh     
+  lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_SQUARE, true);//76h,0xa0
+  
 }
 
 // Draw a filled rectangle. Note: damages text color register
@@ -4328,7 +4416,22 @@ void RA8876_t3::fillRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t col
 	if (y < _displayclipy1) y = _displayclipy1;
 	if (x_end > _displayclipx2) x_end = _displayclipx2;
 	if (y_end > _displayclipy2) y_end = _displayclipy2;
-	drawSquareFill(x, y, x_end, y_end, color);
+	
+  check2dBusy();
+  graphicMode(true);
+  foreGroundColor16bpp(color);
+  if (_portrait) {swapvals(x,y); swapvals(x_end, y_end);}
+  if (_rotation == 2) {x = _width-x; x_end = _width - x_end;}
+  lcdRegDataWrite(RA8876_DLHSR0,x, false);//68h
+  lcdRegDataWrite(RA8876_DLHSR1,x>>8, false);//69h
+  lcdRegDataWrite(RA8876_DLVSR0,y, false);//6ah
+  lcdRegDataWrite(RA8876_DLVSR1,y>>8, false);//6bh
+  lcdRegDataWrite(RA8876_DLHER0,x_end, false);//6ch
+  lcdRegDataWrite(RA8876_DLHER1,x_end>>8, false);//6dh
+  lcdRegDataWrite(RA8876_DLVER0,y_end, false);//6eh
+  lcdRegDataWrite(RA8876_DLVER1,y_end>>8, false);//6fh   
+  lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_SQUARE_FILL, true);//76h,0xE0  
+
 }
 
 // Draw a round rectangle. 
@@ -4349,7 +4452,27 @@ void RA8876_t3::drawRoundRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, ui
 	if (y < _displayclipy1) y = _displayclipy1;
 	if (x_end > _displayclipx2) x_end = _displayclipx2;
 	if (y_end > _displayclipy2) y_end = _displayclipy2;
-	drawCircleSquare(x, y, x_end, y_end, xr, yr, color);
+	//drawCircleSquare(x, y, x_end, y_end, xr, yr, color);
+	
+  check2dBusy();
+  graphicMode(true);
+  foreGroundColor16bpp(color);
+  if (_portrait) {swapvals(x,y); swapvals(x_end, y_end); swapvals(xr, yr);}
+  if (_rotation == 2) { x = _width-x; x_end = _width - x_end;  }
+  lcdRegDataWrite(RA8876_DLHSR0,x, false);//68h
+  lcdRegDataWrite(RA8876_DLHSR1,x>>8, false);//69h
+  lcdRegDataWrite(RA8876_DLVSR0,y, false);//6ah
+  lcdRegDataWrite(RA8876_DLVSR1,y>>8, false);//6bh
+  lcdRegDataWrite(RA8876_DLHER0,x_end, false);//6ch
+  lcdRegDataWrite(RA8876_DLHER1,x_end>>8, false);//6dh
+  lcdRegDataWrite(RA8876_DLVER0,y_end, false);//6eh
+  lcdRegDataWrite(RA8876_DLVER1,y_end>>8, false);//6fh    
+  lcdRegDataWrite(RA8876_ELL_A0,xr, false);//77h    
+  lcdRegDataWrite(RA8876_ELL_A1,xr>>8, false);//79h 
+  lcdRegDataWrite(RA8876_ELL_B0,yr, false);//7ah    
+  lcdRegDataWrite(RA8876_ELL_B1,yr>>8, false);//7bh
+  lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_CIRCLE_SQUARE, true);//76h,0xb0
+	
 }
 
 // Draw a filed round rectangle.
@@ -4370,7 +4493,26 @@ void RA8876_t3::fillRoundRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, ui
 	if (y < _displayclipy1) y = _displayclipy1;
 	if (x_end > _displayclipx2) x_end = _displayclipx2;
 	if (y_end > _displayclipy2) y_end = _displayclipy2;
-	drawCircleSquareFill(x, y, x_end, y_end, xr, yr, color);
+	
+  check2dBusy();
+  //graphicMode(true);
+  foreGroundColor16bpp(color);
+  if (_portrait) {swapvals(x,y); swapvals(x_end, y_end); swapvals(xr, yr);}
+  if (_rotation == 2) { x = _width-x; x_end = _width - x_end;}
+
+  lcdRegDataWrite(RA8876_DLHSR0,x, false);//68h
+  lcdRegDataWrite(RA8876_DLHSR1,x>>8, false);//69h
+  lcdRegDataWrite(RA8876_DLVSR0,y, false);//6ah
+  lcdRegDataWrite(RA8876_DLVSR1,y>>8, false);//6bh
+  lcdRegDataWrite(RA8876_DLHER0,x_end, false);//6ch
+  lcdRegDataWrite(RA8876_DLHER1,x_end>>8, false);//6dh
+  lcdRegDataWrite(RA8876_DLVER0,y_end, false);//6eh
+  lcdRegDataWrite(RA8876_DLVER1,y_end>>8, false);//6fh    
+  lcdRegDataWrite(RA8876_ELL_A0,xr, false);//77h    
+  lcdRegDataWrite(RA8876_ELL_A1,xr>>8, false);//78h 
+  lcdRegDataWrite(RA8876_ELL_B0,yr, false);//79h    
+  lcdRegDataWrite(RA8876_ELL_B1,yr>>8, false);//7ah
+  lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_CIRCLE_SQUARE_FILL, true);//76h,0xf0
 }
 
 // Enable Touch Screen.
