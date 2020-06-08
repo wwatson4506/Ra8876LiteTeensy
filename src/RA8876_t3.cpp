@@ -1658,8 +1658,8 @@ void  RA8876_t3::putString(ru16 x0,ru16 y0, const char *str)
 /* Clear the status line                                        */
 //**************************************************************//
 void RA8876_t3::clearStatusLine(uint16_t color) {
-	int temp_height = _height-STATUS_LINE_HEIGHT;
-	drawSquareFill(0,temp_height-1,_width,_height-1,color);
+	int temp_height = _height-STATUS_LINE_HEIGHT-1;
+	drawSquareFill(0,temp_height,_width,_height-1,color);
     check2dBusy();
 }
 
@@ -2593,7 +2593,6 @@ void RA8876_t3::drawCircleSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr
   foreGroundColor16bpp(color);
   if (_portrait) {swapvals(x0,y0); swapvals(x_end, y_end); swapvals(xr, yr);}
   if (_rotation == 2) { x0 = _width-x0; x_end = _width - x_end;}
-
   lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
   lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
@@ -5077,7 +5076,7 @@ void RA8876_t3::drawFontChar(unsigned int c)
 	} 
 
 	// TODO: implement sparse unicode
-
+	
 	//Serial.printf("  index =  %d\n", fetchbits_unsigned(font->index, bitoffset, font->bits_index));
 	data = font->data + fetchbits_unsigned(font->index, bitoffset, font->bits_index);
 
@@ -6249,8 +6248,8 @@ void RA8876_t3::setRotation(uint8_t rotation) //rotate text and graphics
 			_portrait = true;
 			_width = 	SCREEN_HEIGHT;
 			_height = 	SCREEN_WIDTH;
-			VSCAN_T_to_B();
-			macr_settings = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_READ_MEMORY_BTLR<<1;
+			VSCAN_B_to_T();
+			macr_settings = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_READ_MEMORY_RLTB<<1;
 			break;
 	}
 	lcdRegWrite(RA8876_MACR);//02h
@@ -6260,6 +6259,8 @@ void RA8876_t3::setRotation(uint8_t rotation) //rotate text and graphics
 	_scrollXR = _width;
 	_scrollYT = 0;
 	_scrollYB = _height;
+	
+	_updateActiveWindow(false);
 
  	setClipRect();
 	setOrigin();
