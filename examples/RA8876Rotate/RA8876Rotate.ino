@@ -5,8 +5,12 @@
 #define PINK        0xFC18
 #include "font_Arial.h"
 #define BACKLITE 5 //External backlight control connected to this Arduino pin
-#define REG_DUMP_CNT 0x70
+
+#define REG_DUMP_CNT  0 //0x70
 uint8_t reg_values[REG_DUMP_CNT];
+
+#define USE_STATUS_LINE
+
 
 RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
 
@@ -30,13 +34,19 @@ void setup() {
 }
 
 void drawTestScreen() {
+#ifdef USE_STATUS_LINE
+  int image_height = tft.height() - STATUS_LINE_HEIGHT; 
+#else
+  int image_height = tft.height()
+#endif
+
   int centerx = tft.width() / 2;
-  int centery = tft.height() / 2;
+  int centery = image_height / 2;
   tft.fillRect(tft.width() - 50, 0, 50, 50, GREEN);
-  tft.fillRect(tft.width() - 50, tft.height() - 50 , 50, 50, BLUE);
-  tft.fillRect(0, tft.height() - 50 , 50, 50, ORCHID);
-  tft.drawLine(0, 0, tft.width(), tft.height(), WHITE);
-  tft.drawLine(0, tft.height(), tft.width(), 0, BLACK);
+  tft.fillRect(tft.width() - 50, image_height - 50 , 50, 50, BLUE);
+  tft.fillRect(0, image_height - 50 , 50, 50, ORCHID);
+  tft.drawLine(0, 0, tft.width(), image_height, WHITE);
+  tft.drawLine(0, image_height, tft.width(), 0, BLACK);
   tft.drawRect(centerx - 50, centery / 2, 100, 50, BLUE);
   tft.fillRect(centerx - 40, centery / 2 + 10, 80, 30, GREEN);
   tft.drawLine(centerx - 50, centery / 2, centerx, 0, RED);
@@ -46,7 +56,7 @@ void drawTestScreen() {
   tft.fillRect(0, 0, 50, 50, RED);
   tft.fillCircle(centerx, centery, 50, ORCHID);
   tft.drawCircle(centerx, centery, 25, BLACK);
-  tft.drawTriangle(50, 50, 50, tft.height() - 50, centerx - 50, centery, BLUE);
+  tft.drawTriangle(50, 50, 50, image_height - 50, centerx - 50, centery, BLUE);
   tft.fillRoundRect(100, centery - 50, 150, 100, 25, 25, GREEN);
   tft.drawRoundRect(110, centery - 40, 130, 80, 25, 25, WHITE);
   tft.drawEllipse(tft.width() - 100, centery, 50, 35, BLUE);
@@ -60,11 +70,13 @@ void drawTestScreen() {
   tft.write('0');
   tft.setCursor(tft.width() - 50, 50);
   tft.write('1');
-  tft.setCursor(50, tft.height() - 50);
+  tft.setCursor(50, image_height - 50);
   tft.write('2');
-  tft.setCursor(tft.width() - 50, tft.height() - 50);
+  tft.setCursor(tft.width() - 50, image_height - 50);
   tft.write('3');
 
+  tft.printStatusLine(0, RED, GREEN, "Status Text");
+#if REG_DUMP_CNT > 0
   Serial.print("LCD Register dump:");
   for (uint8_t reg = 0; reg < REG_DUMP_CNT; reg++) {
     uint8_t r_value = tft.lcdRegDataRead(reg);
@@ -75,6 +87,7 @@ void drawTestScreen() {
     reg_values[reg] = r_value;
   }
   Serial.print("\n");
+#endif
 }
 
 void loop() {
