@@ -37,15 +37,21 @@ void drawTestScreen() {
   tft.fillRect(0, tft.height() - 50 , 50, 50, ORCHID);
   tft.drawLine(0, 0, tft.width(), tft.height(), WHITE);
   tft.drawLine(0, tft.height(), tft.width(), 0, BLACK);
-  tft.drawTriangleFill(centerx, centery, centerx - 100, centery + 100, centerx + 100, centery + 100, CRIMSON);  tft.fillRect(0, 0, 50, 50, RED);
+  tft.drawRect(centerx - 50, centery / 2, 100, 50, BLUE);
+  tft.fillRect(centerx - 40, centery / 2 + 10, 80, 30, GREEN);
+  tft.drawLine(centerx - 50, centery / 2, centerx, 0, RED);
+  tft.drawLine(centerx + 50, centery / 2, centerx, 0, CRIMSON);
+  tft.drawLine(centerx, centery / 2, centerx, 0, GREEN);
+  tft.drawTriangleFill(centerx, centery, centerx - 100, centery + 100, centerx + 100, centery + 100, CRIMSON);
+  tft.fillRect(0, 0, 50, 50, RED);
   tft.fillCircle(centerx, centery, 50, ORCHID);
   tft.drawCircle(centerx, centery, 25, BLACK);
   tft.drawTriangle(50, 50, 50, tft.height() - 50, centerx - 50, centery, BLUE);
-  tft.fillRoundRect(100, centery-50, 150, 100, 25, 25, GREEN);
-  tft.drawRoundRect(110, centery-40, 130, 80, 25, 25, WHITE);
-  tft.drawEllipse(tft.width()-100, centery, 50, 35, BLUE);
-  tft.drawEllipseFill(tft.width()-100, centery, 40, 25, RED);
-    
+  tft.fillRoundRect(100, centery - 50, 150, 100, 25, 25, GREEN);
+  tft.drawRoundRect(110, centery - 40, 130, 80, 25, 25, WHITE);
+  tft.drawEllipse(tft.width() - 100, centery, 50, 35, BLUE);
+  tft.drawEllipseFill(tft.width() - 100, centery, 40, 25, RED);
+
   tft.setFont(Arial_14);
   tft.setTextColor(BLACK);
   tft.setCursor(25, centery);

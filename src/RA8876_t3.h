@@ -508,6 +508,17 @@ public:
 		}
 	}
 
+	// BUGBUG:: two different versions as some places used signed others use unsigned...
+	inline void rotateCCXY(int16_t &x, int16_t &y) {
+		int16_t yt;
+	  	yt = y; y = x; x = _height - yt; 
+	}
+
+	inline void rotateCCXY(ru16 &x, ru16 &y) {
+		ru16 yt;
+	  	yt = y; y = x; x = _height - yt; 
+	}
+
 	
 	inline void setFontDef() { 
 		_use_default = 1; 

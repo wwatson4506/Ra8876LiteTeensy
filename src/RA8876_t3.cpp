@@ -1186,8 +1186,11 @@ void RA8876_t3::activeWindowWH(ru16 width,ru16 height)
 //**************************************************************//
 void  RA8876_t3::setPixelCursor(ru16 x,ru16 y)
 {
-  	if (_portrait) swapvals(x,y);
-	if (_rotation == 2) x = _width-x; 
+	switch (_rotation) {
+		case 1: swapvals(x,y); break;
+		case 2: x = _width-x; break;
+		case 3: rotateCCXY(x,y); break;
+	}
 	lcdRegDataWrite(RA8876_CURH0,x); //5fh
 	lcdRegDataWrite(RA8876_CURH1,x>>8);//60h
 	lcdRegDataWrite(RA8876_CURV0,y);//61h
@@ -2421,7 +2424,11 @@ void RA8876_t3::drawLine(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
-  if (_portrait) {swapvals(x0,y0); swapvals(x1, y1);}
+	switch (_rotation) {
+		case 1: swapvals(x0,y0); swapvals(x1,y1); break;
+		case 2: x0 = _width-x0; x1 = _width-x1;break;
+		case 3: rotateCCXY(x0,y0); rotateCCXY(x1,y1); break;
+  	}
   lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
   lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
@@ -2461,8 +2468,11 @@ void RA8876_t3::drawSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
-  if (_portrait) {swapvals(x0,y0); swapvals(x_end, y_end);}
-  if (_rotation == 2) {x0 = _width-x0; x1 = _width - x_end;}
+	switch (_rotation) {
+		case 1: swapvals(x0,y0); swapvals(x1,y1); break;
+		case 2: x0 = _width-x0; x1 = _width-x1;break;
+		case 3: rotateCCXY(x0,y0); rotateCCXY(x1,y1); break;
+  	}
   lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
   lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
@@ -2503,8 +2513,11 @@ void RA8876_t3::drawSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
-  if (_portrait) {swapvals(x0,y0); swapvals(x_end, y_end);}
-  if (_rotation == 2) {x0 = _width-x0; x_end = _width - x_end;}
+  switch (_rotation) {
+		case 1: swapvals(x0,y0); swapvals(x_end,y_end); break;
+		case 2: x0 = _width-x0; x_end = _width-x_end; break;
+		case 3: rotateCCXY(x0,y0); rotateCCXY(x_end,y_end); break;
+  	}
   lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
   lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
@@ -2545,8 +2558,11 @@ void RA8876_t3::drawCircleSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
-  if (_portrait) {swapvals(x0,y0); swapvals(x_end, y_end); swapvals(xr, yr);}
-  if (_rotation == 2) { x0 = _width-x0; x_end = _width - x_end;  }
+	switch (_rotation) {
+		case 1: swapvals(x0,y0); swapvals(x_end,y_end); swapvals(xr, yr); break;
+		case 2: x0 = _width-x0; x_end = _width-x_end;break;
+		case 3: rotateCCXY(x0,y0); rotateCCXY(x_end,y_end);  swapvals(xr, yr);break;
+  	}
   lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
   lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
@@ -2591,8 +2607,11 @@ void RA8876_t3::drawCircleSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr
   check2dBusy();
   //graphicMode(true);
   foreGroundColor16bpp(color);
-  if (_portrait) {swapvals(x0,y0); swapvals(x_end, y_end); swapvals(xr, yr);}
-  if (_rotation == 2) { x0 = _width-x0; x_end = _width - x_end;}
+	switch (_rotation) {
+		case 1: swapvals(x0,y0); swapvals(x_end,y_end); swapvals(xr, yr); break;
+		case 2: x0 = _width-x0; x_end = _width-x_end;break;
+		case 3: rotateCCXY(x0,y0); rotateCCXY(x_end,y_end);  swapvals(xr, yr);break;
+  	}
   lcdRegDataWrite(RA8876_DLHSR0,x0, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x0>>8, false);//69h
   lcdRegDataWrite(RA8876_DLVSR0,y0, false);//6ah
@@ -2626,8 +2645,11 @@ void RA8876_t3::drawTriangle(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru1
 		return;
 	}
 
-  if (_portrait) {swapvals(x0,y0); swapvals(x1,y1); swapvals(x2,y2);}
-  if (_rotation == 2) {x0 = _width-x0; x1 = _width - x1; x2 = _width - x2;}
+	switch (_rotation) {
+		case 1: swapvals(x0,y0); swapvals(x1,y1); swapvals(x2,y2);  break;
+		case 2: x0 = _width-x0; x1 = _width - x1; x2 = _width - x2; break;
+		case 3: rotateCCXY(x0,y0); rotateCCXY(x1,y1); rotateCCXY(x2,y2); break;
+  	}
 
   check2dBusy();
   graphicMode(true);
@@ -2665,8 +2687,12 @@ void RA8876_t3::drawTriangleFill(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2
 		return;
 	}
 	
-  if (_portrait) {swapvals(x0,y0); swapvals(x1,y1); swapvals(x2,y2);}
-  if (_rotation == 2) {x0 = _width-x0; x1 = _width - x1; x2 = _width - x2;}
+	switch (_rotation) {
+		case 1: swapvals(x0,y0); swapvals(x1,y1); swapvals(x2,y2);  break;
+		case 2: x0 = _width-x0; x1 = _width - x1; x2 = _width - x2; break;
+		case 3: rotateCCXY(x0,y0); rotateCCXY(x1,y1); rotateCCXY(x2,y2); break;
+  	}
+
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
@@ -2706,8 +2732,12 @@ void RA8876_t3::drawCircle(ru16 x0,ru16 y0,ru16 r,ru16 color)
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
-  if (_portrait) {swapvals(x0,y0);}
-  if (_rotation == 2) { x0 = _width-x0; }
+	switch (_rotation) {
+		case 1: swapvals(x0,y0);  break;
+		case 2: x0 = _width-x0;   break;
+		case 3: rotateCCXY(x0,y0);  break;
+  	}
+
   lcdRegDataWrite(RA8876_DEHR0,x0, false);//7bh
   lcdRegDataWrite(RA8876_DEHR1,x0>>8, false);//7ch
   lcdRegDataWrite(RA8876_DEVR0,y0, false);//7dh
@@ -2741,8 +2771,11 @@ void RA8876_t3::drawCircleFill(ru16 x0,ru16 y0,ru16 r,ru16 color)
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
-  if (_portrait) {swapvals(x0,y0);}
-  if (_rotation == 2) { x0 = _width-x0; }
+	switch (_rotation) {
+		case 1: swapvals(x0,y0);  break;
+		case 2: x0 = _width-x0;   break;
+		case 3: rotateCCXY(x0,y0);  break;
+  	}
   lcdRegDataWrite(RA8876_DEHR0,x0, false);//7bh
   lcdRegDataWrite(RA8876_DEHR1,x0>>8, false);//7ch
   lcdRegDataWrite(RA8876_DEVR0,y0, false);//7dh
@@ -2785,8 +2818,11 @@ void RA8876_t3::drawEllipse(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color)
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
-  if (_portrait) {swapvals(x0,y0); swapvals(xr,yr);}
-  if (_rotation == 2) { x0 = _width-x0; }
+	switch (_rotation) {
+		case 1: swapvals(x0,y0);  swapvals(xr,yr); break;
+		case 2: x0 = _width-x0;   break;
+		case 3: rotateCCXY(x0,y0); swapvals(xr,yr); break;
+  	}
   lcdRegDataWrite(RA8876_DEHR0,x0, false);//7bh
   lcdRegDataWrite(RA8876_DEHR1,x0>>8, false);//7ch
   lcdRegDataWrite(RA8876_DEVR0,y0, false);//7dh
@@ -2826,8 +2862,11 @@ void RA8876_t3::drawEllipseFill(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color)
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
-  if (_portrait) {swapvals(x0,y0); swapvals(xr,yr);}
-  if (_rotation == 2) { x0 = _width-x0; }
+	switch (_rotation) {
+		case 1: swapvals(x0,y0);  swapvals(xr,yr); break;
+		case 2: x0 = _width-x0;   break;
+		case 3: rotateCCXY(x0,y0); swapvals(xr,yr); break;
+  	}
   lcdRegDataWrite(RA8876_DEHR0,x0, false);//7bh
   lcdRegDataWrite(RA8876_DEHR1,x0>>8, false);//7ch
   lcdRegDataWrite(RA8876_DEVR0,y0, false);//7dh
@@ -4383,8 +4422,12 @@ void RA8876_t3::drawRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t col
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
-  if (_portrait) {swapvals(x,y); swapvals(x_end, y_end);}
-  if (_rotation == 2) {x = _width-x; x_end = _width - x_end;}
+  switch (_rotation) {
+  	case 1: swapvals(x,y); swapvals(x_end, y_end); break;
+  	case 2: x = _width-x; x_end = _width - x_end;; break;
+  	case 3: rotateCCXY(x,y); rotateCCXY(x_end, y_end); break;
+  }
+
   lcdRegDataWrite(RA8876_DLHSR0,x, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x>>8, false);//69h
   lcdRegDataWrite(RA8876_DLVSR0,y, false);//6ah
@@ -4419,8 +4462,12 @@ void RA8876_t3::fillRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t col
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
-  if (_portrait) {swapvals(x,y); swapvals(x_end, y_end);}
-  if (_rotation == 2) {x = _width-x; x_end = _width - x_end;}
+  switch (_rotation) {
+  	case 1: swapvals(x,y); swapvals(x_end, y_end); break;
+  	case 2: x = _width-x; x_end = _width - x_end;; break;
+  	case 3: rotateCCXY(x,y); rotateCCXY(x_end, y_end); break;
+  }
+
   lcdRegDataWrite(RA8876_DLHSR0,x, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x>>8, false);//69h
   lcdRegDataWrite(RA8876_DLVSR0,y, false);//6ah
@@ -4456,8 +4503,11 @@ void RA8876_t3::drawRoundRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, ui
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
-  if (_portrait) {swapvals(x,y); swapvals(x_end, y_end); swapvals(xr, yr);}
-  if (_rotation == 2) { x = _width-x; x_end = _width - x_end;  }
+	switch (_rotation) {
+		case 1: swapvals(x,y); swapvals(x_end, y_end); swapvals(xr, yr); break;
+		case 2:  x = _width-x; x_end = _width - x_end;   break;
+		case 3: rotateCCXY(x,y); rotateCCXY(x_end, y_end); swapvals(xr, yr); break;
+  	}
   lcdRegDataWrite(RA8876_DLHSR0,x, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x>>8, false);//69h
   lcdRegDataWrite(RA8876_DLVSR0,y, false);//6ah
@@ -4496,8 +4546,11 @@ void RA8876_t3::fillRoundRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, ui
   check2dBusy();
   //graphicMode(true);
   foreGroundColor16bpp(color);
-  if (_portrait) {swapvals(x,y); swapvals(x_end, y_end); swapvals(xr, yr);}
-  if (_rotation == 2) { x = _width-x; x_end = _width - x_end;}
+	switch (_rotation) {
+		case 1: swapvals(x,y); swapvals(x_end, y_end); swapvals(xr, yr); break;
+		case 2:  x = _width-x; x_end = _width - x_end;   break;
+		case 3: rotateCCXY(x,y); rotateCCXY(x_end, y_end); swapvals(xr, yr); break;
+  	}
 
   lcdRegDataWrite(RA8876_DLHSR0,x, false);//68h
   lcdRegDataWrite(RA8876_DLHSR1,x>>8, false);//69h
@@ -6235,7 +6288,7 @@ void RA8876_t3::setRotation(uint8_t rotation) //rotate text and graphics
 			_width = 	SCREEN_HEIGHT;
 			_height = 	SCREEN_WIDTH;
 			VSCAN_B_to_T();
-			macr_settings = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_READ_MEMORY_RLTB<<1;
+			macr_settings = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_RLTB<<1;
 			break;
 		case 2: 
 			_width = 	SCREEN_WIDTH;
@@ -6248,8 +6301,10 @@ void RA8876_t3::setRotation(uint8_t rotation) //rotate text and graphics
 			_portrait = true;
 			_width = 	SCREEN_HEIGHT;
 			_height = 	SCREEN_WIDTH;
-			VSCAN_B_to_T();
-			macr_settings = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_READ_MEMORY_RLTB<<1;
+			VSCAN_T_to_B();
+			macr_settings = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_LRTB<<1;
+			//VSCAN_T_to_B();
+			//macr_settings = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_BTLR<<1;
 			break;
 	}
 	lcdRegWrite(RA8876_MACR);//02h
