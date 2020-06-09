@@ -65,7 +65,6 @@ void setup() {
   pinMode(BACKLITE, OUTPUT);
   digitalWrite(BACKLITE, HIGH);
 
-
 //  tft.setRotation(4);
   tft.fillScreen(BLACK);
   tft.setTextColor(WHITE);
@@ -112,7 +111,7 @@ void setup() {
 void loop()
 {
   Serial.printf("\nRotation: %d\n", test_screen_rotation);
-  //tft.setRotation(test_screen_rotation);
+  tft.setRotation(test_screen_rotation);
   tft.fillScreen(RED);
   tft.setCursor(tft.width()/2, tft.height()/2, true);
   tft.printf("Rotation: %d", test_screen_rotation);
