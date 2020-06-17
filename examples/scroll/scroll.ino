@@ -4,8 +4,16 @@
 // and needs to be optimized.
 #include "Arduino.h"
 #include "Ra8876_Lite.h"
-#include "tft.h"
-#include "vt100.h"
+#include "RA8876_t3.h"
+
+//#include "vt100.h"
+#include <math.h>
+
+#define RA8876_CS 10
+#define RA8876_RESET 8
+#define BACKLITE 7 //External backlight control connected to this Arduino pin
+RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
+
 
 // Array of RA8876 Basic Colors
 PROGMEM uint16_t myColors[] = {
@@ -36,36 +44,49 @@ PROGMEM uint16_t myColors[] = {
 int i = 0, j = 0;
 int color = 1;
 void setup() {
-	tft_init();
-	initVT100();
-	setTextAt(0,0);
-	tft_cls(myColors[11]);
-	setFontSize(1,false);
+  //I'm guessing most copies of this display are using external PWM
+  //backlight control instead of the internal RA8876 PWM.
+  //Connect a Teensy pin to pin 14 on the display.
+  //Can use analogWrite() but I suggest you increase the PWM frequency first so it doesn't sing.
+  pinMode(BACKLITE, OUTPUT);
+  digitalWrite(BACKLITE, HIGH);
+  
+  tft.begin();
+	//initVT100();
+	tft.setTextAt(0,0);
+	tft.fillStatusLine(myColors[11]);
+	tft.setFontSize(1,false);
+	tft.setMargins(0, 0, tft.width(), tft.height()); //so scroll doesn't erase the status bar
 }
 
 void loop() {
 
-	tft_slcls(myColors[0]);
-	tft_cls(myColors[0]);
-	tft_slprint(0,myColors[13],myColors[0],"scroll_down(), scroll_up()");
-	setFontSource(0);
-	setFontSize(1,true);
-	setTextAt(0,0);
+	tft.fillStatusLine(myColors[0]);
+	tft.printStatusLine(0,myColors[13],myColors[0],"scroll_down(), scroll_up()");
+	//tft.setFontSource(0);
+	tft.setFontSize(1,true);
+	tft.setTextAt(0,0);
 	for(i = 32; i < 256; i++) {
 		if(color == 22) color = 1;
-		setTextColorFG(myColors[color++] , myColors[0]);
-		tft_print(i);
+		tft.setTextColorFG(myColors[color++] , myColors[0]);
+		tft.print(i);
 	}
-	setTextColorFG(myColors[1] , myColors[0]);
-	while(j++ < 10) {
-		for(i = 0; i < 21; i++) {
-			scroll_down();
+	tft.setTextColorFG(myColors[1] , myColors[0]);
+	//while(j++ < 10) {
+		for(i = 0; i < 42; i++) {
+			tft.scrollDown();
 		}
-		for(i = 0; i < 21; i++) {
-			scroll_up();
+   delay(2000);
+   
+  for(i = 32; i < 256; i++) {
+    if(color == 22) color = 1;
+    tft.setTextColorFG(myColors[color++] , myColors[0]);
+    tft.print(i);
+  }
+		for(i = 0; i < 42; i++) {
+			tft.scrollUp();
 		}
-	}
+	//}
 	j = 0;
 	delay(2000);
 }
-
