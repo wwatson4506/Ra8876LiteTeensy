@@ -648,6 +648,7 @@ private:
 
 #if defined(KINETISK)
  	KINETISK_SPI_t *_pkinetisk_spi;
+	uint32_t _fifo_full_test;
 #elif defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x
  	IMXRT_LPSPI_t *_pimxrt_spi;
 

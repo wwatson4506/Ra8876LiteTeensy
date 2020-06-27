@@ -374,7 +374,7 @@ boolean RA8876_t3::ra8876Initialize() {
 	_FNTheight = 16; // Default font height;
 	_scaleX = 1;
 	_scaleY = 1;
-	_textMode = true;
+	_textMode = false;
 	prompt_size = 1 * (_FNTwidth * _scaleX); // prompt ">"
 	vdata = 0;  // Used in tft_print()
 	leftmarg = 0;
@@ -6147,14 +6147,13 @@ size_t RA8876_t3::write(uint8_t c) {
 }
 
 size_t RA8876_t3::write(const uint8_t *buffer, size_t size) {
-  if(_use_default){
+  if(_use_default){ 
 	size_t cb = size;
 	// Lets try to handle some of the special font centering code that was done for default fonts.
 	if (_absoluteCenter || _relativeCenter ) {
 		int16_t x, y;
 	  	uint16_t strngWidth, strngHeight;
 	  	getTextBounds(buffer, cb, 0, 0, &x, &y, &strngWidth, &strngHeight);
-	  	Serial.printf("_fontwrite bounds: %d %d %u %u\n", x, y, strngWidth, strngHeight);
 	  	// Note we may want to play with the x ane y returned if they offset some
 		if (_absoluteCenter && strngWidth > 0){//Avoid operations for strngWidth = 0
 			_absoluteCenter = false;
