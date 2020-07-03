@@ -3,9 +3,16 @@
 // and modified for use with the RA8876.
 #include "Arduino.h"
 #include "Ra8876_Lite.h"
-#include "tft.h"
-#include "vt100.h"
+#include "RA8876_t3.h"
+
+//#include "vt100.h"
 #include <math.h>
+
+#define RA8876_CS 10
+#define RA8876_RESET 8
+#define BACKLITE 7 //External backlight control connected to this Arduino pin
+RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
+
 
 // Array of RA8876 Basic Colors
 PROGMEM uint16_t myColors[] = {
@@ -63,13 +70,21 @@ uint8_t ch = 13; // Default line color
 uint16_t ccolor = myColors[ch];
 
 void setup() {
-	tft_init();
-	initVT100();
-	setTextAt(0,0);
-	tft_cls(myColors[11]);
-	setFontSize(1,false);
-	tft_slcls(myColors[11]);
-	tft_slprint(0,myColors[1],myColors[11],"Sumotoy's treedee sketch on the T4.");
+  //I'm guessing most copies of this display are using external PWM
+  //backlight control instead of the internal RA8876 PWM.
+  //Connect a Teensy pin to pin 14 on the display.
+  //Can use analogWrite() but I suggest you increase the PWM frequency first so it doesn't sing.
+  pinMode(BACKLITE, OUTPUT);
+  digitalWrite(BACKLITE, HIGH);
+    
+  tft.begin();
+	//initVT100();
+	tft.setTextAt(0,0);
+	tft.fillScreen(myColors[11]);
+	tft.setFontSize(1,false);
+	tft.fillStatusLine(myColors[11]);
+	tft.printStatusLine(0,myColors[1],myColors[11],"Sumotoy's treedee sketch on the T4.");
+    tft.setMargins(0, 0, tft.width(), tft.height()); //so fillscreen doesn't erase the status bar
 }
 
 
@@ -77,7 +92,7 @@ void setup() {
 uint8_t speed = 20; // Change this setting to go from reasonable to rediculous .
 
 void loop() {
-  tft_cls(myColors[11]);
+  tft.fillScreen(myColors[11]);
   r[0] = r[0] + 1;
   r[1] = r[1] + 1;
   if (r[0] == 36) r[0] = 0;
@@ -97,17 +112,17 @@ void loop() {
     float ay = sin_d[r[2]] * px3 + cos_d[r[2]] * py3;
     float az = pz3 - 190;
 
-    p2x[i] = ((getGwidth()) / 2) + ax * 500 / az;
-    p2y[i] = ((getGheight()) / 2) + ay * 500 / az;
+    p2x[i] = ((tft.width()) / 2) + ax * 500 / az;
+    p2y[i] = ((tft.height()) / 2) + ay * 500 / az;
   }
   for (int i = 0; i < 3; i++) {
-    drawLine(p2x[i], p2y[i], p2x[i + 1], p2y[i + 1], ccolor);
-    drawLine(p2x[i + 4], p2y[i + 4], p2x[i + 5], p2y[i + 5], ccolor);
-    drawLine(p2x[i], p2y[i], p2x[i + 4], p2y[i + 4], ccolor);
+    tft.drawLine(p2x[i], p2y[i], p2x[i + 1], p2y[i + 1], ccolor);
+    tft.drawLine(p2x[i + 4], p2y[i + 4], p2x[i + 5], p2y[i + 5], ccolor);
+    tft.drawLine(p2x[i], p2y[i], p2x[i + 4], p2y[i + 4], ccolor);
   }
-  drawLine(p2x[3], p2y[3], p2x[0], p2y[0], ccolor);
-  drawLine(p2x[7], p2y[7], p2x[4], p2y[4], ccolor);
-  drawLine(p2x[3], p2y[3], p2x[7], p2y[7], ccolor);
+  tft.drawLine(p2x[3], p2y[3], p2x[0], p2y[0], ccolor);
+  tft.drawLine(p2x[7], p2y[7], p2x[4], p2y[4], ccolor);
+  tft.drawLine(p2x[3], p2y[3], p2x[7], p2y[7], ccolor);
   delay(speed); // Wanna see how fast this runs a 34MHZ? modify 'speed' above! (Or comment out)
 // Uncomment for random colored frames
 //  if (ch >= 22) {
