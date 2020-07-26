@@ -1,11 +1,11 @@
-/*************************************************************** 
- * graphics.ino 
- * 
+/***************************************************************
+ * graphics.ino
+ *
  * Basic graphics test for RA8876 based display
  ***************************************************************/
 #include "Arduino.h"
 #include "RA8876_t3.h"
-#include "font_Arial.h"
+#include "_font_ComicSansMS.h"
 
 #define RA8876_CS 10
 #define RA8876_RESET 8
@@ -51,13 +51,13 @@ void setup() {
   //Can use analogWrite() but I suggest you increase the PWM frequency first so it doesn't sing.
   pinMode(BACKLITE, OUTPUT);
   digitalWrite(BACKLITE, HIGH);
-    
+
 	tft.begin(20000000);
   tft.graphicMode(true);
   tft.setTextCursor(0,0);
-  tft.setFont(Arial_14);
+  tft.setFont(ComicSansMS_14);
   tft.setTextColor(BLACK);
-   
+
   tft.setRotation(0);
   w = tft.width()-1; h = tft.height()-STATUS_LINE_HEIGHT-1;
   tft.fillScreen(myColors[11]);
@@ -270,7 +270,7 @@ void filledRRectangles(void) {
 		if(y0 > tft.height()) y0 = tft.height();
 		if(x1 > tft.width()) x1 = tft.width();
 		if(y1 > tft.height()) y1 = tft.height();
-		
+
 		// Make sure major radius (xr) is less than x1 - x0
 		// Must be xr * 2 + 1 less than x1 - x0
 		// RA8876.pdf section 12.6 page 62

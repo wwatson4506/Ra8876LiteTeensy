@@ -157,7 +157,9 @@ tftSave_t *screenPage9 = &screenSave9;
 	
 	int16_t HDW = 1024;
 	int16_t VDH = 600;
-	
+	int16_t HDW = 400; //1024;
+	int16_t VDH = 1280; //600;
+
 	//Physical size of screen - these numbers won't change even if rotation is applied or status bar occupies some screen area
 	int16_t SCREEN_WIDTH  = HDW;
 	int16_t SCREEN_HEIGHT = VDH;
@@ -6474,3 +6476,4 @@ PIP window will be disabled when VDIR set as 1.
 	Serial.printf("call vscan_b_to_t %x %x\n", temp_in, temp);
 
 }
+
