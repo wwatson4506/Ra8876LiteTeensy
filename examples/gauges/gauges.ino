@@ -5,7 +5,7 @@
  * from his RA8875 driver. Modified to work with the RA8876 TFT controller.
  ***************************************************************/
 #include "Arduino.h"
-#include "Ra8876_Lite.h"
+//#include "Ra8876_Lite.h"
 #include "RA8876_t3.h"
 
 //#include "vt100.h"
@@ -70,6 +70,7 @@ void setup() {
   while (!Serial);
   tft.begin();
   //initVT100();
+  tft.graphicMode(true);
   tft.setTextCursor(0, 0);
   tft.fillScreen(myColors[11]);
   tft.setFontSize(1, false);

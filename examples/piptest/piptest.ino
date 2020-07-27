@@ -11,7 +11,7 @@
 // is 16 pixels in height with functions to support it.
 // guages.ino
 #include "Arduino.h"
-#include "Ra8876_Lite.h"
+//#include "Ra8876_Lite.h"
 #include "RA8876_t3.h"
 
 //#include "vt100.h"
@@ -62,7 +62,7 @@ const PROGMEM char *pip2 ="PIP WINDOW #2";
 uint8_t len = 0;
 uint8_t c = 32;
 
-int pipDelay = 400; // delayMicroseconds(pipDelay) Set to 0 for as fast as it gets
+int pipDelay = 0; // delayMicroseconds(pipDelay) Set to 0 for as fast as it gets
 		    // or tone it down?
 uint16_t thickness = 10; // drawRect() line thickness (Brush Size)
 uint16_t x = 0;
@@ -152,7 +152,7 @@ void loop() {
 		tft.PIP(onOff,pipNo,SCREEN_4,xp,yp,tft.width(),xd+i,yd,xw,yh);
 		delayMicroseconds(pipDelay);
 		tft.setTextColor(myColors[i % 22],myColors[11]);
-		tft.print(c); // Print character set in text window
+		tft.write(c); // Print character set in text window
 		c++;
 		if(c == 255)
 			c = 32;

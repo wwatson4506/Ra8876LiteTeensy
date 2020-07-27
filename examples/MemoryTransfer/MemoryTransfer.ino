@@ -145,15 +145,16 @@ void writeImageChromakeyZoom(int x, int y, int w, int h, ru16 chromakeyColor, in
 
 void setup() {
   unsigned long startTime, endTime, end2Time;
-  Serial.begin(9600);
-  while (!Serial && millis() < 500) {} //wait for Serial Monitor
+//  Serial.begin(9600);
+  while (!Serial && millis() < 1500) {} //wait for Serial Monitor
   Serial.println("LCD Memory Transfer test starting!");
   Serial.print("Compiled ");
   Serial.print(__DATE__);
   Serial.print(" at ");
   Serial.println(__TIME__);
   Serial.print("SPI transfer speed ");
-  Serial.print((float)tft.SPIspeed / 1000000, 1);
+//  Serial.print((float)tft.SPIspeed / 1000000, 1);
+  Serial.print((float)SPIspeed / 1000000, 1);
   Serial.print("MHz");
   Serial.println("\n");
 
@@ -162,9 +163,9 @@ void setup() {
   //Connect a Teensy pin to pin 14 on the display.
   //Can use analogWrite() but I suggest you increase the PWM frequency first so it doesn't sing.
   pinMode(BACKLITE, OUTPUT);
-  analogWriteFrequency(BACKLITE, 1000000);
-  //digitalWrite(BACKLITE, HIGH);
-  analogWrite(BACKLITE, 256);
+//  analogWriteFrequency(BACKLITE, 1000000);
+  digitalWrite(BACKLITE, HIGH);
+//  analogWrite(BACKLITE, 256);
 
   bool result = tft.begin();
 

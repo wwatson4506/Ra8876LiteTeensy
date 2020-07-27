@@ -2,7 +2,7 @@
 // Same as the scroll.ino example but uses
 // VT100 command strings to scroll up and down.
 #include "Arduino.h"
-#include "Ra8876_Lite.h"
+//#include "Ra8876_Lite.h"
 #include "tft.h"
 #include "vt100.h"
 

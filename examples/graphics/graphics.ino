@@ -52,7 +52,8 @@ void setup() {
   pinMode(BACKLITE, OUTPUT);
   digitalWrite(BACKLITE, HIGH);
     
-	tft.begin(20000000);
+//	tft.begin(20000000);
+	tft.begin();
   tft.graphicMode(true);
   tft.setTextCursor(0,0);
   tft.setFont(Arial_14);
