@@ -35,6 +35,17 @@ void SSD2828::reset(void)
   delay(50);
 
 }
+
+//-----------------------------------------------------------------------------
+void SSD2828::release(void)
+{
+
+  // release SPI pins to high z state, leave reset and CS pins as-is
+
+  pinMode(SDI_2828,INPUT);
+  pinMode(SCLK_2828,INPUT);
+
+}
 //-----------------------------------------------------------------------------
 static inline void spi_delay(void)
 {

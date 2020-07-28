@@ -1,5 +1,5 @@
 /***************************************************************
- * graphics.ino
+ * ER-TFT0784.ino
  *
  * Basic graphics test for Buydisplay.com ER-TFT0874 display
  ***************************************************************/
@@ -7,19 +7,22 @@
 #include "_font_ComicSansMS.h"
 #include "ER-TFT0784_t3.h"
 
-#define BACKLITE 5 //External backlight control connected to this Arduino pin
-
+// Pin connection mapping
 ER_TFT0784_t3 tft = ER_TFT0784_t3(
-		10, // RA8876 CS
-		14, // RA8876 RESET
-		11, // RA8876 MOSI
-		13, // RA8876 SCLK
-		12, // RA8876 MISO
-		36, // SSD2828 CS
-		38, // SSD2828 RESET
-		4,  // SSD2828 SDI
-		37  // SSD2828 SCK
+// Teensy pin  // Display        pin
+		10,        // RA8876 CS      5
+		14,        // RA8876 RESET   11
+		11,        // RA8876 MOSI    7
+		13,        // RA8876 SCLK    8
+		12,        // RA8876 MISO    6
+		36,        // SSD2828 CS     31
+		38,        // SSD2828 RESET  43
+		4,         // SSD2828 SDI    34
+		37         // SSD2828 SCK    35
 );
+
+//External backlight control connected to this Arduino pin
+#define BACKLIGHT 9 // Display pin: 14
 
 // Array of Simple RA8876 Basic Colors
 PROGMEM uint16_t myColors[] = {
@@ -55,16 +58,14 @@ int w, h;
 int i = 0;
 void setup() {
 
-  //I'm guessing most copies of this display are using external PWM
-  //backlight control instead of the internal RA8876 PWM.
-  //Connect a Teensy pin to pin 14 on the display.
-  //Can use analogWrite() but I suggest you increase the PWM frequency first so it doesn't sing.
-  pinMode(BACKLITE, OUTPUT);
-  digitalWrite(BACKLITE, HIGH);
+  pinMode(BACKLIGHT, OUTPUT);
+  analogWriteFrequency(BACKLIGHT, 50000);
+  analogWrite(BACKLIGHT, 128);
+
 	tft.begin(20000000);
 }
 
-void loop() {    
+void loop() {
   tft.graphicMode(true);
   tft.setTextCursor(0,0);
   tft.setFont(ComicSansMS_14);

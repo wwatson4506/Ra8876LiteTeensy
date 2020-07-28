@@ -33,6 +33,7 @@ public:
 
   void reset();
   void initialize();
+  void release();
 
 private:
   uint8_t CS_2828;
