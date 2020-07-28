@@ -2,7 +2,7 @@
 // Taken from sumotoy's RA8875 library
 // and modified for use with the RA8876.
 #include "Arduino.h"
-#include "Ra8876_Lite.h"
+//#include "Ra8876_Lite.h"
 #include "RA8876_t3.h"
 
 //#include "vt100.h"
@@ -79,7 +79,7 @@ void setup() {
     
   tft.begin();
 	//initVT100();
-	tft.setTextAt(0,0);
+	tft.setCursor(0,0);
 	tft.fillScreen(myColors[11]);
 	tft.setFontSize(1,false);
 	tft.fillStatusLine(myColors[11]);

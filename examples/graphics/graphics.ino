@@ -68,11 +68,10 @@ void setup() {
   //Can use analogWrite() but I suggest you increase the PWM frequency first so it doesn't sing.
   pinMode(BACKLITE, OUTPUT);
   digitalWrite(BACKLITE, HIGH);
-
 	tft.begin(20000000);
 }
 
-void loop() {
+void loop() {    
   tft.graphicMode(true);
   tft.setTextCursor(0,0);
   tft.setFont(ComicSansMS_14);

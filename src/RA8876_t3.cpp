@@ -372,7 +372,7 @@ boolean RA8876_t3::ra8876Initialize() {
 	_FNTheight = 16; // Default font height;
 	_scaleX = 1;
 	_scaleY = 1;
-	_textMode = false;
+	_textMode = true;
 	prompt_size = 1 * (_FNTwidth * _scaleX); // prompt ">"
 	vdata = 0;  // Used in tft_print()
 	leftmarg = 0;
@@ -1682,8 +1682,10 @@ void  RA8876_t3::writeStatusLine(ru16 x0, uint16_t fgcolor, uint16_t bgcolor, co
 	uint8_t tempScaleY = _scaleY;
 	uint8_t tempFontWidth = _FNTwidth;
 	uint8_t tempFontHeight = _FNTheight;
+	uint16_t temp_height = _height;
+	_height = _height-STATUS_LINE_HEIGHT;
 
-	// Set fontsize to a canstant value
+	// Set fontsize to a constant value
 	if(UDFont) {
 		_scaleX = _scaleY = 1;
 		_FNTwidth = 8;
@@ -1726,6 +1728,7 @@ void  RA8876_t3::writeStatusLine(ru16 x0, uint16_t fgcolor, uint16_t bgcolor, co
 	_scaleY = tempScaleY;
 	_FNTwidth = tempFontWidth;
 	_FNTheight = tempFontHeight;
+	_height = temp_height;
 	buildTextScreen();
 	textMode(false);
 	setTextCursor(tempX,tempY);
@@ -1805,7 +1808,7 @@ void RA8876_t3::update_xy(void)
 {
    if(_cursorY >= _scrollYB) 
    {
-      //scroll();
+      scroll();
       _cursorY -= (_FNTheight * _scaleY);
 	  _cursorX = _scrollXL;
    }
@@ -4428,7 +4431,6 @@ void RA8876_t3::drawRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t col
   lcdRegDataWrite(RA8876_DLVER0,y_end, false);//6eh
   lcdRegDataWrite(RA8876_DLVER1,y_end>>8, false);//6fh     
   lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_SQUARE, true);//76h,0xa0
-  
 }
 
 // Draw a filled rectangle. Note: damages text color register
@@ -6138,13 +6140,14 @@ size_t RA8876_t3::write(uint8_t c) {
 }
 
 size_t RA8876_t3::write(const uint8_t *buffer, size_t size) {
-  if(_use_default){ 
+  if(_use_default){
 	size_t cb = size;
 	// Lets try to handle some of the special font centering code that was done for default fonts.
 	if (_absoluteCenter || _relativeCenter ) {
 		int16_t x, y;
 	  	uint16_t strngWidth, strngHeight;
 	  	getTextBounds(buffer, cb, 0, 0, &x, &y, &strngWidth, &strngHeight);
+	  	Serial.printf("_fontwrite bounds: %d %d %u %u\n", x, y, strngWidth, strngHeight);
 	  	// Note we may want to play with the x ane y returned if they offset some
 		if (_absoluteCenter && strngWidth > 0){//Avoid operations for strngWidth = 0
 			_absoluteCenter = false;

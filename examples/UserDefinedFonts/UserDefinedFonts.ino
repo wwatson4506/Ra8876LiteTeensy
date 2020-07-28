@@ -1,10 +1,9 @@
 // UserDefinedFonts.ino
 #include "Arduino.h"
-#include "Ra8876_Lite.h"
 #include "RA8876_t3.h"
 
 //#include "vt100.h"
-#include <math.h>
+//#include <math.h>
 
 #define RA8876_CS 10
 #define RA8876_RESET 8
@@ -51,13 +50,13 @@ void setup() {
 	//initVT100();
 	tft.fontLoadMEM((char *)font8x16);
 	tft.setFontSize(1,false);
-	tft.setTextAt(0,0);
+	tft.setCursor(0,0);
   tft.println("Font Test");
 	tft.fillScreen(myColors[0]);
 	tft.fillStatusLine(myColors[0]);
 	tft.printStatusLine(0,myColors[13],myColors[0],"Example of User Defined Characters. 8x16 font size. Uses tftRawWrite() function.");
 	tft.setFontSource(1); //Select UDFont.
-	tft.setTextColorFG(myColors[1] , myColors[0]);
+	tft.setTextColor(myColors[1] , myColors[0]);
 	tft.setFontSize(0,true); // Set to smallest font scale.
 	tft.printf("Hello Teensy!, font scaling = 0\n"); 
 	tft.setFontSize(1,true); // Set to 1X font scale.
@@ -65,7 +64,7 @@ void setup() {
 	tft.setFontSize(2,true); // Set to 2X font scale.
 	tft.printf("Hello Teensy!, font scaling = 2\n\n"); 
 	tft.setFontSize(1,true); // Set to smallest font scale.
-	tft.setTextColorFG(myColors[6] , myColors[0]);
+	tft.setTextColor(myColors[6] , myColors[0]);
 	// Send raw characters to screen. Does not process ASCII control codes.
 	for(uint8_t i = 0; i < 255; i++)
 		tft.rawPrint(i);

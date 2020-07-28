@@ -119,7 +119,7 @@ typedef struct {
 
 
 // Default to a relatively slow speed for breadboard testing. 
-const ru32 SPIspeed = 3000000;
+const ru32 SPIspeed = 47000000;
 
 // Max. size in byte of SDRAM
 const uint32_t MEM_SIZE_MAX	= 16l*1024l*1024l;
@@ -655,7 +655,6 @@ private:
 
 #if defined(KINETISK)
  	KINETISK_SPI_t *_pkinetisk_spi;
-	uint32_t _fifo_full_test;
 #elif defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x
  	IMXRT_LPSPI_t *_pimxrt_spi;
 
