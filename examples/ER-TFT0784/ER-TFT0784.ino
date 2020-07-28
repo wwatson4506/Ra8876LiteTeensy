@@ -1,17 +1,25 @@
 /***************************************************************
  * graphics.ino
  *
- * Basic graphics test for RA8876 based display
+ * Basic graphics test for Buydisplay.com ER-TFT0874 display
  ***************************************************************/
 #include "Arduino.h"
 #include "_font_ComicSansMS.h"
+#include "ER-TFT0784_t3.h"
 
 #define BACKLITE 5 //External backlight control connected to this Arduino pin
 
-#include "RA8876_t3.h"
-#define RA8876_CS 10
-#define RA8876_RESET 8
-RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
+ER_TFT0784_t3 tft = ER_TFT0784_t3(
+		10, // RA8876 CS
+		14, // RA8876 RESET
+		11, // RA8876 MOSI
+		13, // RA8876 SCLK
+		12, // RA8876 MISO
+		36, // SSD2828 CS
+		38, // SSD2828 RESET
+		4,  // SSD2828 SDI
+		37  // SSD2828 SCK
+);
 
 // Array of Simple RA8876 Basic Colors
 PROGMEM uint16_t myColors[] = {
