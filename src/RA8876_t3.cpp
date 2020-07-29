@@ -5091,7 +5091,7 @@ void RA8876_t3::setFont(const GFXfont *f) {
         		indexx_max = i;
         	}
         }
-        Serial.printf("Set GFX Font(%x): Y: %d %d(%c) %d(%c) X: %d(%c) %d(%c)\n", (uint32_t)f, f->yAdvance, 
+//        Serial.printf("Set GFX Font(%x): Y: %d %d(%c) %d(%c) X: %d(%c) %d(%c)\n", (uint32_t)f, f->yAdvance, 
         	miny_offset, index_min + f->first, max_delta, index_max + f->first,
         	minx_offset, indexx_min + f->first, maxx_overlap, indexx_max + f->first);
 #endif
@@ -6312,7 +6312,7 @@ void RA8876_t3::setRotation(uint8_t rotation) //rotate text and graphics
 
  	setClipRect();
 	setOrigin();
-	Serial.println("Rotate: After Origins"); Serial.flush();
+	//Serial.println("Rotate: After Origins"); Serial.flush();
 
 }
 
@@ -6465,7 +6465,7 @@ PIP window will be disabled when VDIR set as 1.
 	temp_in =  temp = lcdRegDataRead(RA8876_DPCR);
 	temp |= cSetb3;
 	lcdRegDataWrite(RA8876_DPCR, temp);
-	Serial.printf("call vscan_b_to_t %x %x\n", temp_in, temp);
+//	Serial.printf("call vscan_b_to_t %x %x\n", temp_in, temp);
 
 }
 
