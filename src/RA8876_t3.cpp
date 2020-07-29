@@ -5542,7 +5542,7 @@ void RA8876_t3::charBounds(char c, int16_t *x, int16_t *y,
             *x  = 0;    // Reset x to zero, advance y by one line
             *y += textsize_y * gfxFont->yAdvance;
         } else if(c != '\r') { // Not a carriage return; is normal char
-            uint8_t first = gfxFont->first,
+            uint16_t first = gfxFont->first,
                     last  = gfxFont->last;
             if((c >= first) && (c <= last)) { // Char present in this font?
     			GFXglyph *glyph  = gfxFont->glyph + (c - first);
@@ -5681,7 +5681,7 @@ void RA8876_t3::drawGFXFontChar(unsigned int c) {
 	// Lets do Adafruit GFX character output here as well
     if(c == '\r') 	 return;
     // Some quick and dirty tests to see if we can
-    uint8_t first = gfxFont->first;
+    uint16_t first = gfxFont->first;
     if((c < first) || (c > gfxFont->last)) return; 
 
     GFXglyph *glyph  = gfxFont->glyph + (c - first);

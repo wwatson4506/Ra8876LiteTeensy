@@ -846,29 +846,6 @@ memory size. For example : page_size = 1024*600*2byte(16bpp) = 1228800byte, maxi
 #define	cClrb6		0xbf
 #define	cClrb7		0x7f
 
-// Lets see about supporting Adafruit fonts as well?
-#ifndef _GFXFONT_H_
-#define _GFXFONT_H_
-/// Font data stored PER GLYPH
-typedef struct {
-	uint16_t bitmapOffset;     ///< Pointer into GFXfont->bitmap
-	uint8_t  width;            ///< Bitmap dimensions in pixels
-    uint8_t  height;           ///< Bitmap dimensions in pixels
-	uint8_t  xAdvance;         ///< Distance to advance cursor (x axis)
-	int8_t   xOffset;          ///< X dist from cursor pos to UL corner
-    int8_t   yOffset;          ///< Y dist from cursor pos to UL corner
-} GFXglyph;
-
-/// Data stored for FONT AS A WHOLE
-typedef struct { 
-	uint8_t  *bitmap;      ///< Glyph bitmaps, concatenated
-	GFXglyph *glyph;       ///< Glyph array
-	uint8_t   first;       ///< ASCII extents (first char)
-    uint8_t   last;        ///< ASCII extents (last char)
-	uint8_t   yAdvance;    ///< Newline distance (y axis)
-} GFXfont;
-
-#endif // _GFXFONT_H_ 
 
 // Define USE_FF_FONTLOAD to 1 if using FatFS to load user defined fonts
 // from a disk drive. Needs FatFS, SDFat or SD. fontLoad() is currently
