@@ -84,54 +84,18 @@ typedef uint32_t	ru32;
 #define XHSYNC_INV  1 // 0:no inversion, 1:inversion 
 #define XVSYNC_INV  1 // 0:no inversion, 1:inversion 
 #define XDE_INV     0 // 0:no inversion, 1:inversion 
-#define XPCLK_INV  1  // 0:no inversion, 1:inversion 
-#define HPW       70   //
+#define XPCLK_INV  0 //1 // 0:no inversion, 1:inversion 
+#define HPW       24 // 70   //
 #define HND       160
-//#define HDW       1024
 #define HST       160
-#define VPW       10
-#define VND       23
-//#define VDH       600
+#define VPW       2 // 10
+#define VND       10 //23
 #define VST       12
 
 #define RA8877_LVDS_FORMAT  0    // 0:Format1(VESA format), 1:Format2 =(JEIDA format) 
 
-//Physical size of screen - these numbers won't change even if rotation is applied or status bar occupies some screen area
-//#define SCREEN_WIDTH HDW
-//#define SCREEN_HEIGHT VDH
-
 //pixels to reserve for status line (if any status line functions get used)
 #define STATUS_LINE_HEIGHT 24
-
-
-/*Page(image buffer) configure*/
-/*The maximum number of pages is based on SDRAM capacity and color depth and width and height of one page*/
-/*For example we used W9812G6JH SDRAM that capacity =  16Mbyte = 16777216 bytes*/
-/*The SDRAM is divided into several image buffers and the maximum number of image buffers is limited by the 
-memory size. For example : page_size = 1024*600*2byte(16bpp) = 1228800byte, maximum number = 16/1.2288 */
-/*vertical multi page application*/
-#define PAGE1_START_ADDR  0
-#define PAGE2_START_ADDR  1024*600*2   // 1228800 bytes
-#define PAGE3_START_ADDR  1024*600*2*2 // 2457600 
-#define PAGE4_START_ADDR  1024*600*2*3
-#define PAGE5_START_ADDR  1024*600*2*4
-#define PAGE6_START_ADDR  1024*600*2*5
-#define PAGE7_START_ADDR  1024*600*2*6
-#define PAGE8_START_ADDR  1024*600*2*7
-#define PAGE9_START_ADDR  1024*600*2*8
-#define PAGE10_START_ADDR  1024*600*2*9
-
-#define PATTERN1_RAM_START_ADDR 1024*600*2*10
-#define PATTERN2_RAM_START_ADDR (1024*600*2*10)+(16*16*2)
-#define PATTERN3_RAM_START_ADDR (1024*600*2*10)+(16*16*2)+(16*16*2)
-
-/*DMA picture data start address*/
-#define WP1_ADDR  0
-#define WP2_ADDR  1024*600*2
-#define WP3_ADDR  1024*600*2*2
-#define WP4_ADDR  1024*600*2*3
-#define WP5_ADDR  1024*600*2*4
-#define WP6_ADDR  1024*600*2*5
 
 #define COLOR65K_BLACK         0x0000
 #define COLOR65K_WHITE         0xffff
@@ -853,17 +817,6 @@ memory size. For example : page_size = 1024*600*2byte(16bpp) = 1228800byte, maxi
 // Else, set to 0
 #define USE_FF_FONTLOAD 0
 
-/* Screen Page Addresses */
-#define SCREEN_1  0
-#define SCREEN_2  1024*600*2
-#define SCREEN_3  1024*600*2*2
-#define SCREEN_4  1024*600*2*3
-#define SCREEN_5  1024*600*2*4
-#define SCREEN_6  1024*600*2*5
-#define SCREEN_7  1024*600*2*6
-#define SCREEN_8  1024*600*2*7
-#define SCREEN_9  1024*600*2*8
-//#define SCREEN_10  1024*600*2*9 // Used for CGRAM at this time
 
 typedef struct boxSaveGet boxSaveGet_t;
 
