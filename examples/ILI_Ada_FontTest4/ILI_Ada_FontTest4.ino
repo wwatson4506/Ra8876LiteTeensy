@@ -65,7 +65,7 @@ void setup() {
   pinMode(BACKLITE, OUTPUT);
   digitalWrite(BACKLITE, HIGH);
 
-//  tft.setRotation(4);
+  //  tft.setRotation(4);
   tft.fillScreen(BLACK);
   tft.setTextColor(WHITE);
   tft.setFont(Arial_14);
@@ -113,7 +113,7 @@ void loop()
   Serial.printf("\nRotation: %d\n", test_screen_rotation);
   tft.setRotation(test_screen_rotation);
   tft.fillScreen(RED);
-  tft.setCursor(tft.width()/2, tft.height()/2, true);
+  tft.setCursor(tft.width() / 2, tft.height() / 2, true);
   tft.printf("Rotation: %d", test_screen_rotation);
   test_screen_rotation = (test_screen_rotation + 1) & 0x3;
   tft.setCursor(200, 300);
@@ -136,7 +136,15 @@ void loop()
       tft.setTextColor(font_test_list[font_index].font_fg_color);
     if (font_test_list[font_index].ili_font) tft.setFont(*font_test_list[font_index].ili_font);
     else if (font_test_list[font_index].gfx_font)  tft.setFont(font_test_list[font_index].gfx_font);
-    else tft.setFontDef();
+    else if (test_screen_rotation != 1) {
+      tft.setFont(Chancery_24_Italic);
+      tft.setTextColor(GREEN);
+      tft.println(font_test_list[font_index].font_name);
+      tft.setCursor(CENTER, CENTER);
+      tft.println("*** Only works in Rotation 0 ***");
+      continue;  // only on Page 0
+    }
+    else  tft.setFontDef();
     tft.println(font_test_list[font_index].font_name);
     displayStuff1();
   }
@@ -148,15 +156,15 @@ void displayStuff(const char *font_name)
   elapsedMillis elapsed_time = 0;
   tft.println(font_name);
   tft.println("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
-//  stepThrough();
+  //  stepThrough();
   tft.println("abcdefghijklmnopqrstuvwxyz");
-//  stepThrough();
+  //  stepThrough();
   tft.println("0123456789");
-//  stepThrough();
+  //  stepThrough();
   tft.println("!@#$%^ &*()-");
-//  stepThrough();
+  //  stepThrough();
   tft.println(); tft.println();
-//  stepThrough();
+  //  stepThrough();
   Serial.printf("%s: %dms\n", font_name, (uint32_t)elapsed_time);
 }
 
@@ -180,7 +188,7 @@ uint32_t displayStuff1()
   for (uint16_t y = rect_y + 5; y < rect_y + 50; y += 5)
     tft.drawFastHLine(rect_x + 1, y, 98, PINK);
   for (uint16_t x = rect_x + 5; x < rect_x + 100; x += 5)
-    tft.drawFastVLine(x, rect_y+1, 48, PINK);
+    tft.drawFastVLine(x, rect_y + 1, 48, PINK);
   tft.setCursor(width / 2, height - 50, true);
   tft.print("Center");
 
@@ -190,23 +198,23 @@ uint32_t displayStuff1()
   for (uint16_t y = rect_y + 5; y < rect_y + 50; y += 5)
     tft.drawFastHLine(rect_x + 1, y, 98, CYAN);
   for (uint16_t x = rect_x + 5; x < rect_x + 100; x += 5)
-    tft.drawFastVLine(x, rect_y+1, 48, CYAN);
+    tft.drawFastVLine(x, rect_y + 1, 48, CYAN);
   tft.setCursor(CENTER, rect_y);
   tft.print("XCENTR");
 
   // Lets try again with CENTER Y keyword.
   rect_x = 50;
-  rect_y = tft.height()/2 -25;
+  rect_y = tft.height() / 2 - 25;
   tft.drawRect(rect_x, rect_y, 100, 50, CYAN);
   for (uint16_t y = rect_y + 5; y < rect_y + 50; y += 5)
     tft.drawFastHLine(rect_x + 1, y, 98, PINK);
   for (uint16_t x = rect_x + 5; x < rect_x + 100; x += 5)
-  tft.setCursor(50, CENTER);
+    tft.setCursor(50, CENTER);
   tft.print("YCENTR");
-  
+
   // Lets see how close the getTextBounds gets the bounds of the text
   rect_x = 200;
-  rect_y += 25; //center 
+  rect_y += 25; //center
   static const char rectText[] = "RectText";
   int16_t xT, yT;
   uint16_t wT, hT;
