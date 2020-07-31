@@ -9,7 +9,7 @@
 #include "RA8876_t3.h"
 #define RA8876_CS 10
 #define RA8876_RESET 9
-//#define BACKLITE 7 //External backlight control connected to this Arduino pin
+#define BACKLITE 7 //External backlight control connected to this Arduino pin
 RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
 
 void setup() {
@@ -41,37 +41,37 @@ void setup() {
   tft.setTextColor(WHITE);
   tft.println("Test of the default font");
   tft.println();
-  wait_for_keyboard();
+//  wait_for_keyboard();
 
   tft.setTextColor(WHITE, BLUE);
   tft.setFont(ComicSansMS_18);
   tft.println("Opaque ILI font ComicSansMS_18");
   tft.println();
 
-  wait_for_keyboard();
+//  wait_for_keyboard();
   int cursor_x = tft.getCursorX();
   int cursor_y = tft.getCursorY();
   tft.fillRect(cursor_x, cursor_y, tft.width(), 20, RED);
-  wait_for_keyboard();
+//  wait_for_keyboard();
   tft.setTextColor(GREEN);
   tft.println("Transparent ILI ComicSansMS_18");
   tft.println();
-  wait_for_keyboard();
+//  wait_for_keyboard();
 
   tft.setTextColor(WHITE, RED);
   tft.setFont(&FreeSansOblique12pt7b);
   tft.println("Opaque GFX FreeSansOblique12pt");
-  wait_for_keyboard();
+//  wait_for_keyboard();
 
   cursor_x = tft.getCursorX();
   cursor_y = tft.getCursorY();
   tft.fillRect(cursor_x, cursor_y, tft.width(), 20, YELLOW);
-  wait_for_keyboard();
+//  wait_for_keyboard();
   tft.setTextColor(BLUE);
   tft.println("Transparent GFX");
 
-  wait_for_keyboard();
-  //tft.setFontDef();
+//  wait_for_keyboard();
+  tft.setFontDef();
   tft.setTextColor(GREEN);
   tft.setFontSize(1, true);
   tft.println("This is default font:");
