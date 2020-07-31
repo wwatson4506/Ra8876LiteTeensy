@@ -153,6 +153,15 @@ tftSave_t *screenPage8 = &screenSave8;
 tftSave_t *screenPage9 = &screenSave9;
 //tftSave_t *screenPage10 = &screenSave10; // Not used at this time
 
+
+	
+	int16_t HDW = 1024;
+	int16_t VDH = 600;
+	
+	//Physical size of screen - these numbers won't change even if rotation is applied or status bar occupies some screen area
+	int16_t SCREEN_WIDTH  = HDW;
+	int16_t SCREEN_HEIGHT = VDH;
+
 #ifdef SPI_HAS_TRANSFER_ASYNC
 //**************************************************************//
 // If using DMA, must close transaction and de-assert _CS
@@ -176,13 +185,6 @@ RA8876_t3::RA8876_t3(const uint8_t CSp, const uint8_t RSTp, const uint8_t mosi_p
 	_sclk = sclk_pin;
 	_cs = CSp;
 	_rst = RSTp;
-	displayDimensions();
-}
-
-void RA8876_t3::displayDimensions(const uint16_t width, const uint16_t height)
-{
-	_screenWidth = width;
-	_screenHeight = height;
 }
 
 //**************************************************************//
@@ -348,7 +350,7 @@ boolean RA8876_t3::ra8876Initialize() {
 	lcdRegWrite(RA8876_PCSR);//13h
 	lcdDataWrite(XHSYNC_INV<<7|XVSYNC_INV<<6|XDE_INV<<5);
     
-	lcdHorizontalWidthVerticalHeight(_screenWidth,_screenHeight);  // HDW, VHD
+	lcdHorizontalWidthVerticalHeight(HDW,VDH);
 	lcdHorizontalNonDisplay(HND);
 	lcdHsyncStartPosition(HST);
 	lcdHsyncPulseWidth(HPW);
@@ -357,10 +359,10 @@ boolean RA8876_t3::ra8876Initialize() {
 	lcdVsyncPulseWidth(VPW);
 	
 	// Init Global Variables
-	_width = 	_screenWidth;
-	_height = 	_screenHeight;
+	_width = 	SCREEN_WIDTH;
+	_height = 	SCREEN_HEIGHT;
 	_rotation = 0;
-	currentPage = pageStartAddress(1); // set default screen page address
+	currentPage = PAGE1_START_ADDR; // set default screen page address
 	pageOffset = 0;
 	gCursorX = 0;
 	gCursorY = 0;
@@ -442,40 +444,41 @@ boolean RA8876_t3::ra8876Initialize() {
 	saveTFTParams(screenPage7);
 	saveTFTParams(screenPage8);
 	saveTFTParams(screenPage9);
+//	saveTFTParams(screenPage10);
 
 	// Initialize all screen colors to default values
 	currentPage = 999; // Don't repeat screen page 1 init.
-	selectScreen(1);	// Init page 1 screen
+	selectScreen(PAGE1_START_ADDR);	// Init page 1 screen
 	fillScreen(COLOR65K_DARKBLUE);     // Not sure why we need to clear the screen twice
 	//fillStatusLine(COLOR65K_DARKBLUE);
-	selectScreen(2);	// Init page 2 screen
+	selectScreen(PAGE2_START_ADDR);	// Init page 2 screen
 	fillScreen(COLOR65K_DARKBLUE);
 	//fillStatusLine(COLOR65K_DARKBLUE);
-	selectScreen(3);	// Init page 3 screen
+	selectScreen(PAGE3_START_ADDR);	// Init page 3 screen
 	fillScreen(COLOR65K_DARKBLUE);
 	//fillStatusLine(COLOR65K_DARKBLUE);
-	selectScreen(4);	// Init page 4 screen
+	selectScreen(PAGE4_START_ADDR);	// Init page 4 screen
 	fillScreen(COLOR65K_DARKBLUE);
 	//fillStatusLine(COLOR65K_DARKBLUE);
-	selectScreen(5);	// Init page 5 screen
+	selectScreen(PAGE5_START_ADDR);	// Init page 5 screen
 	fillScreen(COLOR65K_DARKBLUE);
 	//fillStatusLine(COLOR65K_DARKBLUE);
-	selectScreen(6);	// Init page 6 screen
+	selectScreen(PAGE6_START_ADDR);	// Init page 6 screen
 	fillScreen(COLOR65K_DARKBLUE);
 	//fillStatusLine(COLOR65K_DARKBLUE);
-	selectScreen(7);	// Init page 7 screen
+	selectScreen(PAGE7_START_ADDR);	// Init page 7 screen
 	//fillScreen(COLOR65K_DARKBLUE);
 	fillStatusLine(COLOR65K_DARKBLUE);
-	selectScreen(8);	// Init page 8 screen
+	selectScreen(PAGE8_START_ADDR);	// Init page 8 screen
 	fillScreen(COLOR65K_DARKBLUE);
 	//fillStatusLine(COLOR65K_DARKBLUE);
-	selectScreen(9);	// Init page 9 screen
+	selectScreen(PAGE9_START_ADDR);	// Init page 9 screen
 	fillScreen(COLOR65K_DARKBLUE);
 	//fillStatusLine(COLOR65K_DARKBLUE);
-	selectScreen(10);	// Init page 10 screen
+	selectScreen(PAGE10_START_ADDR);	// Init page 10 screen
 	fillScreen(COLOR65K_DARKBLUE);
 	//fillStatusLine(COLOR65K_DARKBLUE);
-	selectScreen(1); // back to page 1 screen
+	selectScreen(PAGE1_START_ADDR); // back to page 1 screen
 
 	// Set graphic mouse cursor to center of screen
 	gcursorxy(width() / 2, height() / 2);
@@ -1672,8 +1675,6 @@ void RA8876_t3::clearStatusLine(uint16_t color) {
 //**************************************************************//
 void  RA8876_t3::writeStatusLine(ru16 x0, uint16_t fgcolor, uint16_t bgcolor, const char *str)
 {
-	_height = _screenHeight-STATUS_LINE_HEIGHT;
-	
 	uint16_t tempX = _cursorX;
 	uint16_t tempY = _cursorY;
 	uint16_t tempBGColor = _TXTBackColor;
@@ -1683,7 +1684,7 @@ void  RA8876_t3::writeStatusLine(ru16 x0, uint16_t fgcolor, uint16_t bgcolor, co
 	uint8_t tempFontWidth = _FNTwidth;
 	uint8_t tempFontHeight = _FNTheight;
 	uint16_t temp_height = _height;
-	_height = _height-STATUS_LINE_HEIGHT;
+	_height = SCREEN_HEIGHT-STATUS_LINE_HEIGHT;
 
 	// Set fontsize to a constant value
 	if(UDFont) {
@@ -1713,7 +1714,7 @@ void  RA8876_t3::writeStatusLine(ru16 x0, uint16_t fgcolor, uint16_t bgcolor, co
 		_scaleX = _scaleY = 1;
 		while(*str != '\0')
 		{
-			CGRAM_Start_address(patternRamStartAddr(1));
+			CGRAM_Start_address(PATTERN1_RAM_START_ADDR);
 			ramAccessPrepare();
 			checkWriteFifoNotFull();  
 			lcdDataWrite(*str>>8);
@@ -1820,7 +1821,7 @@ void RA8876_t3::update_xy(void)
 //**************************************************************//
 void RA8876_t3::update_tft(uint8_t data)
 {
-	CGRAM_Start_address(1);
+	CGRAM_Start_address(PATTERN1_RAM_START_ADDR);
 	textMode(true);
 	setTextCursor(_cursorX,_cursorY);
 	ramAccessPrepare();
@@ -2882,8 +2883,8 @@ void RA8876_t3::drawEllipseFill(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color)
 // Scroll Screen up
 //*************************************************************//
 void RA8876_t3::scroll(void) { // No arguments for now
-	bteMemoryCopy(currentPage,_screenWidth, _scrollXL, _scrollYT+(_FNTheight*_scaleY),	//Source
-				  currentPage,_screenWidth, _scrollXL, pageOffset+_scrollYT,	//Desination
+	bteMemoryCopy(currentPage,SCREEN_WIDTH, _scrollXL, _scrollYT+(_FNTheight*_scaleY),	//Source
+				  currentPage,SCREEN_WIDTH, _scrollXL, pageOffset+_scrollYT,	//Desination
 				  _scrollXR-_scrollXL, _scrollYB-_scrollYT-(_FNTheight*_scaleY)); //Copy Width, Height
 	// Clear bottom text line
 	drawSquareFill(_scrollXL, _scrollYB-(_FNTheight*_scaleY), _scrollXR-1, _scrollYB-1, _TXTBackColor);
@@ -2894,11 +2895,11 @@ void RA8876_t3::scroll(void) { // No arguments for now
 // Scroll Screen down
 //*************************************************************//
 void RA8876_t3::scrollDown(void) { // No arguments for now
-	bteMemoryCopy(currentPage,_screenWidth, _scrollXL, _scrollYT,	//Source
-				  pageStartAddress(10),_screenWidth, _scrollXL, _scrollYT,	//Desination
+	bteMemoryCopy(currentPage,SCREEN_WIDTH, _scrollXL, _scrollYT,	//Source
+				  PAGE10_START_ADDR,SCREEN_WIDTH, _scrollXL, _scrollYT,	//Desination
 				  _scrollXR-_scrollXL, (_scrollYB-_scrollYT)-(_FNTheight*_scaleY)); //Copy Width, Height
-	bteMemoryCopy(pageStartAddress(10),_screenWidth, _scrollXL, _scrollYT,	//Source
-				  currentPage,_screenWidth, _scrollXL, _scrollYT+(_FNTheight*_scaleY),	//Desination
+	bteMemoryCopy(PAGE10_START_ADDR,SCREEN_WIDTH, _scrollXL, _scrollYT,	//Source
+				  currentPage,SCREEN_WIDTH, _scrollXL, _scrollYT+(_FNTheight*_scaleY),	//Desination
 				  _scrollXR-_scrollXL, (_scrollYB-_scrollYT)-_FNTheight); //Copy Width, Height
 	// Clear top text line
 	drawSquareFill(_scrollXL, _scrollYT, _scrollXR-1,_scrollYT+(_FNTheight*_scaleY), _TXTBackColor);
@@ -2916,8 +2917,8 @@ uint32_t RA8876_t3::boxPut(uint32_t vPageAddr, uint16_t x0, uint16_t y0,
 							 uint16_t x1, uint16_t y1,
 							 uint16_t dx0,uint16_t dy0) {
 
-	bteMemoryCopy(currentPage, _screenWidth, x0, y0,
-    vPageAddr, _screenWidth, dx0, dy0,
+	bteMemoryCopy(currentPage, SCREEN_WIDTH, x0, y0,
+    vPageAddr, SCREEN_WIDTH, dx0, dy0,
     x1-x0, y1-y0);
 	return vPageAddr;
 }
@@ -2932,8 +2933,8 @@ uint32_t RA8876_t3::boxGet(uint32_t vPageAddr, uint16_t x0, uint16_t y0,
 							 uint16_t x1, uint16_t y1,
 							 uint16_t dx0,uint16_t dy0) {
 
-	bteMemoryCopy(vPageAddr, _screenWidth, x0, y0,
-	              currentPage, _screenWidth, dx0, dy0,
+	bteMemoryCopy(vPageAddr, SCREEN_WIDTH, x0, y0,
+	              currentPage, SCREEN_WIDTH, dx0, dy0,
 	              x1-dx0, y1-dy0);
 	return vPageAddr;
 }
@@ -2952,7 +2953,7 @@ void RA8876_t3::bteMemoryCopy(ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0
   bte_Source0_ImageWidth(s0_image_width);
   bte_Source0_WindowStartXY(s0_x,s0_y);
 
-//  bte_Source1_MemoryStartAddr(pageStartAddress(3));
+//  bte_Source1_MemoryStartAddr(PAGE3_START_ADDR);
 //  bte_Source1_ImageWidth(des_image_width);
 //  bte_Source1_WindowStartXY(des_x,des_y);
 
@@ -3802,72 +3803,78 @@ PIP 2 Window Color Depth Setting
 // ALT + (F1 to F9) using USBHost_t36 Keyboard Driver
 // and my USBKeyboard host driver.
 // Also, STBASIC Commands: screen 0 to screen 8
-void RA8876_t3::selectScreen(uint8_t screenPage) {
+void RA8876_t3::selectScreen(uint32_t screenPage) {
 	check2dBusy();
 	tftSave_t *tempSave, *tempRestore;
 	// Don't Select the current screen page
 	if(screenPage == currentPage)
 		return;
 	switch(currentPage) {
-		case 1:
+		case PAGE1_START_ADDR:
 			tempSave = screenPage1; 
 			break;
-		case 2:
+		case PAGE2_START_ADDR:
 			tempSave = screenPage2; 
 			break;
-		case 3:
+		case PAGE3_START_ADDR:
 			tempSave = screenPage3; 
 			break;
-		case 4:
+		case PAGE4_START_ADDR:
 			tempSave = screenPage4; 
 			break;
-		case 5:
+		case PAGE5_START_ADDR:
 			tempSave = screenPage5; 
 			break;
-		case 6:
+		case PAGE6_START_ADDR:
 			tempSave = screenPage6; 
 			break;
-		case 7:
+		case PAGE7_START_ADDR:
 			tempSave = screenPage7; 
 			break;
-		case 8:
+		case PAGE8_START_ADDR:
 			tempSave = screenPage8; 
 			break;
-		case 9:
+		case PAGE9_START_ADDR:
 			tempSave = screenPage9; 
 			break;
+//		case PAGE10_START_ADDR:
+//			tempSave = screenPage10; 
+//			break;
 		default:
 			tempSave = screenPage1; 
 	}
 	// Copy back selected screen page parameters
 	switch(screenPage) {
-		case 1:
+		case PAGE1_START_ADDR:
 			tempRestore = screenPage1; 
 			break;
-		case 2:
+		case PAGE2_START_ADDR:
 			tempRestore = screenPage2; 
 			break;
-		case 3:
+		case PAGE3_START_ADDR:
 			tempRestore = screenPage3; 
 			break;
-		case 4:
+		case PAGE4_START_ADDR:
 			tempRestore = screenPage4; 
 			break;
-		case 5:
+		case PAGE5_START_ADDR:
 			tempRestore = screenPage5; 
 			break;
-		case 6:
+		case PAGE6_START_ADDR:
 			tempRestore = screenPage6; 
 			break;
-		case 7:
+		case PAGE7_START_ADDR:
 			tempRestore = screenPage7; 
 			break;
-		case 8:
+		case PAGE8_START_ADDR:
 			tempRestore = screenPage8; 
 			break;
-		case 9:
+		case PAGE9_START_ADDR:
 			tempRestore = screenPage9; 
 			break;
+//		case PAGE10_START_ADDR:
+//			tempRestore = screenPage10; 
+//			break;
 		default:
 			tempRestore = screenPage1; 
 	}
@@ -3966,11 +3973,11 @@ void RA8876_t3::restoreTFTParams(tftSave_t *screenSave) {
 
 void RA8876_t3::useCanvas()
 {
-	displayImageStartAddress(pageStartAddress(1));
+	displayImageStartAddress(PAGE1_START_ADDR);
 	displayImageWidth(_width);
 	displayWindowStartXY(0,0);
 	
-	canvasImageStartAddress(pageStartAddress(2));
+	canvasImageStartAddress(PAGE2_START_ADDR);
 	canvasImageWidth(_width);
 	activeWindowXY(0, 0);
 	activeWindowWH(_width, _height);
@@ -3979,8 +3986,8 @@ void RA8876_t3::useCanvas()
 }
 
 void RA8876_t3::updateScreen() {
-	bteMemoryCopy(pageStartAddress(2),_width,0,0,
-				  pageStartAddress(1),_width, 0,0,
+	bteMemoryCopy(PAGE2_START_ADDR,_width,0,0,
+				  PAGE1_START_ADDR,_width, 0,0,
 				 _width,_height);
 }
 
@@ -4199,7 +4206,7 @@ void RA8876_t3::printStatusLine(uint16_t x0,uint16_t fgColor,uint16_t bgColor, c
 
 // Load a user defined font from memory to RA8876 Character generator RAM
 uint8_t RA8876_t3::fontLoadMEM(char *fontsrc) {
-	CGRAM_initial(patternRamStartAddr(1), (uint8_t *)fontsrc, 16*256);
+	CGRAM_initial(PATTERN1_RAM_START_ADDR, (uint8_t *)fontsrc, 16*256);
 	return 0;
 }
 
@@ -4225,7 +4232,7 @@ uint8_t RA8876_t3::fontLoad(char *fontfile) {
     /* Close open file */
     f_close(&fsrc);
 	// Initialize CGRAM with font loaded into fontdata buffer.
-	CGRAM_initial(patternRamStartAddr(1), fontdata, 16*256);
+	CGRAM_initial(PATTERN1_RAM_START_ADDR, fontdata, 16*256);
 	return 0;
 }
 #endif
@@ -5091,7 +5098,7 @@ void RA8876_t3::setFont(const GFXfont *f) {
         		indexx_max = i;
         	}
         }
-//        Serial.printf("Set GFX Font(%x): Y: %d %d(%c) %d(%c) X: %d(%c) %d(%c)\n", (uint32_t)f, f->yAdvance, 
+        Serial.printf("Set GFX Font(%x): Y: %d %d(%c) %d(%c) X: %d(%c) %d(%c)\n", (uint32_t)f, f->yAdvance, 
         	miny_offset, index_min + f->first, max_delta, index_max + f->first,
         	minx_offset, indexx_min + f->first, maxx_overlap, indexx_max + f->first);
 #endif
@@ -6061,8 +6068,8 @@ void RA8876_t3::setActiveWindow(int16_t XL,int16_t XR ,int16_t YT ,int16_t YB)
 {
 	//if (_portrait){ swapvals(XL,YT); swapvals(XR,YB);}
 
-//	if (XR >= _screenWidth) XR = _screenWidth;
-//	if (YB >= _screenHeight) YB = _screenHeight;
+//	if (XR >= SCREEN_WIDTH) XR = SCREEN_WIDTH;
+//	if (YB >= SCREEN_HEIGHT) YB = SCREEN_HEIGHT;
 	
 	_activeWindowXL = XL; _activeWindowXR = XR;
 	_activeWindowYT = YT; _activeWindowYB = YB;
@@ -6270,30 +6277,30 @@ void RA8876_t3::setRotation(uint8_t rotation) //rotate text and graphics
 
 	switch (_rotation) {
 		case 0:
-			_width = 	_screenWidth;
-			_height = 	_screenHeight;
+			_width = 	SCREEN_WIDTH;
+			_height = 	SCREEN_HEIGHT;
 			_portrait = false;
 			VSCAN_T_to_B();
 			macr_settings = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_LRTB<<1;
 			break;
 		case 1:
 			_portrait = true;
-			_width = 	_screenHeight;
-			_height = 	_screenWidth;
+			_width = 	SCREEN_HEIGHT;
+			_height = 	SCREEN_WIDTH;
 			VSCAN_B_to_T();
 			macr_settings = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_RLTB<<1;
 			break;
 		case 2: 
-			_width = 	_screenWidth;
-			_height = 	_screenHeight;
+			_width = 	SCREEN_WIDTH;
+			_height = 	SCREEN_HEIGHT;
 			_portrait = false;
 			VSCAN_B_to_T();
 			macr_settings = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_RLTB<<1;
 			break;
 		case 3: 
 			_portrait = true;
-			_width = 	_screenHeight;
-			_height = 	_screenWidth;
+			_width = 	SCREEN_HEIGHT;
+			_height = 	SCREEN_WIDTH;
 			VSCAN_T_to_B();
 			macr_settings = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_LRTB<<1;
 			//VSCAN_T_to_B();
@@ -6312,7 +6319,7 @@ void RA8876_t3::setRotation(uint8_t rotation) //rotate text and graphics
 
  	setClipRect();
 	setOrigin();
-	//Serial.println("Rotate: After Origins"); Serial.flush();
+	Serial.println("Rotate: After Origins"); Serial.flush();
 
 }
 
@@ -6465,14 +6472,6 @@ PIP window will be disabled when VDIR set as 1.
 	temp_in =  temp = lcdRegDataRead(RA8876_DPCR);
 	temp |= cSetb3;
 	lcdRegDataWrite(RA8876_DPCR, temp);
-//	Serial.printf("call vscan_b_to_t %x %x\n", temp_in, temp);
+	Serial.printf("call vscan_b_to_t %x %x\n", temp_in, temp);
 
-}
-
-uint32_t RA8876_t3::pageStartAddress(uint8_t pageNumber) {
-	return (uint32_t)_screenHeight * _screenWidth * 2 * pageNumber;
-}
-
-uint32_t RA8876_t3::patternRamStartAddr(uint8_t patternNumber) {
-	return pageStartAddress(10) + ((uint32_t)16*16*patternNumber);
 }

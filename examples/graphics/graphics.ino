@@ -1,16 +1,15 @@
-/***************************************************************
- * graphics.ino
- *
+/*************************************************************** 
+ * graphics.ino 
+ * 
  * Basic graphics test for RA8876 based display
  ***************************************************************/
 #include "Arduino.h"
-#include "_font_ComicSansMS.h"
-
-#define BACKLITE 5 //External backlight control connected to this Arduino pin
-
 #include "RA8876_t3.h"
+#include "font_Arial.h"
+
 #define RA8876_CS 10
 #define RA8876_RESET 8
+#define BACKLITE 5 //External backlight control connected to this Arduino pin
 RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
 
 // Array of Simple RA8876 Basic Colors
@@ -46,22 +45,20 @@ int w, h;
 
 int i = 0;
 void setup() {
-
   //I'm guessing most copies of this display are using external PWM
   //backlight control instead of the internal RA8876 PWM.
   //Connect a Teensy pin to pin 14 on the display.
   //Can use analogWrite() but I suggest you increase the PWM frequency first so it doesn't sing.
   pinMode(BACKLITE, OUTPUT);
   digitalWrite(BACKLITE, HIGH);
-	tft.begin(20000000);
-}
-
-void loop() {    
+    
+//	tft.begin(20000000);
+	tft.begin();
   tft.graphicMode(true);
   tft.setTextCursor(0,0);
-  tft.setFont(ComicSansMS_14);
+  tft.setFont(Arial_14);
   tft.setTextColor(BLACK);
-
+   
   tft.setRotation(0);
   w = tft.width()-1; h = tft.height()-STATUS_LINE_HEIGHT-1;
   tft.fillScreen(myColors[11]);
@@ -79,6 +76,10 @@ void loop() {
   tft.fillScreen(myColors[11]);
   graphicsTest();
   tft.printStatusLine(0,myColors[1],myColors[11],"FINISHED!");
+
+}
+
+void loop() {
 }
 
 void graphicsTest()
@@ -270,7 +271,7 @@ void filledRRectangles(void) {
 		if(y0 > tft.height()) y0 = tft.height();
 		if(x1 > tft.width()) x1 = tft.width();
 		if(y1 > tft.height()) y1 = tft.height();
-
+		
 		// Make sure major radius (xr) is less than x1 - x0
 		// Must be xr * 2 + 1 less than x1 - x0
 		// RA8876.pdf section 12.6 page 62

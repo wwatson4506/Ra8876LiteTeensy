@@ -41,15 +41,8 @@ printStatusLine(uint16_t x0,uint16_t fgColor,uint16_t bgColor, const char *text)
 ==========================================================================================
 Ra8876LiteTeeensy WIP
 
-Teensy RA8876 Driver using
-
-BuyDisplay's ER-TFTM101-1 10.1 inch lcd module tft display w/touch
+Teensy RA8876 Driver using BuyDisplay's ER-TFTM101-1 10.1 inch lcd module tft display w/touch
 https://www.buydisplay.com/default/serial-spi-i2c-10-1-inch-tft-lcd-module-dislay-w-ra8876-optl-touch-panel
-
-or
-
-BuyDisplay's ER-TFTM0784 7.84 inch lcd module tft display w/touch
-https://www.buydisplay.com/spi-1280x400-7-84-ips-tft-lcd-module-with-ra8876-capacitive-touch-panel
 
 RAIO RA8876 support documentation can be found here:
 http://www.raio.com.tw/en/Support_RA887677.html
@@ -67,7 +60,7 @@ The TFT panel I have was ordered setup with:
  - 10.1" Resistive Touch Controller
  - SD Card Pin interface
  - ER3304-1 Font Chip
-
+ 
 The current Price is about $74.00 not including shipping.
 
 Teensy connections are through a 4 wire SPI port. Other interface options are available.
@@ -94,7 +87,7 @@ Pin 20 BLITE --------------------------------> Pin 14 BL_CONTROL (VDD 3.3V)
 
 *** Touch Screen was only tested on the T36 with the TallDog breakout board.    ***
 *** Resistive touch panel uses XPT2046. Used a modified version of XPT2046.cpp  ***
-
+ 
                        TOUCH SCREEN
 -------------------------------------------------------------
 Pin 31 /CS1  --------------------------------> Pin 32 TP_/CS
@@ -108,11 +101,6 @@ ER-TFTM101-1 Ground Pins are 1,2,13,31,39,40. These should all be connectd
 to Teensy Grounds.
 ER-TFTM101-1 Power Pins (VDD is 5V or 3.3v depending on how it was configured
 when ordered) are 3,4,37,38 and all should be connected together.
-
-*** ER-TFTM0784 Support ***
-
-There is basic support for the ER-TFT0784.
-See the examples/ER-TFT0784/ER-TFT0784.ino for details.
 
 *** EXAMPLES ***
 
@@ -154,4 +142,5 @@ Check out the source files for more info:
 
 Again, this is WIP and is probably just a starting point for those who have better programming
 than mine:)
+
 
