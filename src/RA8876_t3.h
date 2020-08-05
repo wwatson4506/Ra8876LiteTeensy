@@ -119,8 +119,7 @@ typedef struct {
 
 
 // Default to a relatively slow speed for breadboard testing. 
-//const ru32 SPIspeed = 47000000;
-const ru32 SPIspeed = 3000000;
+const ru32 SPIspeed = 47000000;
 
 // Max. size in byte of SDRAM
 const uint32_t MEM_SIZE_MAX	= 16l*1024l*1024l;
@@ -131,14 +130,15 @@ class RA8876_t3 : public Print
 public:
 	RA8876_t3(const uint8_t CSp = 10, const uint8_t RSTp = 8, const uint8_t mosi_pin = 11, const uint8_t sclk_pin = 13, const uint8_t miso_pin = 12);
 
-	
+	void displayDimensions(const uint16_t width = 1024, const uint16_t height = 600);
+
 	volatile bool	RA8876_BUSY; //This is used to show an SPI transaction is in progress. 
 	volatile bool   activeDMA=false; //Unfortunately must be public so asyncEventResponder() can set it
 	void textRotate(boolean on);
 	void		setRotation(uint8_t rotation); //rotate text and graphics
 	uint8_t		getRotation(); //return the current rotation 0-3
 	/* Initialize RA8876 */
-	boolean begin(uint32_t spi_clock=SPIspeed);
+	virtual boolean begin(uint32_t spi_clock=SPIspeed);
 	boolean ra8876Initialize(); 
 	boolean ra8876PllInitial (void);
 	boolean ra8876SdramInitial(void);
@@ -289,7 +289,7 @@ public:
 	
 	
 	/* Screen Functions */
-	void selectScreen(uint32_t screenPage);
+	void selectScreen(uint8_t screenPage);
 	void saveTFTParams(tftSave_t *screenSave);
 	void restoreTFTParams(tftSave_t *screenSave);
 	void update_xy(void);
@@ -620,7 +620,9 @@ public:
 	
 	void LCD_CmdWrite(unsigned char cmd);
 
-	
+	uint32_t pageStartAddress(uint8_t pagenum);
+	uint32_t patternRamStartAddr(uint8_t patternnum);
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //    RA8876 Parameters
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -646,6 +648,10 @@ private:
   	uint8_t   	_spi_num;         	// Which buss is this spi on? 
 	uint32_t 	_SPI_CLOCK;			// #define ILI9341_SPICLOCK 30000000
 	uint32_t	_SPI_CLOCK_READ; 	//#define ILI9341_SPICLOCK_READ 2000000
+
+	//Physical size of screen - these numbers won't change even if rotation is applied or status bar occupies some screen area
+	int16_t _screenWidth; // Screen Width
+	int16_t _screenHeight; // Screen Height
 
 #if defined(KINETISK)
  	KINETISK_SPI_t *_pkinetisk_spi;
@@ -753,7 +759,7 @@ private:
 	7	->		_renderFont active;
 	*/
 	
-	// Hack to see about combining outputs for speed.
+	// Hack to see about combining outputs for g.
 	int16_t _combine_x_start = 0;
 	int16_t _combine_y = 0;
 	int16_t _combine_count = 0;
