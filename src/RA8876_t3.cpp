@@ -200,7 +200,7 @@ FLASHMEM boolean RA8876_t3::begin(uint32_t spi_clock)
 		_spi_num = 0;          // Which buss is this spi on? 
 		#ifdef KINETISK
 		_pkinetisk_spi = &KINETISK_SPI0;  // Could hack our way to grab this from SPI object, but...
-		_fifo_full_test = (3 << 12);
+		//_fifo_full_test = (3 << 12);
 		#elif defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x 
 		_pimxrt_spi = &IMXRT_LPSPI4_S;  // Could hack our way to grab this from SPI object, but...
 		#else
@@ -213,7 +213,7 @@ FLASHMEM boolean RA8876_t3::begin(uint32_t spi_clock)
 		_spi_num = 1;          // Which buss is this spi on? 
 		#ifdef KINETISK
 		_pkinetisk_spi = &KINETISK_SPI1;  // Could hack our way to grab this from SPI object, but...
-		_fifo_full_test = (0 << 12);
+		//_fifo_full_test = (0 << 12);
 		#elif defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x 
 		_pimxrt_spi = &IMXRT_LPSPI3_S;  // Could hack our way to grab this from SPI object, but...
 		#else
@@ -225,7 +225,7 @@ FLASHMEM boolean RA8876_t3::begin(uint32_t spi_clock)
 		_spi_num = 2;          // Which buss is this spi on? 
 		#ifdef KINETISK
 		_pkinetisk_spi = &KINETISK_SPI2;  // Could hack our way to grab this from SPI object, but...
-		_fifo_full_test = (0 << 12);
+		//_fifo_full_test = (0 << 12);
 		#elif defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x 
 		_pimxrt_spi = &IMXRT_LPSPI1_S;  // Could hack our way to grab this from SPI object, but...
 		#endif				
