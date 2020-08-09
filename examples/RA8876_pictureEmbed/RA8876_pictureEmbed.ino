@@ -43,7 +43,7 @@ uint8_t rotation = 0;
     tft.writeRect(0, 0, image_name.width, image_name.height, (uint16_t*)(image_name.pixel_data));
 
   See also https://forum.pjrc.com/threads/35575-Export-for-ILI9341_t3-with-GIMP
-*/
+  */
 
 
 void setup() {
@@ -64,7 +64,7 @@ void setup() {
 }
 
 // See if writerect works
-void drawImage(uint16_t image_width, uint16_t image_height, uint16_t *image, uint16_t bgColor)  {
+void drawImage(uint16_t image_width, uint16_t image_height, uint16_t *image, uint16_t bgColor, bool preRotatedImage)  {
   tft.setFont(ComicSansMS_10);
   tft.setTextColor(WHITE);
   elapsedMillis em = 0;
@@ -72,11 +72,14 @@ void drawImage(uint16_t image_width, uint16_t image_height, uint16_t *image, uin
   int16_t start_x = (tft.width() - image_width) / 2;
   int16_t start_y = (tft.height() - image_height) / 2;
 
-  tft.fillRect(0, 0, tft.width(), start_y, bgColor);  // top;
+  tft.fillRect(0, 0, tft.width(), start_y, bgColor);  // top
   tft.fillRect(0, start_y, start_x, image_height, bgColor); // left
   tft.fillRect(start_x + image_width, start_y, tft.width() - (start_x + image_width), image_height, bgColor); // right
   tft.fillRect(0, start_y + image_height, tft.width(), tft.height() - (start_y + image_height), bgColor); // top;
-  tft.writeRect(start_x, start_y, image_width, image_height, image);
+  if (preRotatedImage) {
+    if (image) tft.writeRotatedRect(start_x, start_y, image_width, image_height, image);
+  }
+  else tft.writeRect(start_x, start_y, image_width, image_height, image);
   uint32_t dt = em;
   tft.setCursor(10, 10);
   tft.print(dt, DEC);
@@ -94,27 +97,35 @@ void loop(void) {
   tft.setCursor(tft.width() / 2, tft.height() / 2, true);
   tft.setTextColor(GREEN);
   tft.printf("Rotation: %d", rotation);
-  DelayOrStep();
+  if (DelayOrStep()) return;
   rotation = (rotation + 1) & 0x3;
 
   Serial.print("Display Front of card ");
-  drawImage(240, 320, (uint16_t*)teensy40_pinout1, RED);
-  DelayOrStep();
+  drawImage(240, 320, (uint16_t*)teensy40_pinout1, RED, false);
+  if (DelayOrStep()) return;
   Serial.print("Display Back of card ");
-  drawImage(240, 320, (uint16_t*)teensy40_pinout2, GREEN);
-  DelayOrStep();
-  Serial.print("Display front of chip (DMAMEM?) ");
-  drawImage(240, 320, (uint16_t*)teensy40_front, BLUE);
-  DelayOrStep();
+  drawImage(240, 320, (uint16_t*)teensy40_pinout2, GREEN, false);
+  if (DelayOrStep()) return;
   Serial.print("Display T4.1 Extended card ");
-  drawImage(575, 424, (uint16_t*)teensy41_Cardlike, BLUE);
-  DelayOrStep();
+  drawImage(575, 424, (uint16_t*)teensy41_Cardlike, BLUE, false);
+  if (DelayOrStep()) return;
+  Serial.print("Display front of chip (DMAMEM?) ");
+  drawImage(240, 320, (uint16_t*)teensy40_front, BLUE, false);
+  if (DelayOrStep()) return;
+
+  // lets try to pre rotate image and see if it speeds up
+  Serial.print("Display rotated T4.1 Extended card ");
+  uint16_t *rotated_image = tft.rotateImageRect(575, 424, (uint16_t*)teensy41_Cardlike);
+  drawImage(575, 424, (uint16_t*)rotated_image, DARKGREEN, true);
+  if (rotated_image) free(rotated_image);
+  if (DelayOrStep()) return;
 }
 
 bool step_mode = false;
-void DelayOrStep() {
+bool DelayOrStep() {
+
   if (Serial.available()) {
-  uint8_t ch = Serial.read();
+    uint8_t ch = Serial.read();
     while (Serial.read() != -1) ; // get rid of the rest...
     if (ch == 's' || ch == 'S') {
       if (step_mode) {
@@ -124,19 +135,29 @@ void DelayOrStep() {
         step_mode = true;
         Serial.println("*** step mode turned ON ***");
       }
+    } else if ((ch >= '0') && (ch <= '3')) {
+      rotation = ch - '0';
+      Serial.printf("Switching to rotation: %d\n", rotation);
+      return true;  // tell caller we changed to new rotation.
+
     }
-    return;
+    return false;
   }
   if (step_mode) {
-  int ch;
-  Serial.println("Press any key to continue");
+    int ch;
+    Serial.println("Press any key to continue");
     while ((ch = Serial.read()) == -1) ;
     while (Serial.read() != -1) ;
     if (ch == 's' || ch == 'S') {
       step_mode = false;
       Serial.println("*** Step mode turned off ***");
+    } else if ((ch >= '0') && (ch <= '3')) {
+      rotation = ch - '0';
+      Serial.printf("Switching to rotation: %d\n", rotation);
+      return true;  // tell caller we changed to new rotation.
     }
   } else {
     delay(5000);
   }
+  return false;
 }
