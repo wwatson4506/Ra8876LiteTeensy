@@ -24,9 +24,15 @@ uint8_t rotation = 0;
 //
 #include "teensy40_pinout1.h" //the picture
 #include "teensy40_pinout2.h" //the picture
+#if  defined(__IMXRT1062__) || defined (ARDUINO_TEENSY36)
 #include "teensy40_front.h"  // Try to load from DMAMEM?
+#endif
+#if defined(__IMXRT1062__)
+// T3.x does not have enough memory for both and can not malloc big enough picture
 #include "Teensy41_Cardlike.h"
-
+#elif defined(ARDUINO_TEENSY36) 
+#include "TD_T4_TopCard.h"   // Top Dog card...
+#endif
 /* GIMP (https://www.gimp.org/) can also be used to export the image using the following steps:
 
     1. File -> Export As
@@ -78,6 +84,10 @@ void drawImage(uint16_t image_width, uint16_t image_height, uint16_t *image, uin
   tft.fillRect(0, start_y + image_height, tft.width(), tft.height() - (start_y + image_height), bgColor); // top;
   if (preRotatedImage) {
     if (image) tft.writeRotatedRect(start_x, start_y, image_width, image_height, image);
+    else {
+      tft.setCursor(CENTER, CENTER, true);
+      tft.print("Rotate image failed");
+    }
   }
   else tft.writeRect(start_x, start_y, image_width, image_height, image);
   uint32_t dt = em;
@@ -90,6 +100,7 @@ void drawImage(uint16_t image_width, uint16_t image_height, uint16_t *image, uin
 }
 
 void loop(void) {
+  uint16_t *rotated_image = nullptr;
   Serial.printf("Set Rotation(%d)\n", rotation);
   tft.setRotation(rotation);
   tft.setFont(ComicSansMS_24);
@@ -106,17 +117,35 @@ void loop(void) {
   Serial.print("Display Back of card ");
   drawImage(240, 320, (uint16_t*)teensy40_pinout2, GREEN, false);
   if (DelayOrStep()) return;
+#if defined(__IMXRT1062__)
   Serial.print("Display T4.1 Extended card ");
   drawImage(575, 424, (uint16_t*)teensy41_Cardlike, BLUE, false);
   if (DelayOrStep()) return;
-  Serial.print("Display front of chip (DMAMEM?) ");
+#elif defined(ARDUINO_TEENSY36)
+  Serial.print("Display Talldog T4 card ");
+  drawImage(400, 272, (uint16_t*)td_t4_top, BLUE, false);
+  if (DelayOrStep()) return;
+#endif
+#if  defined(__IMXRT1062__) || defined (ARDUINO_TEENSY36)
+  Serial.print("Display front of chip ");
   drawImage(240, 320, (uint16_t*)teensy40_front, BLUE, false);
   if (DelayOrStep()) return;
-
+#endif
   // lets try to pre rotate image and see if it speeds up
+#if defined(__IMXRT1062__)
   Serial.print("Display rotated T4.1 Extended card ");
-  uint16_t *rotated_image = tft.rotateImageRect(575, 424, (uint16_t*)teensy41_Cardlike);
+  rotated_image = tft.rotateImageRect(575, 424, (uint16_t*)teensy41_Cardlike);
   drawImage(575, 424, (uint16_t*)rotated_image, DARKGREEN, true);
+#elif defined(ARDUINO_TEENSY36)
+  Serial.print("Display TallDog T4  pre rotated Card ");
+  rotated_image = tft.rotateImageRect(400, 272, (uint16_t*)td_t4_top);
+  drawImage(400, 272, (uint16_t*)rotated_image, DARKGREEN, true);
+#elif defined(ARDUINO_TEENSY35)
+  Serial.print("Display TallDog T4  pre rotated Card ");
+  rotated_image = tft.rotateImageRect(240, 320, (uint16_t*)teensy40_pinout1);
+  drawImage(240, 320, (uint16_t*)rotated_image, DARKGREEN, true);
+
+#endif  
   if (rotated_image) free(rotated_image);
   if (DelayOrStep()) return;
 }
