@@ -85,12 +85,22 @@ typedef uint32_t	ru32;
 #define XVSYNC_INV  1 // 0:no inversion, 1:inversion 
 #define XDE_INV     0 // 0:no inversion, 1:inversion 
 #define XPCLK_INV  0 //1 // 0:no inversion, 1:inversion 
-#define HPW       24 // 70   //
+
+// Some of these differ between two displays...
+// 1024x600
+#define HPW       70
 #define HND       160
 #define HST       160
-#define VPW       2 // 10
-#define VND       10 //23
+#define VPW       10
+#define VND       23
 #define VST       12
+// Wider display 1280x400 display
+#define HPW_1280       24 // 70   //
+#define HND_1280       160
+#define HST_1280       160
+#define VPW_1280       2 // 10
+#define VND_1280       10 //23
+#define VST_1280       12
 
 #define RA8877_LVDS_FORMAT  0    // 0:Format1(VESA format), 1:Format2 =(JEIDA format) 
 

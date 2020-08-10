@@ -315,31 +315,33 @@ boolean RA8876_t3::ra8876Initialize() {
 	lcdRegWrite(RA8876_CCR);//01h
 //  lcdDataWrite(RA8876_PLL_ENABLE<<7|RA8876_WAIT_MASK<<6|RA8876_KEY_SCAN_DISABLE<<5|RA8876_TFT_OUTPUT24<<3
   
-  lcdRegWrite(RA8876_CCR);//01h
-  lcdDataWrite(RA8876_PLL_ENABLE<<7|RA8876_WAIT_NO_MASK<<6|RA8876_KEY_SCAN_DISABLE<<5|RA8876_TFT_OUTPUT24<<3
-  |RA8876_I2C_MASTER_DISABLE<<2|RA8876_SERIAL_IF_ENABLE<<1|RA8876_HOST_DATA_BUS_SERIAL);
+	lcdRegWrite(RA8876_CCR);//01h
+	lcdDataWrite(RA8876_PLL_ENABLE<<7|RA8876_WAIT_NO_MASK<<6|RA8876_KEY_SCAN_DISABLE<<5|RA8876_TFT_OUTPUT24<<3
+			|RA8876_I2C_MASTER_DISABLE<<2|RA8876_SERIAL_IF_ENABLE<<1|RA8876_HOST_DATA_BUS_SERIAL);
 
-  lcdRegWrite(RA8876_MACR);//02h
-  lcdDataWrite(RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_LRTB<<1);
+	lcdRegWrite(RA8876_MACR);//02h
+	lcdDataWrite(RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_LRTB<<1);
 
-  lcdRegWrite(RA8876_ICR);//03h
-  lcdDataWrite(RA8877_LVDS_FORMAT<<3|RA8876_GRAPHIC_MODE<<2|RA8876_MEMORY_SELECT_IMAGE);
+	lcdRegWrite(RA8876_ICR);//03h
+	lcdDataWrite(RA8877_LVDS_FORMAT<<3|RA8876_GRAPHIC_MODE<<2|RA8876_MEMORY_SELECT_IMAGE);
 
-  lcdRegWrite(RA8876_MPWCTR);//10h
-  lcdDataWrite(RA8876_PIP1_WINDOW_DISABLE<<7|RA8876_PIP2_WINDOW_DISABLE<<6|RA8876_SELECT_CONFIG_PIP1<<4
-  |RA8876_IMAGE_COLOCR_DEPTH_16BPP<<2|TFT_MODE);
+	lcdRegWrite(RA8876_MPWCTR);//10h
+	lcdDataWrite(RA8876_PIP1_WINDOW_DISABLE<<7|RA8876_PIP2_WINDOW_DISABLE<<6|RA8876_SELECT_CONFIG_PIP1<<4
+		|RA8876_IMAGE_COLOCR_DEPTH_16BPP<<2|TFT_MODE);
 
-  lcdRegWrite(RA8876_PIPCDEP);//11h
-  lcdDataWrite(RA8876_PIP1_COLOR_DEPTH_16BPP<<2|RA8876_PIP2_COLOR_DEPTH_16BPP);
-  
-  lcdRegWrite(RA8876_AW_COLOR);//5Eh
-  lcdDataWrite(RA8876_CANVAS_BLOCK_MODE<<2|RA8876_CANVAS_COLOR_DEPTH_16BPP);
-  
-  lcdRegDataWrite(RA8876_BTE_COLR,RA8876_S0_COLOR_DEPTH_16BPP<<5|RA8876_S1_COLOR_DEPTH_16BPP<<2|RA8876_S0_COLOR_DEPTH_16BPP);//92h
-  
-  /*TFT timing configure*/
-  lcdRegWrite(RA8876_DPCR);//12h
-  lcdDataWrite(XPCLK_INV<<7|RA8876_DISPLAY_OFF<<6|RA8876_OUTPUT_RGB);
+	lcdRegWrite(RA8876_PIPCDEP);//11h
+	lcdDataWrite(RA8876_PIP1_COLOR_DEPTH_16BPP<<2|RA8876_PIP2_COLOR_DEPTH_16BPP);
+
+	lcdRegWrite(RA8876_AW_COLOR);//5Eh
+	lcdDataWrite(RA8876_CANVAS_BLOCK_MODE<<2|RA8876_CANVAS_COLOR_DEPTH_16BPP);
+
+	lcdRegDataWrite(RA8876_BTE_COLR,RA8876_S0_COLOR_DEPTH_16BPP<<5|RA8876_S1_COLOR_DEPTH_16BPP<<2|RA8876_S0_COLOR_DEPTH_16BPP);//92h
+
+	/*TFT timing configure*/
+	lcdRegWrite(RA8876_DPCR);//12h
+	
+	// 
+	lcdDataWrite(XPCLK_INV<<7|RA8876_DISPLAY_OFF<<6|RA8876_OUTPUT_RGB);
   
 	/* TFT timing configure (1024x600) */
 	lcdRegWrite(RA8876_DPCR);//12h
@@ -349,12 +351,22 @@ boolean RA8876_t3::ra8876Initialize() {
 	lcdDataWrite(XHSYNC_INV<<7|XVSYNC_INV<<6|XDE_INV<<5);
     
 	lcdHorizontalWidthVerticalHeight(_screenWidth,_screenHeight);  // HDW, VHD
-	lcdHorizontalNonDisplay(HND);
-	lcdHsyncStartPosition(HST);
-	lcdHsyncPulseWidth(HPW);
-	lcdVerticalNonDisplay(VND);
-	lcdVsyncStartPosition(VST);
-	lcdVsyncPulseWidth(VPW);
+	if (_screenWidth == 1280) {
+		lcdHorizontalNonDisplay(HND_1280);
+		lcdHsyncStartPosition(HST_1280);
+		lcdHsyncPulseWidth(HPW_1280);
+		lcdVerticalNonDisplay(VND_1280);
+		lcdVsyncStartPosition(VST_1280);
+		lcdVsyncPulseWidth(VPW_1280);
+	} else {
+		// our default settings.
+		lcdHorizontalNonDisplay(HND);
+		lcdHsyncStartPosition(HST);
+		lcdHsyncPulseWidth(HPW);
+		lcdVerticalNonDisplay(VND);
+		lcdVsyncStartPosition(VST);
+		lcdVsyncPulseWidth(VPW);
+	}
 	
 	// Init Global Variables
 	_width = 	_screenWidth;
@@ -1672,8 +1684,6 @@ void RA8876_t3::clearStatusLine(uint16_t color) {
 //**************************************************************//
 void  RA8876_t3::writeStatusLine(ru16 x0, uint16_t fgcolor, uint16_t bgcolor, const char *str)
 {
-	_height = _screenHeight-STATUS_LINE_HEIGHT;
-	
 	uint16_t tempX = _cursorX;
 	uint16_t tempY = _cursorY;
 	uint16_t tempBGColor = _TXTBackColor;
@@ -1683,7 +1693,7 @@ void  RA8876_t3::writeStatusLine(ru16 x0, uint16_t fgcolor, uint16_t bgcolor, co
 	uint8_t tempFontWidth = _FNTwidth;
 	uint8_t tempFontHeight = _FNTheight;
 	uint16_t temp_height = _height;
-	_height = _height-STATUS_LINE_HEIGHT;
+	_height = _screenHeight-STATUS_LINE_HEIGHT;
 
 	// Set fontsize to a constant value
 	if(UDFont) {
@@ -6470,6 +6480,7 @@ PIP window will be disabled when VDIR set as 1.
 }
 
 uint32_t RA8876_t3::pageStartAddress(uint8_t pageNumber) {
+	pageNumber--;
 	return (uint32_t)_screenHeight * _screenWidth * 2 * pageNumber;
 }
 
