@@ -451,6 +451,12 @@ public:
 
 	void drawRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t color);
 	void fillRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t color);
+
+	void writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors);
+	// Experiment to see if we get significant speed ups for images if they are already pre processed to 
+	// draw in current/specified orientation. 
+	uint16_t *rotateImageRect(int16_t w, int16_t h, const uint16_t *pcolors, int16_t rotation=-1);
+	void writeRotatedRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors);
 	void drawRoundRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t xr, uint16_t yr, uint16_t color);
 	void fillRoundRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t xr, uint16_t yr, uint16_t color);
 	void fillCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color);

@@ -200,7 +200,7 @@ FLASHMEM boolean RA8876_t3::begin(uint32_t spi_clock)
 		_spi_num = 0;          // Which buss is this spi on? 
 		#ifdef KINETISK
 		_pkinetisk_spi = &KINETISK_SPI0;  // Could hack our way to grab this from SPI object, but...
-		_fifo_full_test = (3 << 12);
+		//_fifo_full_test = (3 << 12);
 		#elif defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x 
 		_pimxrt_spi = &IMXRT_LPSPI4_S;  // Could hack our way to grab this from SPI object, but...
 		#else
@@ -213,7 +213,7 @@ FLASHMEM boolean RA8876_t3::begin(uint32_t spi_clock)
 		_spi_num = 1;          // Which buss is this spi on? 
 		#ifdef KINETISK
 		_pkinetisk_spi = &KINETISK_SPI1;  // Could hack our way to grab this from SPI object, but...
-		_fifo_full_test = (0 << 12);
+		//_fifo_full_test = (0 << 12);
 		#elif defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x 
 		_pimxrt_spi = &IMXRT_LPSPI3_S;  // Could hack our way to grab this from SPI object, but...
 		#else
@@ -225,7 +225,7 @@ FLASHMEM boolean RA8876_t3::begin(uint32_t spi_clock)
 		_spi_num = 2;          // Which buss is this spi on? 
 		#ifdef KINETISK
 		_pkinetisk_spi = &KINETISK_SPI2;  // Could hack our way to grab this from SPI object, but...
-		_fifo_full_test = (0 << 12);
+		//_fifo_full_test = (0 << 12);
 		#elif defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x 
 		_pimxrt_spi = &IMXRT_LPSPI1_S;  // Could hack our way to grab this from SPI object, but...
 		#endif				
@@ -4477,6 +4477,153 @@ void RA8876_t3::fillRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t col
   lcdRegDataWrite(RA8876_DLVER0,y_end, false);//6eh
   lcdRegDataWrite(RA8876_DLVER1,y_end>>8, false);//6fh   
   lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_SQUARE_FILL, true);//76h,0xE0  
+
+}
+
+void RA8876_t3::writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors)
+{
+	uint16_t start_x = (x != CENTER) ? x : (_width - w) / 2;
+	uint16_t start_y = (y != CENTER) ? y : (_height - h) / 2;
+
+	switch (_rotation) {
+		case 0: // we will just hand off for now to 
+				// unrolled to bte call
+				//Using the BTE function is faster and will use DMA if available
+			    bteMpuWriteWithROPData8(currentPage, width(), start_x, start_y,  //Source 1 is ignored for ROP 12
+                              currentPage, width(), start_x, start_y, w, h,     //destination address, pagewidth, x/y, width/height
+                              RA8876_BTE_ROP_CODE_12,
+                              ( const unsigned char *)pcolors);
+			break;
+		case 1:
+			{
+				while (h) {
+					//Serial.printf("DP %x, %d, %d %d\n", rotated_row, h, start_x, y);
+				    bteMpuWriteWithROPData8(currentPage, height(), start_y, start_x,  //Source 1 is ignored for ROP 12
+	                              currentPage, height(),  start_y, start_x, 1, w,     //destination address, pagewidth, x/y, width/height
+	                              RA8876_BTE_ROP_CODE_12,
+	                              ( const unsigned char *)pcolors);
+				    start_y++;
+				    h--;
+				    pcolors += w;
+
+				}
+			}
+
+			break;
+		case 2:
+			{
+				uint16_t *rotated_buffer_alloc = (uint16_t*)malloc(w * h * 2 + 32);
+				if (!rotated_buffer_alloc) return; // failed to allocate. 
+			    uint16_t *rotated_buffer = (uint16_t *)(((uintptr_t)rotated_buffer_alloc + 32) & ~((uintptr_t)(31)));
+				// unrolled to bte call
+				//Using the BTE function is faster and will use DMA if available
+				// We reverse the colors in the row...
+				// lets reverse data per row...
+				while (h) {
+					for (int i = 0; i < w; i++) rotated_buffer[w-i-1] = *pcolors++;
+				    bteMpuWriteWithROPData8(currentPage, width(), start_x, start_y,  //Source 1 is ignored for ROP 12
+                              currentPage, width(), start_x, start_y, w, 1,     //destination address, pagewidth, x/y, width/height
+                              RA8876_BTE_ROP_CODE_12,
+                              ( const unsigned char *)rotated_buffer);
+				    start_y++;
+				    h--;
+				}
+				#ifdef SPI_HAS_TRANSFER_ASYNC
+				while(activeDMA) {}; //wait forever while DMA is finishing- can't start a new transfer
+				#endif
+				free((void*)rotated_buffer_alloc);
+				endSend(true);
+			}
+			break;
+		case 3:
+			{
+			    start_y += h;
+				while (h) {
+					//Serial.printf("DP %x, %d, %d %d\n", rotated_row, h, start_x, y);
+				    bteMpuWriteWithROPData8(currentPage, height(), start_y, start_x,  //Source 1 is ignored for ROP 12
+	                              currentPage, height(),  start_y, start_x, 1, w,     //destination address, pagewidth, x/y, width/height
+	                              RA8876_BTE_ROP_CODE_12,
+	                              ( const unsigned char *)pcolors);
+				    start_y--;
+				    h--;
+				    pcolors += w;
+				}
+			}
+			break;
+	}
+}
+
+uint16_t *RA8876_t3::rotateImageRect(int16_t w, int16_t h, const uint16_t *pcolors, int16_t rotation) 
+{
+	uint16_t *rotated_colors_alloc = (uint16_t *)malloc(w * h *2+32);
+	int16_t x, y;
+	if (!rotated_colors_alloc) 
+		return nullptr; 
+    uint16_t *rotated_colors_aligned = (uint16_t *)(((uintptr_t)rotated_colors_alloc + 32) & ~((uintptr_t)(31)));
+
+	if ((rotation < 0) || (rotation > 3)) rotation = _rotation;  // just use current one. 
+	Serial.printf("rotateImageRect %d %d %d %x %x\n", w, h, rotation, pcolors, rotated_colors_aligned);
+	switch (rotation) {
+		case 0:
+			memcpy((uint8_t *)rotated_colors_aligned, (uint8_t*)pcolors, w*h*2);
+			break;
+		case 1:
+			// reorder 
+			for(y = 0; y < h; y++) {
+				for(x = 0; x < w; x++) {
+					rotated_colors_aligned[x*h+y] =*pcolors++;
+				}
+			}
+			break;
+		case 2:
+			int y_offset;
+			for(y = 0; y < h; y++) {
+				y_offset = y*w;	// reverse the rows
+				for(x = 1; x <= w; x++) {
+					rotated_colors_aligned[y_offset + (w-x)] = *pcolors++;
+				}
+			}
+			break;
+		case 3:
+			// reorder 
+			for(y = 1; y <= h; y++) {
+				for(x = 0; x < w; x++) {
+					rotated_colors_aligned[x*h+(h-y)] = *pcolors++;
+				}
+			}
+			break;
+	}
+
+	return rotated_colors_alloc;
+}
+
+// This one assumes that the data was previously arranged such that you can just ROP it out...
+void RA8876_t3::writeRotatedRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors) 
+{
+
+	Serial.printf("writeRotatedRect %d %d %d %d (%x)\n", x, y, w, h, pcolors);
+	uint16_t start_x = (x != CENTER) ? x : (_width - w) / 2;
+	uint16_t start_y = (y != CENTER) ? y : (_height - h) / 2;
+
+    uint16_t *pcolors_aligned = (uint16_t *)(((uintptr_t)pcolors + 32) & ~((uintptr_t)(31)));
+	switch (_rotation) {
+		case 0: 
+		case 2:
+			// Same as normal writeRect
+		    bteMpuWriteWithROPData8(currentPage, width(), start_x, start_y,  //Source 1 is ignored for ROP 12
+                          currentPage, width(), start_x, start_y, w, h,     //destination address, pagewidth, x/y, width/height
+                          RA8876_BTE_ROP_CODE_12,
+                          ( const unsigned char *)pcolors_aligned);
+			break;
+		case 1:
+		case 3:
+		    bteMpuWriteWithROPData8(currentPage, height(), start_y, start_x,  //Source 1 is ignored for ROP 12
+                          currentPage, height(),  start_y, start_x, h, w,     //destination address, pagewidth, x/y, width/height
+                          RA8876_BTE_ROP_CODE_12,
+                          ( const unsigned char *)pcolors_aligned);
+
+			break;
+	}
 
 }
 
