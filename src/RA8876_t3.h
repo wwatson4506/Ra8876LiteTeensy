@@ -75,6 +75,8 @@ Version   : v1.0
 #ifndef _RA8876_T3
 #define _RA8876_T3
 
+#define USE_FT5206_TOUCH
+
 /* Addins for ILI and GFX Fonts */
 #include "_fonts.h"
 
@@ -124,6 +126,10 @@ const ru32 SPIspeed = 3000000;
 
 // Max. size in byte of SDRAM
 const uint32_t MEM_SIZE_MAX	= 16l*1024l*1024l;
+
+#if defined(USE_FT5206_TOUCH)
+#include <Wire.h>
+#endif
 
 
 class RA8876_t3 : public Print
@@ -466,6 +472,8 @@ public:
 	//void setCursor(uint16_t x, uint16_t y);
 	void gCursorSet(boolean gCursorEnable, uint8_t gcursortype, uint8_t gcursorcolor1, uint8_t gcursorcolor2);
 	void gcursorxy(uint16_t gcx, uint16_t gcy);
+	uint16_t GetGCursorX() {return gCursorX;}
+	uint16_t GetGCursorY() {return gCursorY;}
 
 
 	void touchEnable(boolean enabled);
@@ -474,6 +482,23 @@ public:
 	
 	boolean TStouched(void);
 	void getTSpoint(uint16_t *x, uint16_t *y);
+	#if defined (USE_FT5206_TOUCH)
+	bool 		touched(bool safe=false);
+	void 		setTouchLimit(uint8_t limit);//5 for FT5206, 1 for  RA8875
+	uint8_t 	getTouchLimit(void);
+
+	void		setWireObject(TwoWire *wire) {_wire = wire; }
+	void		useCapINT(const uint8_t INTpin=2,const uint8_t RSTPin=255);
+	void 		enableCapISR(bool force = false); 
+	void	 	updateTS(void);
+	uint8_t 	getGesture(void);
+	uint8_t 	getTouches(void);
+	uint8_t 	getTouchState(void);
+	uint8_t 	getTScoordinates(uint16_t (*touch_coordinates)[2]);
+	void  		printTSRegisters(Print &pr, uint8_t start, uint8_t count);
+	#endif
+
+
 	void putPicture(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const unsigned char *data);
 
 	void scrollUp(void);
@@ -647,7 +672,7 @@ private:
 	int _rst;
 	int	_errorCode;
 	SPIClass *_pspi = nullptr;
-	SPIClass::SPI_Hardware_t *_spi_hardware;
+//	SPIClass::SPI_Hardware_t *_spi_hardware;
 
   	uint8_t   	_spi_num;         	// Which buss is this spi on? 
 	uint32_t 	_SPI_CLOCK;			// #define ILI9341_SPICLOCK 30000000
@@ -863,6 +888,22 @@ protected:
 	void setActiveWindow(void);
 	void _updateActiveWindow(bool full);
 
+	#if defined(USE_FT5206_TOUCH)
+	bool					_useISR;
+	uint8_t				    _maxTouch;//5 on FT5206, 1 on resistive
+	uint8_t					_intCTSPin;
+	uint8_t					_rstCTSPin;
+	uint8_t 				_cptRegisters[31];
+	uint8_t					_gesture;
+	uint8_t					_currentTouches;//0...5
+	uint8_t					_currentTouchState;//0,1,2
+	void 					_initializeFT5206(void);
+	void 					_sendRegFT5206(uint8_t reg,const uint8_t val);
+	void 					_disableCapISR(void);
+	volatile boolean	  	_needCTS_ISRrearm;
+	static void 			cts_isr(void);
+	TwoWire 				 *_wire=&Wire;
+	#endif	
 
 
 };

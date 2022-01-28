@@ -7,25 +7,21 @@
 
   Also demonstrates use of the "graphic cursor" mouse cursor and a simple animated cursor.
 */
-#include <FT5206.h>
+#include <SPI.h>
 #include <RA8876_t3.h>
 
 #define RA8876_CS 10
-#define RA8876_RESET 8
+#define RA8876_RESET 9
 #define BACKLITE 7 //My copy of the display is set for external backlight control
 RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
 
 
-#define CTP_INT           0    // Use an interrupt capable pin such as pin 2 (any pin on a Teensy)
-
-uint8_t registers[FT5206_REGISTERS];
+#define CTP_INT           6    // Use an interrupt capable pin such as pin 2 (any pin on a Teensy)
+#define MAXTOUCHLIMIT 1
 uint16_t new_coordinates[5][2];
 uint16_t old_coordinates[5][2];
 uint8_t current_touches = 0;
 uint8_t old_touches = 0;
-
-
-FT5206 cts = FT5206(CTP_INT);
 
 int currentCursor;
 int cursorOffsetX = 15;
@@ -88,7 +84,14 @@ void setup()
   digitalWrite(BACKLITE, HIGH);
 
   tft.begin();
-  cts.begin();
+  tft.backlight(true);
+  tft.useCapINT(CTP_INT);//we use the capacitive chip Interrupt out!
+  //the following set the max touches (max 5)
+  //it can be placed inside loop but BEFORE touched()
+  //to limit dinamically the touches (for example to 1)
+  tft.setTouchLimit(MAXTOUCHLIMIT);
+  tft.enableCapISR(true);//capacitive touch screen interrupt it's armed
+
   tft.setTextColor(0xFFFF, 0x0000);
   Serial.println("inited...");
 
@@ -115,6 +118,25 @@ void setup()
 void loop()
 {
   //cts.setTouchLimit(1);//from 1 to 5
+  if (tft.touched()) { //if touched(true) detach isr
+    //at this point we need to fill the FT5206 registers...
+    tft.updateTS();//now we have the data inside library
+    Serial.print(">> touches:");
+    Serial.print(tft.getTouches());
+    Serial.print(" | gesture:");
+    Serial.print(tft.getGesture(), HEX);
+    Serial.print(" | state:");
+    Serial.print(tft.getTouchState(), HEX);
+    uint16_t coordinates[MAXTOUCHLIMIT][2];//to hold coordinates
+    tft.getTScoordinates(coordinates);//done
+    //now coordinates has the x,y of all touches
+    for (uint8_t i = 0; i <= tft.getTouches(); i++) {
+      Serial.printf(" (%d,%d)", coordinates[i][0], coordinates[i][1]);
+    }
+    tft.enableCapISR();//rearm ISR if needed (touched(true))
+    Serial.println();
+  }
+#if 0
   if (cts.touched()) {
     uint8_t i;
     uint16_t x, y;
@@ -192,6 +214,7 @@ void loop()
     //rotate our custom cursor through 8 orientations
     rotateCursor(rotation);
   }
+#endif
 }
 
 void updateOffsets(int x, int y) {
@@ -200,7 +223,7 @@ void updateOffsets(int x, int y) {
   int oldOffsetY = cursorOffsetY;
   cursorOffsetX = x;
   cursorOffsetY = y;
-  tft.Graphic_Cursor_XY(tft.gCursorX + oldOffsetX - cursorOffsetX, tft.gCursorY + oldOffsetY - cursorOffsetY);
+  tft.Graphic_Cursor_XY(tft.GetGCursorX() + oldOffsetX - cursorOffsetX, tft.GetGCursorY() + oldOffsetY - cursorOffsetY);
 }
 
 void rotateCursor(int rotation) {
@@ -270,7 +293,7 @@ void rotateCursor(int rotation) {
     }
     out++;
   }
-  
+
   //Yes, we really can just upload a new cursor while it's currently displayed.
   //This does occasionally display a glitch but only for a very short time as
   //the upload will finish before the next "frame" of the LCD is displayed.
