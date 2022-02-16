@@ -434,6 +434,10 @@ boolean RA8876_t3::ra8876Initialize() {
 	// Set Margins to default settings
 	setTMargins(0, 0, 0, 0); // Left Side, Top Side, Right Side, Bottom Side
 
+	// This must be called before usage of fillScreen() which calls drawSquareFill().
+	// drawSquareFill() is ineffective otherwise. 
+	setClipRect();
+
 	// Save Default Screen Parameters
 	saveTFTParams(screenPage1);
 	saveTFTParams(screenPage2);
@@ -483,7 +487,6 @@ boolean RA8876_t3::ra8876Initialize() {
 	// Set graphic mouse cursor to center of screen
 	gcursorxy(width() / 2, height() / 2);
 		
-	setClipRect();
 	setOrigin();
 	setTextSize(1, 1);
 	
