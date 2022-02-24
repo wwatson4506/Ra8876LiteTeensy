@@ -42,6 +42,14 @@
 #include "EventResponder.h"
 #endif
 
+#if defined (USE_FT5206_TOUCH)
+	const uint8_t _ctpAdrs = 0x38;
+	const uint8_t coordRegStart[5] = {0x03,0x09,0x0F,0x15,0x1B};
+	static volatile bool _FT5206_INT = false;
+#endif
+
+
+
 //**************************************************************//
 // Graphic Cursor Image (Busy)
 //**************************************************************//
@@ -286,7 +294,11 @@ FLASHMEM boolean RA8876_t3::begin(uint32_t spi_clock)
 		delay(150);
 	}
 
-	
+	#if defined(USE_FT5206_TOUCH)
+		_intCTSPin = 255;
+		_rstCTSPin = 255;
+	#endif
+
 	if(!checkIcReady())
 		return false;
 	//read ID code must disable pll, 01h bit7 set 0
@@ -294,9 +306,19 @@ FLASHMEM boolean RA8876_t3::begin(uint32_t spi_clock)
 	delay(1);
 	if ((lcdRegDataRead(0xff) != 0x76)&&(lcdRegDataRead(0xff) != 0x77))
 		return false;
+
 	// Initialize RA8876 to default settings
 	if(!ra8876Initialize())
 		return false;
+	//------- time for capacitive touch stuff -----------------
+	#if defined(USE_FT5206_TOUCH)
+		_maxTouch = 5;
+		_gesture = 0;
+		_currentTouches = 0;
+		_currentTouchState = 0;
+	#endif
+
+
 	// return success
 	return true;
 }
@@ -6625,3 +6647,295 @@ PIP window will be disabled when VDIR set as 1.
 	Serial.printf("call vscan_b_to_t %x %x\n", temp_in, temp);
 
 }
+
+#if defined(USE_FT5206_TOUCH)
+/**************************************************************************/
+/*!
+	The FT5206 Capacitive Touch driver uses a different INT pin than RA8876_t3
+	and it's not controlled by RA chip of course, so we need a separate code
+	for that purpose, no matter we decide to use an ISR or digitalRead.
+	no matter if we will use ISR or DigitalRead
+	Parameters:
+	INTpin: it's the pin where we listen to ISR
+	RSTpin: it's the optional pin to maybe reset the CTP controller
+	This last parameter it's used only when decide to use an ISR.
+*/
+/**************************************************************************/
+void RA8876_t3::useCapINT(const uint8_t INTpin,const uint8_t RSTPin) 
+{
+	_intCTSPin = INTpin;
+	_rstCTSPin = RSTPin;
+	pinMode(INTpin ,INPUT_PULLUP);
+	_wire->begin();
+	_wire->setClock(400000UL); // Set I2C frequency to 400kHz
+
+	if (_rstCTSPin != 255) {
+		pinMode(_rstCTSPin, OUTPUT);
+		digitalWrite(_rstCTSPin, HIGH);
+		delay(1);
+		digitalWrite(_rstCTSPin, LOW);
+		delayMicroseconds(750);
+		digitalWrite(_rstCTSPin, HIGH);
+	}
+	delay(10);
+	_initializeFT5206();//initialize FT5206 controller
+}
+
+/**************************************************************************/
+/*!
+		Since FT5206 uses a different INT pin, we need a separate isr routine. 
+		[private]
+*/
+/**************************************************************************/
+void RA8876_t3::cts_isr(void)
+{
+	_FT5206_INT = true;
+}
+
+/**************************************************************************/
+/*!
+		Enable the ISR, after this any falling edge on
+		_intCTSPin pin will trigger ISR
+		Parameters:
+		force: if true will force attach interrup
+		NOTE:
+		if parameter _needCTS_ISRrearm = true will rearm interrupt
+*/
+/**************************************************************************/
+void RA8876_t3::enableCapISR(bool force) 
+{
+	if (force || _needCTS_ISRrearm){
+		_needCTS_ISRrearm = false;
+		attachInterrupt(digitalPinToInterrupt(_intCTSPin),cts_isr,FALLING);
+		_FT5206_INT = false;
+		_useISR = true;
+	}
+}
+
+/**************************************************************************/
+/*!
+		Disable ISR [FT5206 version]
+		Works only if previously enabled or do nothing.
+*/
+/**************************************************************************/
+void RA8876_t3::_disableCapISR(void) 
+{
+	if (_useISR){
+		detachInterrupt(digitalPinToInterrupt(_intCTSPin));
+		_FT5206_INT = false;
+		_useISR = false;
+	}
+}
+
+/**************************************************************************/
+/*!
+		Print out some of the FT5206 registers for debug
+*/
+/**************************************************************************/
+void RA8876_t3::printTSRegisters(Print &pr, uint8_t start, uint8_t count)
+{
+	// guessing. from registers pdf
+	_wire->beginTransmission(_ctpAdrs);
+	_wire->write(start);
+	_wire->endTransmission(_ctpAdrs);
+
+	pr.println("\nRA8876 CTP Registers");
+	_wire->requestFrom((uint8_t)_ctpAdrs, count); //get 31 registers
+	uint8_t index = 0xff;
+	while(_wire->available()) {
+		if ((++index & 0xf) == 0) pr.printf("\n  %02x:", start);
+		pr.printf(" %02x", _wire->read());
+		start++;
+	}
+	pr.println();
+}
+
+/*
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
++							     TOUCH SCREEN COMMONS						         +
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+*/
+
+/**************************************************************************/
+/*!
+		Checks an interrupt has occurred. return true if yes.
+		Designed to run in loop.
+		It works with ISR or DigitalRead methods
+		Parameters:
+		safe: true  (detach interrupt routine, has to be re-engaged manually!)
+			  false (
+*/
+/**************************************************************************/
+bool RA8876_t3::touched(bool safe)
+{
+	if (_useISR){//using interrupts
+			_needCTS_ISRrearm = safe;
+			if (_FT5206_INT)			{
+			//there was an interrupt
+					if (_needCTS_ISRrearm){//safe was true, detach int
+						_disableCapISR();
+					} else {//safe was false, do not detatch int and clear INT flag
+							_FT5206_INT = false;
+					}
+					return true;
+			}
+			return false;
+	} else {//not use ISR, digitalRead method
+			return false;
+	}
+}
+
+void RA8876_t3::setTouchLimit(uint8_t limit)
+{
+	if (limit > 5) limit = 5;//max 5 allowed
+	_maxTouch = limit;
+}
+
+uint8_t RA8876_t3::getTouchLimit(void)
+{
+	return _maxTouch;
+}
+
+/**************************************************************************/
+/*!
+		Initialization sequence of the FT5206
+*/
+/**************************************************************************/
+static const uint8_t _FT5206REgisters[9] = {
+	0x16,0x3C,0xE9,0x01,0x01,0xA0,0x0A,0x06,0x28
+};
+
+void RA8876_t3::_initializeFT5206(void)
+{
+	uint8_t i;
+	for (i=0x80;i<0x89;i++){
+		_sendRegFT5206(i,_FT5206REgisters[i-0x80]);
+	}
+	_sendRegFT5206(0x00,0x00);//Device Mode
+
+
+}
+
+/**************************************************************************/
+/*!
+		Communicate with FT5206
+*/
+/**************************************************************************/
+void RA8876_t3::_sendRegFT5206(uint8_t reg,const uint8_t val)
+{
+	_wire->beginTransmission(_ctpAdrs);
+	_wire->write(reg);
+	_wire->write(val);
+	_wire->endTransmission(_ctpAdrs);
+}
+
+
+/**************************************************************************/
+/*!
+		This is the function that update the current state of the Touch Screen
+		It's developed for use in loop
+*/
+/**************************************************************************/
+void RA8876_t3::updateTS(void)
+{
+    _wire->requestFrom((uint8_t)_ctpAdrs,(uint8_t)31); //get 31 registers
+    uint8_t index = 0;
+    while(_wire->available()) {
+      _cptRegisters[index++] = _wire->read();//fill registers
+    }
+	_currentTouches = _cptRegisters[0x02] & 0xF;
+	if (_currentTouches > _maxTouch) _currentTouches = _maxTouch;
+	_gesture = _cptRegisters[0x01];
+	if (_maxTouch < 2) _gesture = 0;
+	uint8_t temp = _cptRegisters[0x03];
+	_currentTouchState = 0;
+	if (!bitRead(temp,7) && bitRead(temp,6)) _currentTouchState = 1;//finger up
+	if (bitRead(temp,7) && !bitRead(temp,6)) _currentTouchState = 2;//finger down
+}
+
+
+/**************************************************************************/
+/*!
+		It gets coordinates out from data collected by updateTS function
+		Actually it will not communicate with FT5206, just reorder collected data
+		so it MUST be used after updateTS!
+*/
+/**************************************************************************/
+uint8_t RA8876_t3::getTScoordinates(uint16_t (*touch_coordinates)[2])
+{
+	uint8_t i;
+	if (_currentTouches < 1) return 0;
+ 	for (i=1;i<=_currentTouches;i++){
+		switch(_rotation){
+			case 0://ok
+				//touch_coordinates[i-1][0] = _width - (((_cptRegisters[coordRegStart[i-1]] & 0x0f) << 8) | _cptRegisters[coordRegStart[i-1] + 1]) / (4096/_width);
+				//touch_coordinates[i-1][1] = (((_cptRegisters[coordRegStart[i-1]] & 0x0f) << 8) | _cptRegisters[coordRegStart[i-1] + 1]) / (4096/_height);
+				touch_coordinates[i-1][0] = ((_cptRegisters[coordRegStart[i-1]] & 0x0f) << 8) | _cptRegisters[coordRegStart[i-1] + 1];
+				touch_coordinates[i-1][1] = ((_cptRegisters[coordRegStart[i-1] + 2] & 0x0f) << 8) | _cptRegisters[coordRegStart[i-1] + 3];
+			break;
+			case 1://ok
+				touch_coordinates[i-1][0] = (((_cptRegisters[coordRegStart[i-1] + 2] & 0x0f) << 8) | _cptRegisters[coordRegStart[i-1] + 3]);
+				touch_coordinates[i-1][1] = (_width - 1) - (((_cptRegisters[coordRegStart[i-1]] & 0x0f) << 8) | _cptRegisters[coordRegStart[i-1] + 1]);
+			break;
+			case 2://ok
+				touch_coordinates[i-1][0] = (_width - 1) - (((_cptRegisters[coordRegStart[i-1]] & 0x0f) << 8) | _cptRegisters[coordRegStart[i-1] + 1]);
+				touch_coordinates[i-1][1] = (_height - 1) -(((_cptRegisters[coordRegStart[i-1] + 2] & 0x0f) << 8) | _cptRegisters[coordRegStart[i-1] + 3]);
+			break;
+			case 3://ok
+				touch_coordinates[i-1][0] = (_height - 1) - (((_cptRegisters[coordRegStart[i-1] + 2] & 0x0f) << 8) | _cptRegisters[coordRegStart[i-1] + 3]);
+				touch_coordinates[i-1][1] = (((_cptRegisters[coordRegStart[i-1]] & 0x0f) << 8) | _cptRegisters[coordRegStart[i-1] + 1]);
+			break;
+		}
+		if (i == _maxTouch) return i;
+	} 
+    return _currentTouches;
+}
+
+/**************************************************************************/
+/*!
+		Gets the current Touch State, must be used AFTER updateTS!
+*/
+/**************************************************************************/
+uint8_t RA8876_t3::getTouchState(void)
+{
+	return _currentTouchState;
+}
+
+/**************************************************************************/
+/*!
+		Gets the number of touches, must be used AFTER updateTS!
+		Return 0..5
+		0: no touch
+*/
+/**************************************************************************/
+uint8_t RA8876_t3::getTouches(void)
+{
+	return _currentTouches;
+}
+
+/**************************************************************************/
+/*!
+		Gets the gesture, if identified, must be used AFTER updateTS!
+*/
+/**************************************************************************/
+uint8_t RA8876_t3::getGesture(void)
+{
+	//if gesture is up, down, left or right, juggle with bit2 & bit3 to match rotation
+	if((_gesture >> 4) & 1){
+		switch(_rotation){
+			case 0:
+				_gesture ^= 1 << 2;
+				if(!((_gesture >> 2) & 1)) _gesture ^= 1 << 3;
+			break;
+			case 1:
+				_gesture ^= 1 << 3;
+			break;
+			case 2:
+				_gesture ^= 1 << 2;
+				if((_gesture >> 2) & 1) _gesture ^= 1 << 3;
+			break;
+		}
+	}
+	return _gesture;
+}
+#endif
