@@ -5,7 +5,7 @@ Added frame buffering type support:
 
 modified for printing to screen:
 1. print(uint8_t text) -> write(c);
-2. printStr(const char * str); -> write(c, string lenght);
+2. printStr(const char * str); -> write(c, string length);
 ====================================================================
 as of 04/29/20
 The Ra8876 library redo for the Teensy has been focused on consolidation and essentially refactoring to make it into a more generic libary for library.  For the restructuing of the the library it is currently being tested with the BuyDisplay's ER-TFTM070-6 7 inch LCD module w/touch, https://www.buydisplay.com/spi-7-inch-tft-lcd-dislay-module-1024x600-ra8876-optl-touch-screen-panel.
