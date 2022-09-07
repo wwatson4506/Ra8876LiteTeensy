@@ -531,11 +531,11 @@ public:
 	bool _standard = true; // no bounding rectangle or origin set. 
 
 	inline void updateDisplayClip() {
-		_displayclipx1 = max(0,min(_clipx1+_originx,width()));
-		_displayclipx2 = max(0,min(_clipx2+_originx,width()));
+		_displayclipx1 = max((int16_t)0,min((int16_t)(_clipx1+_originx),width()));
+		_displayclipx2 = max((int16_t)0,min((int16_t)(_clipx2+_originx),width()));
 
-		_displayclipy1 = max(0,min(_clipy1+_originy,height()));
-		_displayclipy2 = max(0,min(_clipy2+_originy,height()));
+		_displayclipy1 = max((int16_t)0,min((int16_t)(_clipy1+_originy),height()));
+		_displayclipy2 = max((int16_t)0,min((int16_t)(_clipy2+_originy),height()));
 		_invisible = (_displayclipx1 == _displayclipx2 || _displayclipy1 == _displayclipy2);
 		_standard =  (_displayclipx1 == 0) && (_displayclipx2 == _width) && (_displayclipy1 == 0) && (_displayclipy2 == _height);
 		if (Serial) {

@@ -198,6 +198,9 @@ RA8876_t3::RA8876_t3(const uint8_t CSp, const uint8_t RSTp, const uint8_t mosi_p
 //**************************************************************//
 // Ra8876_begin()
 //**************************************************************//
+#ifndef FLASHMEM
+#define FLASHMEM
+#endif
 FLASHMEM boolean RA8876_t3::begin(uint32_t spi_clock) 
 { 
   //initialize the bus for Teensy 3.6/4.0
@@ -5135,48 +5138,48 @@ void RA8876_t3::drawChar(int16_t x, int16_t y, unsigned char c,
 			 ((y + 8 * size_y - 1) < _displayclipy1))   // Clip top   TODO: this is not correct
 			return;
 
-			// need to build actual pixel rectangle we will output into.
-			int16_t y_char_top = y;	// remember the y
-			int16_t w =  6 * size_x;
-			int16_t h = 8 * size_y;
+		// need to build actual pixel rectangle we will output into.
+		int16_t y_char_top = y;	// remember the y
+		int16_t w =  6 * size_x;
+		int16_t h = 8 * size_y;
 
-			if(x < _displayclipx1) {	w -= (_displayclipx1-x); x = _displayclipx1; 	}
-			if((x + w - 1) >= _displayclipx2)  w = _displayclipx2  - x;
-			if(y < _displayclipy1) {	h -= (_displayclipy1 - y); y = _displayclipy1; 	}
-			if((y + h - 1) >= _displayclipy2) h = _displayclipy2 - y;
+		if(x < _displayclipx1) {	w -= (_displayclipx1-x); x = _displayclipx1; 	}
+		if((x + w - 1) >= _displayclipx2)  w = _displayclipx2  - x;
+		if(y < _displayclipy1) {	h -= (_displayclipy1 - y); y = _displayclipy1; 	}
+		if((y + h - 1) >= _displayclipy2) h = _displayclipy2 - y;
 
-			//Serial.printf("%d, %d, %d, %d\n", x, y, x + w -1, y + h - 1);
-			setActiveWindow(x, y, x + w -1, y + h - 1);
-			//_startSend();
-			y = y_char_top;	// restore the actual y.
-			//writeCommand(RA8875_MRWC);
-			for (yc=0; (yc < 8) && (y < _displayclipy2); yc++) {
-				for (yr=0; (yr < size_y) && (y < _displayclipy2); yr++) {
-					x = x_char_start; 		// get our first x position...
-					if (y >= _displayclipy1) {
-						for (xc=0; xc < 5; xc++) {
-							for (xr=0; xr < size_x; xr++) {
-								if ((x >= _displayclipx1) && (x < _displayclipx2)) {
-									//write16BitColor(fgcolor);
-									drawPixel(xr+x,yc+y,fgcolor);
-								}
-								x++;
-							}
-						}
+		//Serial.printf("%d, %d, %d, %d\n", x, y, x + w -1, y + h - 1);
+		setActiveWindow(x, y, x + w -1, y + h - 1);
+		//_startSend();
+		y = y_char_top;	// restore the actual y.
+		//writeCommand(RA8875_MRWC);
+		for (yc=0; (yc < 8) && (y < _displayclipy2); yc++) {
+			for (yr=0; (yr < size_y) && (y < _displayclipy2); yr++) {
+				x = x_char_start; 		// get our first x position...
+				if (y >= _displayclipy1) {
+					for (xc=0; xc < 5; xc++) {
 						for (xr=0; xr < size_x; xr++) {
 							if ((x >= _displayclipx1) && (x < _displayclipx2)) {
-								//write16BitColor(bgcolor);
-								drawPixel(xr+x,yc+y,bgcolor);
+								//write16BitColor(fgcolor);
+								drawPixel(xr+x,yc+y,fgcolor);
 							}
 							x++;
 						}
 					}
-					y++;
+					for (xr=0; xr < size_x; xr++) {
+						if ((x >= _displayclipx1) && (x < _displayclipx2)) {
+							//write16BitColor(bgcolor);
+							drawPixel(xr+x,yc+y,bgcolor);
+						}
+						x++;
+					}
 				}
-				mask = mask << 1;
+				y++;
 			}
-			//writecommand_last(ILI9488_NOP);
-			//_endSend();
+			mask = mask << 1;
+		}
+		//writecommand_last(ILI9488_NOP);
+		//_endSend();
 	}
 }
 
