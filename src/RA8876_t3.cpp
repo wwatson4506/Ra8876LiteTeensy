@@ -3219,7 +3219,7 @@ void RA8876_t3::bteMpuWriteColorExpansionData(ru32 des_addr,ru16 des_image_width
   
   for(i=0;i< height;i++)
   {	
-    for(j=0;j< (width/8);j++)
+    for(j=0;j< ((width+7)/8);j++)
     {
       lcdDataWrite(*data, false);
       data++;
@@ -3266,7 +3266,7 @@ void RA8876_t3::bteMpuWriteColorExpansionWithChromaKeyData(ru32 des_addr,ru16 de
   
   for(i=0;i< height;i++)
   {	
-    for(j=0;j< (width/8);j++)
+    for(j=0;j< ((width+7)/8);j++)
     {
       lcdDataWrite(*data, false);
       data++;
