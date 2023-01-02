@@ -25,7 +25,7 @@
 #include "RA8876_t3.h"
 
 #define RA8876_CS 10
-#define RA8876_RESET 8
+#define RA8876_RESET 9
 #define BACKLITE 7 //My copy of the display is set for external backlight control
 RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
 
@@ -38,6 +38,7 @@ USBHub hub2(myusb);
 KeyboardController keyboard1(myusb); // Not used.
 MouseController mouse1(myusb);
 USBHIDParser hid1(myusb); // Needed for USB mouse.
+USBHIDParser hid2(myusb); // Needed for USB mouse.
 
 typedef struct usbMouseMsg_struct usbMouseMsg_t;
 // A structure to hold results of mouse operations.
