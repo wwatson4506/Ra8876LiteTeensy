@@ -1,16 +1,15 @@
 #include <SPI.h>
 #include "RA8876_t3.h"
+#include "font_Arial.h"
+
 #define RA8876_CS 10
 #define RA8876_RESET 9
-#define PINK        0xFC18
-#include "font_Arial.h"
 #define BACKLITE 5 //External backlight control connected to this Arduino pin
-
+#define PINK        0xFC18
 #define REG_DUMP_CNT  0 //0x70
-uint8_t reg_values[REG_DUMP_CNT];
-
 #define USE_STATUS_LINE
 
+uint8_t reg_values[REG_DUMP_CNT];
 
 RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
 
