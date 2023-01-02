@@ -43,6 +43,12 @@ USBHost myusb;
 USBHub hub1(myusb);
 USBHub hub2(myusb);
 
+//************************************************************
+// Even though the keyboard is not used we still need
+// to create a keyboardController and USBHIDParser instance
+// just in case a wireless keyboard/mouse is used. Otherwise
+// the mouse will not be claimed.
+//************************************************************* 
 KeyboardController keyboard1(myusb); // Not used.
 MouseController mouse1(myusb);
 USBHIDParser hid1(myusb); // Needed for USB mouse.
