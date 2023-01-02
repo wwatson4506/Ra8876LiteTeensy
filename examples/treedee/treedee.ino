@@ -2,14 +2,11 @@
 // Taken from sumotoy's RA8875 library
 // and modified for use with the RA8876.
 #include "Arduino.h"
-//#include "Ra8876_Lite.h"
 #include "RA8876_t3.h"
-
-//#include "vt100.h"
 #include <math.h>
 
 #define RA8876_CS 10
-#define RA8876_RESET 8
+#define RA8876_RESET 9
 #define BACKLITE 7 //External backlight control connected to this Arduino pin
 RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
 
@@ -63,8 +60,7 @@ float p2x[] = {
 float p2y[] = {
   0,0,0,0,0,0,0,0};
 
-int r[] = {
-  0,0,0};
+int r[] = {0,0,0};
 
 uint8_t ch = 13; // Default line color
 uint16_t ccolor = myColors[ch];
@@ -78,15 +74,13 @@ void setup() {
   digitalWrite(BACKLITE, HIGH);
     
   tft.begin();
-	//initVT100();
-	tft.setCursor(0,0);
-	tft.fillScreen(myColors[11]);
-	tft.setFontSize(1,false);
-	tft.fillStatusLine(myColors[11]);
-	tft.printStatusLine(0,myColors[1],myColors[11],"Sumotoy's treedee sketch on the T4.");
-    tft.setMargins(0, 0, tft.width(), tft.height()); //so fillscreen doesn't erase the status bar
+  tft.setCursor(0,0);
+  tft.fillScreen(myColors[11]);
+  tft.setFontSize(1,false);
+  tft.fillStatusLine(myColors[11]);
+  tft.printStatusLine(0,myColors[1],myColors[11],"Sumotoy's treedee sketch on the T4.");
+  tft.setMargins(0, 0, tft.width(), tft.height()); //so fillscreen doesn't erase the status bar
 }
-
 
 //delay between interations 
 uint8_t speed = 20; // Change this setting to go from reasonable to rediculous .
@@ -123,7 +117,7 @@ void loop() {
   tft.drawLine(p2x[3], p2y[3], p2x[0], p2y[0], ccolor);
   tft.drawLine(p2x[7], p2y[7], p2x[4], p2y[4], ccolor);
   tft.drawLine(p2x[3], p2y[3], p2x[7], p2y[7], ccolor);
-  delay(speed); // Wanna see how fast this runs a 34MHZ? modify 'speed' above! (Or comment out)
+  delay(speed); // Wanna see how fast this runs? modify 'speed' above! (Or comment out)
 // Uncomment for random colored frames
 //  if (ch >= 22) {
 //    ch = 1;
