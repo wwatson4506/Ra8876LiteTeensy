@@ -4,7 +4,7 @@
 
 #define RA8876_CS 10
 #define RA8876_RESET 9
-#define BACKLITE 5 //External backlight control connected to this Arduino pin
+#define BACKLITE 7 //External backlight control connected to this Arduino pin
 #define PINK        0xFC18
 #define REG_DUMP_CNT  0 //0x70
 #define USE_STATUS_LINE
