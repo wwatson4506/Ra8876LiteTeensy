@@ -1,3 +1,5 @@
+# MAJOR UPDATE
+
 as of 4/30/20
 Added frame buffering type support:
 1. useCanvas()
