@@ -1,6 +1,12 @@
 # MAJOR UPDATE
-#### This version of Ra8876LiteTeensy added the ability to communicate with the RA8876 in 8080 parallel mode.
+#### This version of Ra8876LiteTeensy adds the ability to communicate with the RA8876 in 8080 parallel mode.
 
+It can use either a 8-bit or 16-bit parallel data bus. It is compatible with the Teensy 4.1 and MicroMod boards.
+
+## T4.1 pinouts:
+
+T4.1                      ER-TFTM101-1 (40 PIN CONNECTOR)
+---------------------------------------------------------
 
 as of 4/30/20
 Added frame buffering type support:
