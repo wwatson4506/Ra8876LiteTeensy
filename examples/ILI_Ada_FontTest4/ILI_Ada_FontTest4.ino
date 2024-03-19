@@ -1,19 +1,27 @@
 #include <Adafruit_GFX.h>
-
 #include <SPI.h>
 #include "RA8876_t3.h"
+
+uint8_t dc = 13;
+uint8_t cs = 11;
+uint8_t rst = 12;
+
+RA8876_t3 tft = RA8876_t3(dc,cs,rst); //(dc, cs, rst)
+/*
 #define RA8876_CS 10
-#define RA8876_RESET 9
-#define BACKLITE 7 //External backlight control connected to this Arduino pin
+#define RA8876_RESET 8
+#define BACKLITE 5 // was 7 //External backlight control connected to this Arduino pin
+*/
+#include "_fonts.h"
 
 #include "font_Arial.h"
 #include "font_ArialBold.h"
-#include "font_ComicSansMS.h"
-#include "font_OpenSans.h"
-#include "font_DroidSans.h"
-#include "font_Michroma.h"
-#include "font_Crystal.h"
-#include "font_ChanceryItalic.h"
+#include "_font_ComicSansMS.h"
+#include "_font_OpenSans.h"
+//#include "font_DroidSans.h"
+//#include "font_Michroma.h"
+//#include "font_Crystal.h"
+//#include "font_ChanceryItalic.h"
 
 // maybe a few GFX FOnts?
 #include <Fonts/FreeMonoBoldOblique12pt7b.h>
@@ -35,10 +43,10 @@ const ili_fonts_test_t font_test_list[] = {
   {&Arial_14, nullptr,  "Arial_14", WHITE, WHITE},
   {&Arial_14_Bold, nullptr,  "ArialBold 14", YELLOW, YELLOW},
   {&ComicSansMS_14, nullptr,  "ComicSansMS 14", GREEN, GREEN},
-  {&DroidSans_14, nullptr,  "DroidSans_14", WHITE, WHITE},
-  {&Michroma_14, nullptr,  "Michroma_14", YELLOW, YELLOW},
-  {&Crystal_24_Italic, nullptr,  "CRYSTAL_24", BLACK, YELLOW},
-  {&Chancery_24_Italic, nullptr,  "Chancery_24_Italic", GREEN, GREEN},
+//  {&DroidSans_14, nullptr,  "DroidSans_14", WHITE, WHITE},
+//  {&Michroma_14, nullptr,  "Michroma_14", YELLOW, YELLOW},
+//  {&Crystal_24_Italic, nullptr,  "CRYSTAL_24", BLACK, YELLOW},
+//  {&Chancery_24_Italic, nullptr,  "Chancery_24_Italic", GREEN, GREEN},
   {&OpenSans24, nullptr,  "OpenSans 18", RED, YELLOW},
   {nullptr, &FreeMonoBoldOblique12pt7b,  "GFX FreeMonoBoldOblique12pt7b", WHITE, WHITE},
   {nullptr, &FreeMonoBoldOblique12pt7b,  "GFX FreeMonoBoldOblique12pt7b", RED, YELLOW},
@@ -50,7 +58,7 @@ const ili_fonts_test_t font_test_list[] = {
 extern void displayStuff(const char *font_name);
 
 
-RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
+//RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
 
 uint8_t test_screen_rotation = 0;
 
@@ -60,10 +68,11 @@ void setup() {
   long unsigned debug_start = millis ();
   while (!Serial && ((millis () - debug_start) <= 5000)) ;
   Serial.println("Setup");
-  tft.begin(30000000);
+//  tft.begin(30000000);
+  tft.begin(50);
   tft.backlight(true);
-  pinMode(BACKLITE, OUTPUT);
-  digitalWrite(BACKLITE, HIGH);
+//  pinMode(BACKLITE, OUTPUT);
+//  digitalWrite(BACKLITE, HIGH);
 
 //  tft.setRotation(4);
   tft.fillScreen(BLACK);
@@ -78,7 +87,7 @@ void setup() {
   tft.setTextColor(GREEN);
   tft.setFont(ComicSansMS_14);
   displayStuff("ComicSansMS 14");
-
+/*
   nextPage();
   tft.setTextColor(WHITE);
   tft.setFont(DroidSans_14);
@@ -92,13 +101,13 @@ void setup() {
   tft.setTextColor(BLACK, YELLOW);
   tft.setFont(Crystal_24_Italic);
   displayStuff("CRYSTAL_24");
-
+*/
   nextPage();
-
+/*
   tft.setTextColor(GREEN);
   tft.setFont(Chancery_24_Italic);
   displayStuff("Chancery_24_Italic");
-
+*/
   //anti-alias font OpenSans
   tft.setTextColor(RED, YELLOW);
   tft.setFont(OpenSans24);

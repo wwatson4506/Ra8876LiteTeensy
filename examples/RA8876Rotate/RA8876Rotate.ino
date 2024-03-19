@@ -1,24 +1,34 @@
 #include <SPI.h>
 #include "RA8876_t3.h"
-#include "font_Arial.h"
 
-#define RA8876_CS 10
-#define RA8876_RESET 9
-#define BACKLITE 7 //External backlight control connected to this Arduino pin
+//#define RA8876_CS 10
+//#define RA8876_RESET 8
 #define PINK        0xFC18
-#define REG_DUMP_CNT  0 //0x70
-#define USE_STATUS_LINE
+#include "font_Arial.h"
+#define BACKLITE 5 //External backlight control connected to this Arduino pin
 
+#define REG_DUMP_CNT  0 //0x70
 uint8_t reg_values[REG_DUMP_CNT];
 
-RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
+#define USE_STATUS_LINE
+
+uint8_t dc = 13;
+uint8_t cs = 11;
+uint8_t rst = 12;
+
+RA8876_t3 tft = RA8876_t3(dc,cs,rst); //(dc, cs, rst)
+
+
+//RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
 
 void setup() {
-  Serial.begin(38400);
+  while (!Serial && millis() < 1000) {} //wait for Serial Monitor
+
   long unsigned debug_start = millis ();
   while (!Serial && ((millis () - debug_start) <= 5000)) ;
   Serial.println("Setup");
-  tft.begin(20000000);
+//  tft.begin(47000000);
+  bool result = tft.begin(40);
   for (uint8_t reg = 0; reg < REG_DUMP_CNT; reg++) {
     reg_values[reg] = tft.lcdRegDataRead(reg);
   }

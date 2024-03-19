@@ -47,11 +47,17 @@
 #include "Cube_172.h"
 
 #include <RA8876_t3.h>
-#define RA8876_CS 10
-#define RA8876_RESET 8
-#define BACKLITE 7 //My copy of the display is set for external backlight control
-RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
 
+//#define RA8876_CS 10
+//#define RA8876_RESET 8
+#define BACKLITE 5 // was7 //My copy of the display is set for external backlight control
+//RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
+
+uint8_t dc = 13;
+uint8_t cs = 11;
+uint8_t rst = 12;
+
+RA8876_t3 tft = RA8876_t3(dc,cs,rst); //(dc, cs, rst)
 
 void writeImage(int x, int y, int w, int h, const unsigned char *image) {
   //copy from the PROGMEM array to the screen, at the specified x/y location
@@ -167,7 +173,8 @@ void setup() {
   digitalWrite(BACKLITE, HIGH);
 //  analogWrite(BACKLITE, 256);
 
-  bool result = tft.begin();
+//  tft.begin(47000000);
+  bool result = tft.begin(40);
 
   if (!result) {
     Serial.println("TFT initialization failed!");
@@ -221,6 +228,8 @@ void setup() {
   Serial.print("16-bit copy from PROGMEM to display took ");
   Serial.print((float)(end2Time - startTime) / 1000.0, 3);
   Serial.println("ms");
+Serial.printf("Here\n");
+while(1);
 
 
   //Chromakey can also be done as 16-bit or 8-bit but the time taken is identical to the normal write
