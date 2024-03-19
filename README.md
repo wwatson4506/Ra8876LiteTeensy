@@ -1,5 +1,5 @@
 # MAJOR UPDATE
-## This version of Ra8876LiteTeensy added the ability to communicate with the RA8876 in 8080 parallel mode.
+### This version of Ra8876LiteTeensy added the ability to communicate with the RA8876 in 8080 parallel mode.
 
 
 as of 4/30/20
