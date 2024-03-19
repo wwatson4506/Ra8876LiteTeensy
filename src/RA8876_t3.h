@@ -75,7 +75,23 @@ Version   : v1.0
 #ifndef _RA8876_T3
 #define _RA8876_T3
 
-#define USE_FT5206_TOUCH
+#define USE_8080_IF 1
+
+//#define USE_FT5206_TOUCH
+
+#if defined(USE_8080_IF)
+#include "FlexIO_t4.h"
+
+#define BUS_WIDTH 16  /*Available options are 8 or 16 */
+#define SHIFTNUM 8 // number of shifters used (up to 8)
+#define BYTES_PER_BEAT (sizeof(uint8_t))
+#define BEATS_PER_SHIFTER (sizeof(uint32_t)/BYTES_PER_BEAT)
+#define BYTES_PER_BURST (sizeof(uint32_t)*SHIFTNUM)
+#define SHIFTER_IRQ (SHIFTNUM-1)
+#define TIMER_IRQ 0
+#define FLEXIO_ISR_PRIORITY 64 // interrupt is timing sensitive, so use relatively high priority (supersedes USB)
+
+#endif
 
 /* Addins for ILI and GFX Fonts */
 #include "_fonts.h"
@@ -135,8 +151,11 @@ const uint32_t MEM_SIZE_MAX	= 16l*1024l*1024l;
 class RA8876_t3 : public Print
 {
 public:
+#if defined(USE_8080_IF)
+	RA8876_t3(const uint8_t DCp = 13, const uint8_t CSp = 11, const uint8_t RSTp = 12);
+#else
 	RA8876_t3(const uint8_t CSp = 10, const uint8_t RSTp = 8, const uint8_t mosi_pin = 11, const uint8_t sclk_pin = 13, const uint8_t miso_pin = 12);
-
+#endif
 	
 	volatile bool	RA8876_BUSY; //This is used to show an SPI transaction is in progress. 
 	volatile bool   activeDMA=false; //Unfortunately must be public so asyncEventResponder() can set it
@@ -144,7 +163,11 @@ public:
 	void		setRotation(uint8_t rotation); //rotate text and graphics
 	uint8_t		getRotation(); //return the current rotation 0-3
 	/* Initialize RA8876 */
+#if defined (USE_8080_IF)
+	boolean begin(uint8_t baud_div);
+#else
 	boolean begin(uint32_t spi_clock=SPIspeed);
+#endif
 	boolean ra8876Initialize(); 
 	boolean ra8876PllInitial (void);
 	boolean ra8876SdramInitial(void);
@@ -163,6 +186,9 @@ public:
 	ru8 lcdRegDataRead(ru8 reg, bool finalize = true);
 	void lcdDataWrite16bbp(ru16 data, bool finalize = true); 
 	
+    uint16_t lcdDataRead16(bool finalize);
+    void lcdDataWrite16(uint16_t data, bool finalize);
+
 	/*Status*/
 	void checkWriteFifoNotFull(void);
 	void checkWriteFifoEmpty(void);
@@ -651,6 +677,68 @@ public:
 	
 	void LCD_CmdWrite(unsigned char cmd);
 
+#if defined (USE_8080_IF)
+
+  typedef void(*CBF)();
+  CBF _callback;
+  void onCompleteCB(CBF callback);
+
+  void FlexIO_Clear_Config_SnglBeat();
+  void SglBeatWR_nPrm_8(uint32_t const cmd, uint8_t const *value , uint32_t const length);
+  void SglBeatWR_nPrm_16(uint32_t const cmd, const uint16_t *value, uint32_t const length);
+  void MulBeatWR_nPrm_IRQ(uint32_t const cmd,  const void *value, uint32_t const length);
+  void pushPixels16bit(const uint16_t * pcolors, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2);
+  void pushPixels16bitAsync(const uint16_t * pcolors, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2);
+  uint8_t readCommand(const uint8_t cmd);
+  uint8_t readStatus(void);
+void lcdRegDataWrite16(ru8 reg, ru16 data, bool finalize);
+
+  FlexIOHandler *pFlex;
+  IMXRT_FLEXIO_t *p;
+  const FlexIOHandler::FLEXIO_Hardware_t *hw;
+   
+    uint8_t _baud_div = 20; 
+    int8_t  _dc; //, _cs, _rst;
+//    const uint8_t * _init_commands;
+
+    uint8_t _dummy;
+
+    volatile bool WR_IRQTransferDone = true;
+    uint32_t MulBeatCountRemain;
+    uint16_t *MulBeatDataRemain;
+    uint32_t TotalSize; 
+
+    /* variables used by ISR */
+    volatile uint32_t bytes_remaining;
+    volatile unsigned int bursts_to_complete;
+    volatile uint32_t *readPtr;
+    uint32_t finalBurstBuffer[SHIFTNUM];
+
+    void displayInit();
+    void CSLow();
+    void CSHigh();
+    void DCLow();
+    void DCHigh();
+    void gpioWrite();
+    void gpioRead();
+    
+
+    void FlexIO_Init();
+    void FlexIO_Config_SnglBeat();
+    void FlexIO_Config_MultiBeat();
+    void FlexIO_Config_SnglBeat_Read();
+    
+    void microSecondDelay();
+
+    static void ISR();
+    void flexIRQ_Callback();
+
+    bool isCB = false;
+    void _onCompleteCB();
+    
+    static RA8876_t3 *IRQcallback;
+
+#endif
 	
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //    RA8876 Parameters
@@ -902,7 +990,7 @@ protected:
 	void 					_disableCapISR(void);
 	volatile boolean	  	_needCTS_ISRrearm;
 	static void 			cts_isr(void);
-	TwoWire 				 *_wire=&Wire;
+	TwoWire 				 *_wire=&Wire2;
 	#endif	
 
 

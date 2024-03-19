@@ -185,7 +185,781 @@ void asyncEventResponder(EventResponderRef event_responder) {
 //**************************************************************//
 // RA8876_t3()
 //**************************************************************//
+// Create RA8876 driver instance 8080 IF
+//**************************************************************//
+#if defined(USE_8080_IF)
+RA8876_t3::RA8876_t3(const uint8_t DCp, const uint8_t CSp, const uint8_t RSTp)
+{
+	_cs = CSp;
+	_rst = RSTp;
+    _dc = DCp;
+Serial.print("_cs = ");
+Serial.println(_cs,DEC);
+}
+
+FLASHMEM boolean RA8876_t3::begin(uint8_t baud_div) 
+{ 
+  switch (baud_div) {
+    case 2:  _baud_div = 120;
+              break;
+    case 4:  _baud_div = 60;
+              break;
+    case 8:  _baud_div = 30;
+              break;
+    case 12: _baud_div = 20;
+              break;
+    case 20: _baud_div = 12;
+              break;
+    case 24: _baud_div = 10;
+              break;
+    case 30: _baud_div = 8;
+              break;
+    case 40: _baud_div = 6;
+              break;
+    case 60: _baud_div = 4;
+              break;
+    case 120: _baud_div = 2;
+              break;
+   default: _baud_div = 20; // 12Mhz
+              break;           
+  }
+    pinMode(_cs, OUTPUT); // CS
+    pinMode(_dc, OUTPUT); // DC
+    pinMode(_rst, OUTPUT); // RST
+    *(portControlRegister(_cs)) = 0xFF;
+    *(portControlRegister(_dc)) = 0xFF;
+    *(portControlRegister(_rst)) = 0xFF;
+  
+    digitalWriteFast(_cs, HIGH);
+    digitalWriteFast(_dc, HIGH);
+    digitalWriteFast(_rst, HIGH);
+
+    delay(15);
+    digitalWrite(_rst, LOW);
+    delay(15);
+    digitalWriteFast(_rst, HIGH);
+    delay(100);
+
+    FlexIO_Init();
+
+	if(!checkIcReady())
+		return false;
+
+	//read ID code must disable pll, 01h bit7 set 0
+    if(BUS_WIDTH == 16) {
+	  lcdRegDataWrite(0x01,0x09);
+	} else {
+	  lcdRegDataWrite(0x01,0x08);
+	}
+	delay(1);
+	if ((lcdRegDataRead(0xff) != 0x76)&&(lcdRegDataRead(0xff) != 0x77)) {
+		return false;
+    }
+
+	// Initialize RA8876 to default settings
+	if(!ra8876Initialize()) {
+		return false;
+    }
+
+    return true;
+}
+
+FASTRUN void RA8876_t3::CSLow() 
+{
+  digitalWriteFast(_cs, LOW);       //Select TFT
+}
+
+FASTRUN void RA8876_t3::CSHigh() 
+{
+  digitalWriteFast(_cs, HIGH);       //Deselect TFT
+}
+
+FASTRUN void RA8876_t3::DCLow() 
+{
+  digitalWriteFast(_dc, LOW);       //Writing command to TFT
+}
+
+FASTRUN void RA8876_t3::DCHigh() 
+{
+  digitalWriteFast(_dc, HIGH);       //Writing data to TFT
+}
+
+FASTRUN void RA8876_t3::microSecondDelay()
+{
+  for (uint32_t i=0; i<99; i++) __asm__("nop\n\t");
+}
+
+FASTRUN void RA8876_t3::gpioWrite(){
+  pFlex->setIOPinToFlexMode(36); // ReConfig /WR pin
+  pinMode(37, OUTPUT);  // Set /RD pin to output
+  digitalWriteFast(37, HIGH); // Set /RD pin High
+}
+
+FASTRUN void RA8876_t3::gpioRead(){
+  pFlex->setIOPinToFlexMode(37); // ReConfig /RD pin
+  pinMode(36, OUTPUT);  // Set /WR pin to output
+  digitalWriteFast(36, HIGH); // Set /WR pin High
+}
+
+FASTRUN void RA8876_t3::FlexIO_Init()
+{
+  /* Get a FlexIO channel */
+    pFlex = FlexIOHandler::flexIOHandler_list[2]; // use FlexIO3
+    /* Pointer to the port structure in the FlexIO channel */
+    p = &pFlex->port();
+    /* Pointer to the hardware structure in the FlexIO channel */
+    hw = &pFlex->hardware();
+    /* Basic pin setup */
+    
+    pinMode(19, OUTPUT); // FlexIO3:0 D0
+    pinMode(18, OUTPUT); // FlexIO3:1 |
+    pinMode(14, OUTPUT); // FlexIO3:2 |
+    pinMode(15, OUTPUT); // FlexIO3:3 |
+    pinMode(40, OUTPUT); // FlexIO3:4 |
+    pinMode(41, OUTPUT); // FlexIO3:5 |
+    pinMode(17, OUTPUT); // FlexIO3:6 |
+    pinMode(16, OUTPUT); // FlexIO3:7 D7
+
+    #if (BUS_WIDTH == 16)
+    pinMode(22, OUTPUT); // FlexIO3:8 D8
+    pinMode(23, OUTPUT); // FlexIO3:9  |
+    pinMode(20, OUTPUT); // FlexIO3:10 |
+    pinMode(21, OUTPUT); // FlexIO3:11 |
+    pinMode(38, OUTPUT); // FlexIO3:12 |
+    pinMode(39, OUTPUT); // FlexIO3:13 |
+    pinMode(26, OUTPUT); // FlexIO3:14 |
+    pinMode(27, OUTPUT); // FlexIO3:15 D15
+    #endif
+
+  pinMode(36, OUTPUT);
+  digitalWriteFast(36, HIGH);
+  pinMode(37, OUTPUT);
+  digitalWriteFast(37, HIGH);
+
+
+    /* High speed and drive strength configuration */
+    *(portControlRegister(36)) = 0xFF;
+    *(portControlRegister(37)) = 0xFF; 
+
+    *(portControlRegister(19)) = 0xFF;
+    *(portControlRegister(18)) = 0xFF;
+    *(portControlRegister(14)) = 0xFF;
+    *(portControlRegister(15)) = 0xFF;
+    *(portControlRegister(40)) = 0xFF;
+    *(portControlRegister(41)) = 0xFF;
+    *(portControlRegister(17)) = 0xFF;
+    *(portControlRegister(16)) = 0xFF;
+
+    #if (BUS_WIDTH == 16)
+    *(portControlRegister(22)) = 0xFF;
+    *(portControlRegister(23)) = 0xFF;
+    *(portControlRegister(20)) = 0xFF;
+    *(portControlRegister(21)) = 0xFF;
+    *(portControlRegister(38)) = 0xFF;
+    *(portControlRegister(39)) = 0xFF;
+    *(portControlRegister(26)) = 0xFF;
+    *(portControlRegister(27)) = 0xFF;
+    #endif
+
+    /* Set clock */
+    pFlex->setClockSettings(3, 1, 0); // (480 MHz source, 1+1, 1+0) >> 480/2/1 >> 240Mhz
+
+    /* Set up pin mux */
+    pFlex->setIOPinToFlexMode(36);
+    pFlex->setIOPinToFlexMode(37);
+
+    pFlex->setIOPinToFlexMode(19);
+    pFlex->setIOPinToFlexMode(18);
+    pFlex->setIOPinToFlexMode(14);
+    pFlex->setIOPinToFlexMode(15);
+    pFlex->setIOPinToFlexMode(40);
+    pFlex->setIOPinToFlexMode(41);
+    pFlex->setIOPinToFlexMode(17);
+    pFlex->setIOPinToFlexMode(16);
+
+    #if (BUS_WIDTH == 16)
+    pFlex->setIOPinToFlexMode(22);
+    pFlex->setIOPinToFlexMode(23);
+    pFlex->setIOPinToFlexMode(20);
+    pFlex->setIOPinToFlexMode(21);
+    pFlex->setIOPinToFlexMode(38);
+    pFlex->setIOPinToFlexMode(39);
+    pFlex->setIOPinToFlexMode(26);
+    pFlex->setIOPinToFlexMode(27);
+    #endif
+
+    hw->clock_gate_register |= hw->clock_gate_mask  ;
+    /* Enable the FlexIO with fast access */
+    p->CTRL = FLEXIO_CTRL_FLEXEN;
+    
+}
+
+FASTRUN void RA8876_t3::FlexIO_Config_SnglBeat_Read() {
+//    gpioWrite();
+
+    p->CTRL &= ~FLEXIO_CTRL_FLEXEN;
+    p->CTRL |=  FLEXIO_CTRL_SWRST;
+    p->CTRL &= ~FLEXIO_CTRL_SWRST;
+
+    gpioRead();
+
+    /* Configure the shifters */
+    p->SHIFTCFG[3] = 
+         FLEXIO_SHIFTCFG_SSTOP(0)                                              /* Shifter stop bit disabled */
+       | FLEXIO_SHIFTCFG_SSTART(0)                                             /* Shifter start bit disabled and loading data on enabled */
+       | FLEXIO_SHIFTCFG_PWIDTH(BUS_WIDTH-1);                                  /* Bus width */
+     
+    p->SHIFTCTL[3] = 
+        FLEXIO_SHIFTCTL_TIMSEL(0)                                              /* Shifter's assigned timer index */
+      | FLEXIO_SHIFTCTL_TIMPOL*(1)                                             /* Shift on negative edge of shift clock */
+      | FLEXIO_SHIFTCTL_PINCFG(1)                                              /* Shifter's pin configured as output */
+      | FLEXIO_SHIFTCTL_PINSEL(0)                                              /* Shifter's pin start index */
+      | FLEXIO_SHIFTCTL_PINPOL*(0)                                             /* Shifter's pin active high */
+      | FLEXIO_SHIFTCTL_SMOD(1);                                               /* Shifter mode as receive */
+
+    /* Configure the timer for shift clock */
+    p->TIMCMP[0] = 
+        (((1 * 2) - 1) << 8)                                                   /* TIMCMP[15:8] = number of beats x 2 – 1 */
+      | ((60/2) - 1);                                                          /* TIMCMP[7:0] = baud rate divider / 2 – 1 */
+    
+    p->TIMCFG[0] = 
+        FLEXIO_TIMCFG_TIMOUT(0)                                                /* Timer output logic one when enabled and not affected by reset */
+      | FLEXIO_TIMCFG_TIMDEC(0)                                                /* Timer decrement on FlexIO clock, shift clock equals timer output */
+      | FLEXIO_TIMCFG_TIMRST(0)                                                /* Timer never reset */
+      | FLEXIO_TIMCFG_TIMDIS(2)                                                /* Timer disabled on timer compare */
+      | FLEXIO_TIMCFG_TIMENA(2)                                                /* Timer enabled on trigger high */
+      | FLEXIO_TIMCFG_TSTOP(1)                                                 /* Timer stop bit enabled */
+      | FLEXIO_TIMCFG_TSTART*(0);                                              /* Timer start bit disabled */
+    
+    p->TIMCTL[0] = 
+        FLEXIO_TIMCTL_TRGSEL((((3) << 2) | 1))                                 /* Timer trigger selected as shifter's status flag */
+      | FLEXIO_TIMCTL_TRGPOL*(1)                                               /* Timer trigger polarity as active low */
+      | FLEXIO_TIMCTL_TRGSRC*(1)                                               /* Timer trigger source as internal */
+      | FLEXIO_TIMCTL_PINCFG(3)                                                /* Timer' pin configured as output */
+      | FLEXIO_TIMCTL_PINSEL(19)                                               /* Timer' pin index: RD pin */
+      | FLEXIO_TIMCTL_PINPOL*(1)                                               /* Timer' pin active low */
+      | FLEXIO_TIMCTL_TIMOD(1);                                                /* Timer mode as dual 8-bit counters baud/bit */
+ 
+    /* Enable FlexIO */
+   p->CTRL |= FLEXIO_CTRL_FLEXEN;      
+
+}
+
+
+FASTRUN void RA8876_t3::FlexIO_Config_SnglBeat()
+{
+    gpioWrite();
+
+    p->CTRL &= ~FLEXIO_CTRL_FLEXEN;
+    p->CTRL |= FLEXIO_CTRL_SWRST;
+    p->CTRL &= ~FLEXIO_CTRL_SWRST;
+
+    
+
+    /* Configure the shifters */
+    p->SHIFTCFG[0] = 
+       FLEXIO_SHIFTCFG_INSRC*(1)                                               /* Shifter input */
+       |FLEXIO_SHIFTCFG_SSTOP(0)                                               /* Shifter stop bit disabled */
+       | FLEXIO_SHIFTCFG_SSTART(0)                                             /* Shifter start bit disabled and loading data on enabled */
+       | FLEXIO_SHIFTCFG_PWIDTH(BUS_WIDTH - 1); // Was 7 for 8 bit bus         /* Bus width */
+
+    p->SHIFTCTL[0] = 
+        FLEXIO_SHIFTCTL_TIMSEL(0)                                              /* Shifter's assigned timer index */
+      | FLEXIO_SHIFTCTL_TIMPOL*(0)                                             /* Shift on posedge of shift clock */
+      | FLEXIO_SHIFTCTL_PINCFG(3)                                              /* Shifter's pin configured as output */
+      | FLEXIO_SHIFTCTL_PINSEL(0)                                              /* Shifter's pin start index */
+      | FLEXIO_SHIFTCTL_PINPOL*(0)                                             /* Shifter's pin active high */
+      | FLEXIO_SHIFTCTL_SMOD(2);                                               /* Shifter mode as transmit */
+
+    /* Configure the timer for shift clock */
+    p->TIMCMP[0] = 
+        (((1 * 2) - 1) << 8)                                                   /* TIMCMP[15:8] = number of beats x 2 – 1 */
+      | ((_baud_div/2) - 1);                                                   /* TIMCMP[7:0] = baud rate divider / 2 – 1 */
+    
+    p->TIMCFG[0] = 
+        FLEXIO_TIMCFG_TIMOUT(0)                                                /* Timer output logic one when enabled and not affected by reset */
+      | FLEXIO_TIMCFG_TIMDEC(0)                                                /* Timer decrement on FlexIO clock, shift clock equals timer output */
+      | FLEXIO_TIMCFG_TIMRST(0)                                                /* Timer never reset */
+      | FLEXIO_TIMCFG_TIMDIS(2)                                                /* Timer disabled on timer compare */
+      | FLEXIO_TIMCFG_TIMENA(2)                                                /* Timer enabled on trigger high */
+      | FLEXIO_TIMCFG_TSTOP(0)                                                 /* Timer stop bit disabled */
+      | FLEXIO_TIMCFG_TSTART*(0);                                              /* Timer start bit disabled */
+    
+    p->TIMCTL[0] = 
+        FLEXIO_TIMCTL_TRGSEL((((0) << 2) | 1))                                 /* Timer trigger selected as shifter's status flag */
+      | FLEXIO_TIMCTL_TRGPOL*(1)                                               /* Timer trigger polarity as active low */
+      | FLEXIO_TIMCTL_TRGSRC*(1)                                               /* Timer trigger source as internal */
+      | FLEXIO_TIMCTL_PINCFG(3)                                                /* Timer' pin configured as output */
+      | FLEXIO_TIMCTL_PINSEL(18)                                               /* Timer' pin index: WR pin */
+      | FLEXIO_TIMCTL_PINPOL*(1)                                               /* Timer' pin active low */
+      | FLEXIO_TIMCTL_TIMOD(1);                                                /* Timer mode as dual 8-bit counters baud/bit */
+    
+    /* Enable FlexIO */
+    p->CTRL |= FLEXIO_CTRL_FLEXEN;      
+
+}
+
+FASTRUN void RA8876_t3::FlexIO_Clear_Config_SnglBeat(){
+    p->CTRL &= ~FLEXIO_CTRL_FLEXEN;
+    p->CTRL |= FLEXIO_CTRL_SWRST;
+    p->CTRL &= ~FLEXIO_CTRL_SWRST;
+
+    p->SHIFTCFG[0] = 0;                                 
+    p->SHIFTCTL[0] = 0;
+    p->SHIFTSTAT = (1 << 0);
+    p->TIMCMP[0] = 0;
+    p->TIMCFG[0] = 0;
+    p->TIMSTAT = (1U << 0);                                          /* Timer start bit disabled */
+    p->TIMCTL[0] = 0;      
+    
+    /* Enable FlexIO */
+    p->CTRL |= FLEXIO_CTRL_FLEXEN;      
+
+
+}
+
+FASTRUN void RA8876_t3::FlexIO_Config_MultiBeat()
+{
+    //uint32_t i;
+    uint8_t beats = SHIFTNUM * BEATS_PER_SHIFTER;                                     //Number of beats = number of shifters * beats per shifter
+    /* Disable and reset FlexIO */
+    p->CTRL &= ~FLEXIO_CTRL_FLEXEN;
+    p->CTRL |= FLEXIO_CTRL_SWRST;
+    p->CTRL &= ~FLEXIO_CTRL_SWRST;
+
+    gpioWrite();
+
+    /* Configure the shifters */
+    for (int i = 0; i <= SHIFTNUM - 1; i++)
+    {
+        p->SHIFTCFG[i] =
+            FLEXIO_SHIFTCFG_INSRC * (1U)                                              /* Shifter input from next shifter's output */
+            | FLEXIO_SHIFTCFG_SSTOP(0U)                                               /* Shifter stop bit disabled */
+            | FLEXIO_SHIFTCFG_SSTART(0U)                                              /* Shifter start bit disabled and loading data on enabled */
+            | FLEXIO_SHIFTCFG_PWIDTH(BUS_WIDTH - 1);                                  /* 8 bit shift width */
+    }
+
+    p->SHIFTCTL[0] =
+        FLEXIO_SHIFTCTL_TIMSEL(0)                                                     /* Shifter's assigned timer index */
+        | FLEXIO_SHIFTCTL_TIMPOL * (0U)                                               /* Shift on posedge of shift clock */
+        | FLEXIO_SHIFTCTL_PINCFG(3U)                                                  /* Shifter's pin configured as output */
+        | FLEXIO_SHIFTCTL_PINSEL(0)                                                   /* Shifter's pin start index */
+        | FLEXIO_SHIFTCTL_PINPOL * (0U)                                               /* Shifter's pin active high */
+        | FLEXIO_SHIFTCTL_SMOD(2U);                                                   /* shifter mode transmit */
+
+    for (int i = 1; i <= SHIFTNUM - 1; i++)
+    {
+        p->SHIFTCTL[i] =
+            FLEXIO_SHIFTCTL_TIMSEL(0)                                                 /* Shifter's assigned timer index */
+            | FLEXIO_SHIFTCTL_TIMPOL * (0U)                                           /* Shift on posedge of shift clock */
+            | FLEXIO_SHIFTCTL_PINCFG(0U)                                              /* Shifter's pin configured as output disabled */
+            | FLEXIO_SHIFTCTL_PINSEL(0)                                               /* Shifter's pin start index */
+            | FLEXIO_SHIFTCTL_PINPOL * (0U)                                           /* Shifter's pin active high */
+            | FLEXIO_SHIFTCTL_SMOD(2U);
+    }
+
+    /* Configure the timer for shift clock */
+    p->TIMCMP[0] =
+        ((beats * 2U - 1) << 8)                                                       /* TIMCMP[15:8] = number of beats x 2 – 1 */
+        | (_baud_div / 2U - 1U);                                                      /* TIMCMP[7:0] = shift clock divide ratio / 2 - 1 */
+
+    p->TIMCFG[0] =   FLEXIO_TIMCFG_TIMOUT(0U)                                         /* Timer output logic one when enabled and not affected by reset */
+                     | FLEXIO_TIMCFG_TIMDEC(0U)                                       /* Timer decrement on FlexIO clock, shift clock equals timer output */
+                     | FLEXIO_TIMCFG_TIMRST(0U)                                       /* Timer never reset */
+                     | FLEXIO_TIMCFG_TIMDIS(2U)                                       /* Timer disabled on timer compare */
+                     | FLEXIO_TIMCFG_TIMENA(2U)                                       /* Timer enabled on trigger high */
+                     | FLEXIO_TIMCFG_TSTOP(0U)                                        /* Timer stop bit disabled */
+                     | FLEXIO_TIMCFG_TSTART * (0U);                                   /* Timer start bit disabled */
+
+    p->TIMCTL[0] =
+        FLEXIO_TIMCTL_TRGSEL(((SHIFTNUM - 1) << 2) | 1U)                              /* Timer trigger selected as highest shifter's status flag */
+        | FLEXIO_TIMCTL_TRGPOL * (1U)                                                 /* Timer trigger polarity as active low */
+        | FLEXIO_TIMCTL_TRGSRC * (1U)                                                 /* Timer trigger source as internal */
+        | FLEXIO_TIMCTL_PINCFG(3U)                                                    /* Timer' pin configured as output */
+        | FLEXIO_TIMCTL_PINSEL(18)                                                    /* Timer' pin index: WR pin */
+        | FLEXIO_TIMCTL_PINPOL * (1U)                                                 /* Timer' pin active low */
+        | FLEXIO_TIMCTL_TIMOD(1U);                                                    /* Timer mode 8-bit baud counter */
+    /* Enable FlexIO */
+   p->CTRL |= FLEXIO_CTRL_FLEXEN;
+
+   // configure interrupts
+    attachInterruptVector(hw->flex_irq, ISR);
+    NVIC_ENABLE_IRQ(hw->flex_irq);
+    NVIC_SET_PRIORITY(hw->flex_irq, FLEXIO_ISR_PRIORITY);
+
+    // disable interrupts until later
+    p->SHIFTSIEN &= ~(1 << SHIFTER_IRQ);
+    p->TIMIEN &= ~(1 << TIMER_IRQ);
+
+    
+}
+
+FASTRUN void RA8876_t3::SglBeatWR_nPrm_8(uint32_t const cmd, const uint8_t *value = NULL, uint32_t const length = 0)
+{
+  while(WR_IRQTransferDone == false)
+  {
+    //Wait for any DMA transfers to complete
+    
+  }
+  
+
+    FlexIO_Config_SnglBeat();
+     uint32_t i;
+    /* Assert CS, RS pins */
+    
+    //delay(1);
+    CSLow();
+    DCLow();
+
+    /* Write command index */
+//    p->SHIFTBUF[0] = cmd;
+    p->SHIFTBUF[0] = cmd;
+
+    /*Wait for transfer to be completed */
+    while(0 == (p->SHIFTSTAT & (1 << 0)))
+    {
+    }
+    while(0 == (p->TIMSTAT & (1 << 0)))
+            {  
+            }
+
+    /* De-assert RS pin */
+    
+//    microSecondDelay();
+    DCHigh();
+//    microSecondDelay();
+    if(length)
+    {
+        for(i = 0; i < length; i++)
+        {    
+            p->SHIFTBUF[0] = *value++;
+            while(0 == (p->SHIFTSTAT & (1 << 0)))
+            {  
+            }
+        }
+        while(0 == (p->TIMSTAT & (1 << 0)))
+            {  
+            }
+    }
+//    microSecondDelay();
+    CSHigh();
+    
+    /* De-assert CS pin */
+}
+
+FASTRUN void RA8876_t3::SglBeatWR_nPrm_16(uint32_t const cmd, const uint16_t *value, uint32_t const length)
+{
+ while(WR_IRQTransferDone == false)
+  {
+    //Wait for any DMA transfers to complete
+  }
+    FlexIO_Config_SnglBeat();
+    
+    /* Assert CS, RS pins */
+    CSLow();
+    DCLow();
+ 
+    /* Write command index */
+//    p->SHIFTBUF[0] = cmd;
+    p->SHIFTBUF[0] = cmd;
+ 
+    /*Wait for transfer to be completed */
+    while(0 == (p->TIMSTAT & (1 << 0)))
+            {  
+            }
+    /* De-assert RS pin */
+    DCHigh();
+    microSecondDelay();
+
+    if(length)
+    {
+    #if (BUS_WIDTH == 8)
+    uint16_t buf;
+      for(uint32_t i=0; i<length-1U; i++)
+        {
+          buf = *value++;
+            while(0 == (p->SHIFTSTAT & (1U << 0)))
+            { 
+            }
+            p->SHIFTBUF[0] = buf >> 8;
+
+            while(0 == (p->SHIFTSTAT & (1U << 0)))
+            {
+            }
+            p->SHIFTBUF[0] = buf & 0xFF;
+        }
+        buf = *value++;
+        /* Write the last byte */
+        while(0 == (p->SHIFTSTAT & (1U << 0)))
+            {
+            }
+        p->SHIFTBUF[0] = buf >> 8;
+
+        while(0 == (p->SHIFTSTAT & (1U << 0)))
+        {
+        }
+        p->TIMSTAT |= (1U << 0);
+
+        p->SHIFTBUF[0] = buf & 0xFF;
+
+        /*Wait for transfer to be completed */
+        while(0 == (p->TIMSTAT |= (1U << 0)))
+        {
+        }
+    
+
+    #else
+      for(uint32_t i=0; i<length-1U; i++)
+      {
+      while(0 == (p->SHIFTSTAT & (1U << 0)))
+      {
+      }
+      p->SHIFTBUF[0] = *value++;
+      }
+      //Write the last byte
+      while(0 == (p->SHIFTSTAT & (1U << 0)))
+      {
+      }
+      p->TIMSTAT |= (1U << 0);
+
+          p->SHIFTBUF[0] = *value++;
+
+          /*Wait for transfer to be completed */
+          while(0 == (p->TIMSTAT |= (1U << 0)))
+          {
+          }
+    #endif
+    }
+    microSecondDelay();
+    CSHigh();
+}
+
+FASTRUN uint8_t RA8876_t3::readCommand(const uint8_t cmd){
+  while(WR_IRQTransferDone == false)
+  {
+    //Wait for any DMA transfers to complete
+  }
+
+    CSLow();
+    FlexIO_Config_SnglBeat();
+    DCLow();
+
+    /* Write command index */
+    p->SHIFTBUF[0] = cmd;
+
+    /*Wait for transfer to be completed */
+    while(0 == (p->SHIFTSTAT & (1 << 0)))
+    {
+    }
+    while(0 == (p->TIMSTAT & (1 << 0)))
+            {  
+            }
+    /* De-assert RS pin */
+    microSecondDelay();
+    DCHigh();
+    FlexIO_Config_SnglBeat_Read();
+    uint8_t dummy;
+    uint8_t data = 0;
+
+    while (0 == (p->SHIFTSTAT & (1 << 3)))
+        {
+        }
+    dummy = p->SHIFTBUFBYS[3];
+    while (0 == (p->SHIFTSTAT & (1 << 3)))
+        {
+        }
+    data = p->SHIFTBUFBYS[3];
+    FlexIO_Clear_Config_SnglBeat();
+
+//    Serial.printf("Dummy 0x%x, data 0x%x\n", dummy, data);
+    
+    //Set FlexIO back to Write mode
+    FlexIO_Config_SnglBeat();
+  CSHigh();
+  return data;
+
+
+}
+
+FASTRUN uint8_t RA8876_t3::readStatus(void){
+  while(WR_IRQTransferDone == false)
+  {
+    //Wait for any DMA transfers to complete
+  }
+
+    CSLow();
+    DCLow();
+    /* De-assert RS pin */
+//    microSecondDelay();
+    FlexIO_Config_SnglBeat_Read();
+    uint8_t dummy;
+    uint8_t data = 0;
+    while (0 == (p->SHIFTSTAT & (1 << 3)))
+        {
+        }
+    dummy = p->SHIFTBUFBYS[3];
+    while (0 == (p->SHIFTSTAT & (1 << 3)))
+        {
+        }
+    data = p->SHIFTBUFBYS[3];
+    FlexIO_Clear_Config_SnglBeat();
+
+    Serial.printf("Dummy 0x%x, data 0x%x\n", dummy, data);
+    
+    //Set FlexIO back to Write mode
+    FlexIO_Config_SnglBeat();
+  DCHigh();
+  CSHigh();
+  return data;
+
+
+}
+
+RA8876_t3 * RA8876_t3::IRQcallback = nullptr;
+
+FASTRUN void RA8876_t3::MulBeatWR_nPrm_IRQ(uint32_t const cmd,  const void *value, uint32_t const length) 
+{
+  while(WR_IRQTransferDone == false)
+  {
+    //Wait for any DMA transfers to complete
+  }
+    FlexIO_Config_SnglBeat();
+    CSLow();
+    DCLow();
+
+    /* Write command index */
+    p->SHIFTBUF[0] = cmd;
+
+    /*Wait for transfer to be completed */
+
+    while(0 == (p->TIMSTAT & (1 << 0)))
+            {  
+            }
+    microSecondDelay();
+    /* De-assert RS pin */
+    DCHigh();
+    microSecondDelay();
+
+
+    FlexIO_Config_MultiBeat();
+    WR_IRQTransferDone = false;
+    uint32_t bytes = length*2U;
+
+    bursts_to_complete = bytes / BYTES_PER_BURST;
+
+    int remainder = bytes % BYTES_PER_BURST;
+    if (remainder != 0) {
+        memset(finalBurstBuffer, 0, sizeof(finalBurstBuffer));
+        memcpy(finalBurstBuffer, (uint8_t*)value + bytes - remainder, remainder);
+        bursts_to_complete++;
+    }
+
+    bytes_remaining = bytes;
+    readPtr = (uint32_t*)value;
+    //Serial.printf ("arg addr: %x, readPtr addr: %x \n", value, readPtr);
+    //Serial.printf("START::bursts_to_complete: %d bytes_remaining: %d \n", bursts_to_complete, bytes_remaining);
+  
+    uint8_t beats = SHIFTNUM * BEATS_PER_SHIFTER;
+    p->TIMCMP[0] = ((beats * 2U - 1) << 8) | (_baud_div / 2U - 1U);
+    p->TIMSTAT = (1 << TIMER_IRQ); // clear timer interrupt signal
+    
+    asm("dsb");
+    
+    IRQcallback = this;
+    // enable interrupts to trigger bursts
+    p->TIMIEN |= (1 << TIMER_IRQ);
+    p->SHIFTSIEN |= (1 << SHIFTER_IRQ);
+    
+}
+
+FASTRUN void RA8876_t3::_onCompleteCB()
+{
+  if (_callback){
+        _callback();
+      }
+      return;
+}
+
+FASTRUN void RA8876_t3::flexIRQ_Callback(){
+  
+ if (p->TIMSTAT & (1 << TIMER_IRQ)) { // interrupt from end of burst
+        p->TIMSTAT = (1 << TIMER_IRQ); // clear timer interrupt signal
+        bursts_to_complete--;
+        if (bursts_to_complete == 0) {
+            p->TIMIEN &= ~(1 << TIMER_IRQ); // disable timer interrupt
+            asm("dsb");
+            WR_IRQTransferDone = true;
+            microSecondDelay();
+            CSHigh();
+            _onCompleteCB();
+            return;
+        }
+    }
+
+    if (p->SHIFTSTAT & (1 << SHIFTER_IRQ)) { // interrupt from empty shifter buffer
+        // note, the interrupt signal is cleared automatically when writing data to the shifter buffers
+        if (bytes_remaining == 0) { // just started final burst, no data to load
+            p->SHIFTSIEN &= ~(1 << SHIFTER_IRQ); // disable shifter interrupt signal
+        } else if (bytes_remaining < BYTES_PER_BURST) { // just started second-to-last burst, load data for final burst
+            uint8_t beats = bytes_remaining / BYTES_PER_BEAT;
+            p->TIMCMP[0] = ((beats * 2U - 1) << 8) | (_baud_div / 2U - 1); // takes effect on final burst
+            readPtr = finalBurstBuffer;
+            bytes_remaining = 0;
+            for (int i = 0; i < SHIFTNUM; i++) {
+                uint32_t data = *readPtr++;
+                p->SHIFTBUFBYS[i] = ((data >> 16) & 0xFFFF) | ((data << 16) & 0xFFFF0000);
+            }
+        } else {
+            bytes_remaining -= BYTES_PER_BURST;
+            for (int i = 0; i < SHIFTNUM; i++) {
+                uint32_t data = *readPtr++;
+                p->SHIFTBUFBYS[i] = ((data >> 16) & 0xFFFF) | ((data << 16) & 0xFFFF0000);
+        }
+    }
+  }
+    asm("dsb");
+}
+
+
+
+FASTRUN void RA8876_t3::ISR()
+{
+  asm("dsb");
+  IRQcallback->flexIRQ_Callback();
+ }
+/*
+FASTRUN void RA8876_t3::pushPixels16bit(const uint16_t * pcolors, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2)
+{
+  while(WR_IRQTransferDone == false)
+  {
+    //Wait for any DMA transfers to complete
+  }
+  uint32_t area = (x2-x1+1)*(y2-y1+1);
+  if (!((_lastx1 == x1) && (_lastx2 == x2) && (_lasty1 == y1) && (_lasty2 == y2))) {
+  setAddrWindow( x1, y1, x2, y2);
+     _lastx1 = x1;  _lastx2 = x2;  _lasty1 = y1;  _lasty2 = y2;
+  }
+  SglBeatWR_nPrm_16(ILI9488_RAMWR, pcolors, area);
+}
+
+FASTRUN void RA8876_t3::pushPixels16bitAsync(const uint16_t * pcolors, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2){
+  while(WR_IRQTransferDone == false)
+  {
+    //Wait for any DMA transfers to complete
+  }
+  uint32_t area = (x2-x1+1)*(y2-y1+1);
+  if (!((_lastx1 == x1) && (_lastx2 == x2) && (_lasty1 == y1) && (_lasty2 == y2))) {
+  setAddrWindow( x1, y1, x2, y2);
+  _lastx1 = x1;  _lastx2 = x2; _lasty1 = y1;  _lasty2 = y2;
+  }
+  MulBeatWR_nPrm_IRQ(ILI9488_RAMWR, pcolors, area);
+}
+*/
+
+#else
+//**************************************************************//
 // Create RA8876 driver instance
+//**************************************************************//
 RA8876_t3::RA8876_t3(const uint8_t CSp, const uint8_t RSTp, const uint8_t mosi_pin, const uint8_t sclk_pin, const uint8_t miso_pin)
 {
 	_mosi = mosi_pin;
@@ -325,6 +1099,7 @@ FLASHMEM boolean RA8876_t3::begin(uint32_t spi_clock)
 	// return success
 	return true;
 }
+#endif
 
 //**************************************************************//
 // Initialize RA8876 to default settings.
@@ -333,19 +1108,30 @@ FLASHMEM boolean RA8876_t3::begin(uint32_t spi_clock)
 boolean RA8876_t3::ra8876Initialize() {
 	
 	// Init PLL
-	if(!ra8876PllInitial())
+	if(!ra8876PllInitial()) {
 		return false;
+    }
 	// Init SDRAM
-	if(!ra8876SdramInitial())
+	if(!ra8876SdramInitial()) {
 		return false;
+	}
 
-	lcdRegWrite(RA8876_CCR);//01h
+//	lcdRegWrite(RA8876_CCR);//01h
 //  lcdDataWrite(RA8876_PLL_ENABLE<<7|RA8876_WAIT_MASK<<6|RA8876_KEY_SCAN_DISABLE<<5|RA8876_TFT_OUTPUT24<<3
   
   lcdRegWrite(RA8876_CCR);//01h
+#if defined(USE_8080_IF)
+  if(BUS_WIDTH == 16) {
+    lcdDataWrite(RA8876_PLL_ENABLE<<7|RA8876_WAIT_NO_MASK<<6|RA8876_KEY_SCAN_DISABLE<<5|RA8876_TFT_OUTPUT24<<3
+    |RA8876_I2C_MASTER_DISABLE<<2|RA8876_SERIAL_IF_DISABLE<<1|RA8876_HOST_DATA_BUS_16BIT);
+  } else {
+    lcdDataWrite(RA8876_PLL_ENABLE<<7|RA8876_WAIT_NO_MASK<<6|RA8876_KEY_SCAN_DISABLE<<5|RA8876_TFT_OUTPUT24<<3
+    |RA8876_I2C_MASTER_DISABLE<<2|RA8876_SERIAL_IF_DISABLE<<1|RA8876_HOST_DATA_BUS_8BIT);
+  }
+#else
   lcdDataWrite(RA8876_PLL_ENABLE<<7|RA8876_WAIT_NO_MASK<<6|RA8876_KEY_SCAN_DISABLE<<5|RA8876_TFT_OUTPUT24<<3
   |RA8876_I2C_MASTER_DISABLE<<2|RA8876_SERIAL_IF_ENABLE<<1|RA8876_HOST_DATA_BUS_SERIAL);
-
+#endif
   lcdRegWrite(RA8876_MACR);//02h
   lcdDataWrite(RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_LRTB<<1);
 
@@ -518,6 +1304,318 @@ boolean RA8876_t3::ra8876Initialize() {
   return true;
 }
 
+//**********************************************************************
+// This section defines the low level parallel 8080 access routines.
+// It uses "BUS_WIDTH" (8 or 16) to decide which drivers to use.  
+// If "USE_8080_IF" is defined the 8080 bus drivers are used otherwise
+// the 4 wire SPI bus is used.
+//**********************************************************************
+#if defined(USE_8080_IF)
+//**********************************************************************
+void RA8876_t3::LCD_CmdWrite(unsigned char cmd)
+{	
+//  startSend();
+//  _pspi->transfer16(0x00);
+//  _pspi->transfer(cmd);
+//  endSend(true);
+}
+
+//**************************************************************//
+// Write to a RA8876 register
+//**************************************************************//
+void RA8876_t3::lcdRegWrite(ru8 reg, bool finalize) 
+{
+//  ru16 _data = (RA8876_SPI_CMDWRITE16 | reg);
+//  startSend();
+//  _pspi->transfer16(_data);
+//  endSend(finalize);
+  while(WR_IRQTransferDone == false) {} //Wait for any DMA transfers to complete
+  FlexIO_Config_SnglBeat();
+  CSLow();
+  DCLow();
+  /* Write command index */
+  p->SHIFTBUF[0] = reg;
+  /*Wait for transfer to be completed */
+  while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+  while(0 == (p->TIMSTAT & (1 << 0))) {}
+  /* De-assert RS pin */
+  DCHigh();
+  CSHigh();
+}
+
+
+//**************************************************************//
+// Write RA8876 Data
+//**************************************************************//
+void RA8876_t3::lcdDataWrite(ru8 data, bool finalize) 
+{
+//  ru16 _data = (RA8876_SPI_DATAWRITE16 | data);
+//  startSend();
+//  _pspi->transfer16(_data);
+//  endSend(finalize);
+  while(WR_IRQTransferDone == false) {} //Wait for any DMA transfers to complete
+  FlexIO_Config_SnglBeat();
+  CSLow();
+  DCHigh();
+  /* Write command index */
+  p->SHIFTBUF[0] = data;
+  /*Wait for transfer to be completed */
+  while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+  while(0 == (p->TIMSTAT & (1 << 0))) {}
+  /* De-assert /CS pin */
+  CSHigh();
+}
+
+//**************************************************************//
+// Read RA8876 Data
+//**************************************************************//
+ru8 RA8876_t3::lcdDataRead(bool finalize) 
+{
+//  ru16 _data = (RA8876_SPI_DATAREAD16 | 0x00);
+//  startSend();
+//  ru8 data = _pspi->transfer16(_data);
+//  endSend(finalize);
+  while(WR_IRQTransferDone == false) {} //Wait for any DMA transfers to complete
+  CSLow();
+  /* De-assert RS pin */
+  DCHigh();
+  FlexIO_Config_SnglBeat_Read();
+  uint16_t dummy;
+  uint16_t data = 0;
+  while (0 == (p->SHIFTSTAT & (1 << 3))) {}
+  dummy = p->SHIFTBUFBYS[3];
+  while (0 == (p->SHIFTSTAT & (1 << 3))) {}
+  data = p->SHIFTBUFBYS[3];
+  //Set FlexIO back to Write mode
+  FlexIO_Config_SnglBeat();
+  CSHigh();
+  if(BUS_WIDTH == 8) { 
+    return data;
+  } else {
+	return dummy = (data >> 8) | (data & 0xff); // High byte to low byte and mask.
+  }
+}
+
+//**************************************************************//
+// Read RA8876 status register
+//**************************************************************//
+ru8 RA8876_t3::lcdStatusRead(bool finalize) 
+{
+//  startSend();
+//  ru8 data = _pspi->transfer16(RA8876_SPI_STATUSREAD16);
+//  endSend(finalize);
+  while(WR_IRQTransferDone == false) {} //Wait for any DMA transfers to complete
+  CSLow();
+  /* De-assert RS pin */
+  DCLow();
+  FlexIO_Config_SnglBeat_Read();
+  uint16_t dummy;
+  uint16_t data = 0;
+  while (0 == (p->SHIFTSTAT & (1 << 3))) {}
+  dummy = p->SHIFTBUFBYS[3];
+  while (0 == (p->SHIFTSTAT & (1 << 3))) {}
+  data = p->SHIFTBUFBYS[3];
+  DCHigh();
+  CSHigh();
+//    Serial.printf("Dummy 0x%x, data 0x%x\n", dummy, data);
+  //Set FlexIO back to Write mode
+  FlexIO_Config_SnglBeat();
+  if(BUS_WIDTH == 16)
+    return data >> 8;
+  else
+    return data;
+}
+
+//**************************************************************//
+// Write Data to a RA8876 register
+//**************************************************************//
+void RA8876_t3::lcdRegDataWrite(ru8 reg, ru8 data, bool finalize)
+{
+  lcdRegWrite(reg);
+  (BUS_WIDTH == 8) ? lcdDataWrite(data) : lcdDataWrite16(data,false);
+}
+
+//**************************************************************//
+// Read a RA8876 register Data
+//**************************************************************//
+ru8 RA8876_t3::lcdRegDataRead(ru8 reg, bool finalize)
+{
+  lcdRegWrite(reg, finalize);
+  return lcdDataRead();
+}
+
+//**************************************************************//
+// support SPI interface to write 16bpp data after Regwrite 04h
+//**************************************************************//
+void RA8876_t3::lcdDataWrite16bbp(ru16 data, bool finalize) 
+{
+  if(BUS_WIDTH == 8) {
+    lcdDataWrite(data & 0xff);
+    lcdDataWrite(data >> 8);
+  } else {
+    lcdDataWrite16(data, false );
+  }
+}
+
+//**************************************************************//
+// Read RA8876 Data
+//**************************************************************//
+uint16_t RA8876_t3::lcdDataRead16(bool finalize) 
+{
+  while(WR_IRQTransferDone == false) {} //Wait for any DMA transfers to complete
+  CSLow();
+  /* De-assert RS pin */
+  DCHigh();
+  FlexIO_Config_SnglBeat_Read();
+  uint16_t dummy;
+  uint16_t data = 0;
+  while (0 == (p->SHIFTSTAT & (1 << 3))) {}
+  dummy = p->SHIFTBUFBYS[3];
+  while (0 == (p->SHIFTSTAT & (1 << 3))) {}
+  data = p->SHIFTBUFBYS[3];
+  //Set FlexIO back to Write mode
+  FlexIO_Config_SnglBeat();
+  CSHigh();
+  return data;
+}
+
+//**************************************************************//
+// Write RA8876 Data 
+//**************************************************************//
+void RA8876_t3::lcdDataWrite16(uint16_t data, bool finalize) 
+{
+  while(WR_IRQTransferDone == false) {} //Wait for any DMA transfers to complete
+  FlexIO_Config_SnglBeat();
+  CSLow();
+  DCHigh();
+  p->SHIFTBUF[0] = data;
+  /*Wait for transfer to be completed */
+  while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+  while(0 == (p->TIMSTAT & (1 << 0))) {}
+  /* De-assert /CS pin */
+  CSHigh();
+}
+
+//**************************************************************//
+//RA8876 register 
+//**************************************************************//
+/*[Status Register] bit7  Host Memory Write FIFO full
+0: Memory Write FIFO is not full.
+1: Memory Write FIFO is full.
+Only when Memory Write FIFO is not full, MPU may write another one pixel.*/ 
+//**************************************************************//
+void RA8876_t3::checkWriteFifoNotFull(void)
+{  ru16 i;  
+   for(i=0;i<10000;i++) //Please according to your usage to modify i value.
+   {
+    if( (lcdStatusRead()&0x80)==0 ){break;}
+   }
+}
+
+//**************************************************************//
+/*[Status Register] bit6  Host Memory Write FIFO empty
+0: Memory Write FIFO is not empty.
+1: Memory Write FIFO is empty.
+When Memory Write FIFO is empty, MPU may write 8bpp data 64
+pixels, or 16bpp data 32 pixels, 24bpp data 16 pixels directly.*/
+//**************************************************************//
+void RA8876_t3::checkWriteFifoEmpty(void)
+{ ru16 i;
+   for(i=0;i<10000;i++)   //Please according to your usage to modify i value.
+   {
+    if( (lcdStatusRead()&0x40)==0x40 ){break;}
+   }
+}
+
+//**************************************************************//
+/*[Status Register] bit5  Host Memory Read FIFO full
+0: Memory Read FIFO is not full.
+1: Memory Read FIFO is full.
+When Memory Read FIFO is full, MPU may read 8bpp data 32
+pixels, or 16bpp data 16 pixels, 24bpp data 8 pixels directly.*/
+//**************************************************************//
+void RA8876_t3::checkReadFifoNotFull(void)
+{ ru16 i;
+  for(i=0;i<10000;i++)  //Please according to your usage to modify i value.
+  {if( (lcdStatusRead()&0x20)==0x00 ){break;}}
+}
+
+//**************************************************************//
+/*[Status Register] bit4   Host Memory Read FIFO empty
+0: Memory Read FIFO is not empty.
+1: Memory Read FIFO is empty.*/
+//**************************************************************//
+void RA8876_t3::checkReadFifoNotEmpty(void)
+{ ru16 i;
+  for(i=0;i<10000;i++)// //Please according to your usage to modify i value. 
+  {if( (lcdStatusRead()&0x10)==0x00 ){break;}}
+}
+
+//**************************************************************//
+/*[Status Register] bit3   Core task is busy
+Following task is running:
+BTE, Geometry engine, Serial flash DMA, Text write or Graphic write
+0: task is done or idle.   1: task is busy
+A typical task like drawing a rectangle might take 30-150 microseconds, 
+    depending on size
+A large filled rectangle might take 3300 microseconds
+*****************************************************************/
+void RA8876_t3::check2dBusy(void)  
+{  ru32 i; 
+   for(i=0;i<100000;i++)   //Please according to your usage to modify i value.
+   { 
+   delayMicroseconds(1);
+    if( (lcdStatusRead()&0x08)==0x00 )
+    {return;}
+   }
+   Serial.println("2D ready failed (16-bit)");
+}  
+
+
+//**************************************************************//
+/*[Status Register] bit2   SDRAM ready for access
+0: SDRAM is not ready for access   1: SDRAM is ready for access*/	
+//**************************************************************//
+boolean RA8876_t3::checkSdramReady(void) {
+ ru32 i;
+ for(i=0;i<1000000;i++) //Please according to your usage to modify i value.
+ { 
+   delayMicroseconds(1);
+   if( (lcdStatusRead()&0x04)==0x04 )
+    {
+		return true;
+	}
+ }
+ return false;
+}
+
+//**************************************************************//
+/*[Status Register] bit1  Operation mode status
+0: Normal operation state  1: Inhibit operation state
+Inhibit operation state means internal reset event keep running or
+initial display still running or chip enter power saving state.	*/
+//**************************************************************//
+boolean RA8876_t3::checkIcReady(void) {
+  ru32 i;
+  for(i=0;i<1000000;i++)  //Please according to your usage to modify i value.
+   {
+     delayMicroseconds(1);
+     if( (lcdStatusRead()&0x02)==0x00 )
+    {
+//Serial.printf("checkIcReady(void)\n");
+
+		return true;
+	}     
+   }
+   return false;
+}
+//**********************************************************************
+// End 8080 parallel driver section
+//**********************************************************************
+#else
+//**********************************************************************
+// This secion uses the 4 wire SPI drivers.
+//**********************************************************************
 //**************************************************************//
 // Write to a RA8876 register
 //**************************************************************//
@@ -719,6 +1817,8 @@ boolean RA8876_t3::checkIcReady(void)
    return false;
 }
 
+#endif
+//**************************************************************************************
 //**************************************************************//
 // Initialize PLL
 //**************************************************************//
@@ -1541,11 +2641,9 @@ void  RA8876_t3::putPicture_16bpp(ru16 x,ru16 y,ru16 width, ru16 height)
 void  RA8876_t3::putPicture_16bppData8(ru16 x,ru16 y,ru16 width, ru16 height, const unsigned char *data)
 {
 	ru16 i,j;
-	graphicMode(true);
-	activeWindowXY(x,y);
-	activeWindowWH(width,height);
-	setPixelCursor(x,y);
-	ramAccessPrepare();
+
+	putPicture_16bpp(x, y, width, height);
+#if !defined(USE_8080_IF)
 	for(j=0;j<height;j++) {
 		for(i=0;i<width;i++) {
 			//checkWriteFifoNotFull();	//if high speed mcu and without Xnwait check
@@ -1556,6 +2654,26 @@ void  RA8876_t3::putPicture_16bppData8(ru16 x,ru16 y,ru16 width, ru16 height, co
 			data++;
 		}
 	} 
+#else
+  while(WR_IRQTransferDone == false) {} //Wait for any DMA transfers to complete
+  FlexIO_Config_SnglBeat();
+  CSLow();
+  DCHigh();
+  for(j=0;j<height;j++) {
+	for(i=0;i<width;i++) {
+      p->SHIFTBUF[0] = *data++;
+      /*Wait for transfer to be completed */
+      while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+      while(0 == (p->TIMSTAT & (1 << 0))) {}
+      p->SHIFTBUF[0] = *data++;
+      /*Wait for transfer to be completed */
+      while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+      while(0 == (p->TIMSTAT & (1 << 0))) {}
+    }
+  }
+  /* De-assert /CS pin */
+  CSHigh();
+#endif
 	checkWriteFifoEmpty();				//if high speed mcu and without Xnwait check
 	activeWindowXY(0,0);
     activeWindowWH(_width,_height);
@@ -1569,14 +2687,29 @@ void  RA8876_t3::putPicture_16bppData16(ru16 x,ru16 y,ru16 width, ru16 height, c
 {
 	ru16 i,j;
 	putPicture_16bpp(x, y, width, height);
+#if !defined(USE_8080_IF)
 	for(j=0;j<height;j++) {
 		for(i=0;i<width;i++) {
-			//checkWriteFifoNotFull();//if high speed mcu and without Xnwait check
 			lcdDataWrite16bbp(*data);
 			data++;
-			//checkWriteFifoEmpty();//if high speed mcu and without Xnwait check
 		}
 	} 
+#else
+  while(WR_IRQTransferDone == false) {} //Wait for any DMA transfers to complete
+  FlexIO_Config_SnglBeat();
+  CSLow();
+  DCHigh();
+  for(j=0;j<height;j++) {
+	for(i=0;i<width;i++) {
+      p->SHIFTBUF[0] = *data++;
+      /*Wait for transfer to be completed */
+      while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+      while(0 == (p->TIMSTAT & (1 << 0))) {}
+    }
+  }
+  /* De-assert /CS pin */
+  CSHigh();
+#endif
 	checkWriteFifoEmpty();//if high speed mcu and without Xnwait check
 	activeWindowXY(0,0);
 	activeWindowWH(_width,_height);
@@ -3080,10 +4213,30 @@ void RA8876_t3::bteMpuWriteWithROPData8(ru32 s1_addr,ru16 s1_image_width,ru16 s1
 ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned char *data)
 {
   bteMpuWriteWithROP(s1_addr, s1_image_width, s1_x, s1_y, des_addr, des_image_width, des_x, des_y, width, height, rop_code);
-  
+#if defined(USE_8080_IF)
+  ru16 i,j;
+  while(WR_IRQTransferDone == false) {} //Wait for any DMA transfers to complete
+  FlexIO_Config_SnglBeat();
+  CSLow();
+  DCHigh();
+  for(j=0;j<height;j++) {
+	for(i=0;i<width;i++) {
+      if(_rotation & 1) delayNanoseconds(20);
+      p->SHIFTBUF[0] = *data++;
+      /*Wait for transfer to be completed */
+      while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+      while(0 == (p->TIMSTAT & (1 << 0))) {}
+      p->SHIFTBUF[0] = *data++;
+      /*Wait for transfer to be completed */
+      while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+      while(0 == (p->TIMSTAT & (1 << 0))) {}
+    }
+  }
+  /* De-assert /CS pin */
+  CSHigh();
+#else
   startSend();
   _pspi->transfer(RA8876_SPI_DATAWRITE);
-
 #ifdef SPI_HAS_TRANSFER_ASYNC
   activeDMA = true;
   _pspi->transfer(data, NULL, width*height*2, finishedDMAEvent);
@@ -3094,7 +4247,9 @@ ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned char *d
   _pspi->transfer(data, NULL, width*height*2);
   endSend(true);
 #endif
+#endif
 }
+
 //**************************************************************//
 // For 16-bit byte-reversed data.
 // Note this is 4-5 milliseconds slower than the 8-bit version above
@@ -3107,9 +4262,25 @@ ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned short *
   ru16 i,j;
   bteMpuWriteWithROP(s1_addr, s1_image_width, s1_x, s1_y, des_addr, des_image_width, des_x, des_y, width, height, rop_code);
 
+#if defined(USE_8080_IF)
+  while(WR_IRQTransferDone == false) {} //Wait for any DMA transfers to complete
+  FlexIO_Config_SnglBeat();
+  CSLow();
+  DCHigh();
+  for(j=0;j<height;j++) {
+	for(i=0;i<width;i++) {
+      if(_rotation & 1) delayNanoseconds(70);
+      p->SHIFTBUF[0] = *data++;
+      /*Wait for transfer to be completed */
+      while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+      while(0 == (p->TIMSTAT & (1 << 0))) {}
+    }
+  }
+  /* De-assert /CS pin */
+  CSHigh();
+#else
   startSend();
   _pspi->transfer(RA8876_SPI_DATAWRITE);
-  
   for(j=0;j<height;j++)
   {
     for(i=0;i<width;i++)
@@ -3118,8 +4289,8 @@ ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned short *
       data++;
     }
   } 
-  
   endSend(true);
+#endif
 }
 //**************************************************************//
 //write data after setting, using lcdDataWrite() or lcdDataWrite16bbp()
@@ -3167,7 +4338,6 @@ void RA8876_t3::bteMpuWriteWithChromaKeyData16(ru32 des_addr,ru16 des_image_widt
 {
   ru16 i,j;
   bteMpuWriteWithChromaKey(des_addr, des_image_width, des_x, des_y, width, height, chromakey_color);
-  
   startSend();
   _pspi->transfer(RA8876_SPI_DATAWRITE);
   for(j=0;j<height;j++)
@@ -4517,19 +5687,33 @@ void RA8876_t3::writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint
 		case 0: // we will just hand off for now to 
 				// unrolled to bte call
 				//Using the BTE function is faster and will use DMA if available
+                if(BUS_WIDTH == 8) {
 			    bteMpuWriteWithROPData8(currentPage, width(), start_x, start_y,  //Source 1 is ignored for ROP 12
                               currentPage, width(), start_x, start_y, w, h,     //destination address, pagewidth, x/y, width/height
                               RA8876_BTE_ROP_CODE_12,
                               ( const unsigned char *)pcolors);
+                } else {
+			    bteMpuWriteWithROPData16(currentPage, width(), start_x, start_y,  //Source 1 is ignored for ROP 12
+                              currentPage, width(), start_x, start_y, w, h,     //destination address, pagewidth, x/y, width/height
+                              RA8876_BTE_ROP_CODE_12,
+                              ( const unsigned short *)pcolors);
+                }
 			break;
 		case 1:
 			{
 				while (h) {
 					//Serial.printf("DP %x, %d, %d %d\n", rotated_row, h, start_x, y);
+                if(BUS_WIDTH == 8) {
 				    bteMpuWriteWithROPData8(currentPage, height(), start_y, start_x,  //Source 1 is ignored for ROP 12
 	                              currentPage, height(),  start_y, start_x, 1, w,     //destination address, pagewidth, x/y, width/height
 	                              RA8876_BTE_ROP_CODE_12,
 	                              ( const unsigned char *)pcolors);
+                } else {
+				    bteMpuWriteWithROPData16(currentPage, height(), start_y, start_x,  //Source 1 is ignored for ROP 12
+	                              currentPage, height(),  start_y, start_x, 1, w,     //destination address, pagewidth, x/y, width/height
+	                              RA8876_BTE_ROP_CODE_12,
+	                              (const unsigned short *)pcolors);
+                }
 				    start_y++;
 				    h--;
 				    pcolors += w;
@@ -4549,18 +5733,29 @@ void RA8876_t3::writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint
 				// lets reverse data per row...
 				while (h) {
 					for (int i = 0; i < w; i++) rotated_buffer[w-i-1] = *pcolors++;
+                if(BUS_WIDTH == 8) {
 				    bteMpuWriteWithROPData8(currentPage, width(), start_x, start_y,  //Source 1 is ignored for ROP 12
                               currentPage, width(), start_x, start_y, w, 1,     //destination address, pagewidth, x/y, width/height
                               RA8876_BTE_ROP_CODE_12,
                               ( const unsigned char *)rotated_buffer);
+                } else {
+				    bteMpuWriteWithROPData16(currentPage, width(), start_x, start_y,  //Source 1 is ignored for ROP 12
+                              currentPage, width(), start_x, start_y, w, 1,     //destination address, pagewidth, x/y, width/height
+                              RA8876_BTE_ROP_CODE_12,
+                              ( const unsigned short *)rotated_buffer);
+                }					
 				    start_y++;
 				    h--;
 				}
+                #if !defined(USE_8080_IF)
 				#ifdef SPI_HAS_TRANSFER_ASYNC
 				while(activeDMA) {}; //wait forever while DMA is finishing- can't start a new transfer
 				#endif
+				#endif
 				free((void*)rotated_buffer_alloc);
+                #if !defined(USE_8080_IF)
 				endSend(true);
+                #endif
 			}
 			break;
 		case 3:
@@ -4568,10 +5763,17 @@ void RA8876_t3::writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint
 			    start_y += h;
 				while (h) {
 					//Serial.printf("DP %x, %d, %d %d\n", rotated_row, h, start_x, y);
+                if(BUS_WIDTH == 8) {
 				    bteMpuWriteWithROPData8(currentPage, height(), start_y, start_x,  //Source 1 is ignored for ROP 12
 	                              currentPage, height(),  start_y, start_x, 1, w,     //destination address, pagewidth, x/y, width/height
 	                              RA8876_BTE_ROP_CODE_12,
 	                              ( const unsigned char *)pcolors);
+                } else {
+				    bteMpuWriteWithROPData16(currentPage, height(), start_y, start_x,  //Source 1 is ignored for ROP 12
+	                              currentPage, height(),  start_y, start_x, 1, w,     //destination address, pagewidth, x/y, width/height
+	                              RA8876_BTE_ROP_CODE_12,
+	                              ( const unsigned short *)pcolors);
+			    }
 				    start_y--;
 				    h--;
 				    pcolors += w;
@@ -4629,7 +5831,7 @@ uint16_t *RA8876_t3::rotateImageRect(int16_t w, int16_t h, const uint16_t *pcolo
 void RA8876_t3::writeRotatedRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors) 
 {
 
-	Serial.printf("writeRotatedRect %d %d %d %d (%x)\n", x, y, w, h, pcolors);
+Serial.printf("writeRotatedRect %d %d %d %d (%x)\n", x, y, w, h, pcolors);
 	uint16_t start_x = (x != CENTER) ? x : (_width - w) / 2;
 	uint16_t start_y = (y != CENTER) ? y : (_height - h) / 2;
 
@@ -4638,18 +5840,31 @@ void RA8876_t3::writeRotatedRect(int16_t x, int16_t y, int16_t w, int16_t h, con
 		case 0: 
 		case 2:
 			// Same as normal writeRect
+          if(BUS_WIDTH == 8) {
 		    bteMpuWriteWithROPData8(currentPage, width(), start_x, start_y,  //Source 1 is ignored for ROP 12
                           currentPage, width(), start_x, start_y, w, h,     //destination address, pagewidth, x/y, width/height
                           RA8876_BTE_ROP_CODE_12,
                           ( const unsigned char *)pcolors_aligned);
+          } else {
+		    bteMpuWriteWithROPData16(currentPage, width(), start_x, start_y,  //Source 1 is ignored for ROP 12
+                          currentPage, width(), start_x, start_y, w, h,     //destination address, pagewidth, x/y, width/height
+                          RA8876_BTE_ROP_CODE_12,
+                          ( const unsigned short *)pcolors_aligned);
+	      }
 			break;
 		case 1:
 		case 3:
+          if(BUS_WIDTH == 8) {
 		    bteMpuWriteWithROPData8(currentPage, height(), start_y, start_x,  //Source 1 is ignored for ROP 12
                           currentPage, height(),  start_y, start_x, h, w,     //destination address, pagewidth, x/y, width/height
                           RA8876_BTE_ROP_CODE_12,
                           ( const unsigned char *)pcolors_aligned);
-
+          } else {
+		    bteMpuWriteWithROPData16(currentPage, height(), start_y, start_x,  //Source 1 is ignored for ROP 12
+                          currentPage, height(),  start_y, start_x, h, w,     //destination address, pagewidth, x/y, width/height
+                          RA8876_BTE_ROP_CODE_12,
+                          ( const unsigned short *)pcolors_aligned);
+	      }
 			break;
 	}
 
