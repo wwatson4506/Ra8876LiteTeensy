@@ -1,36 +1,35 @@
-MAJOR UPDATE
+MAJOR UPDATE 04-20-24
 This version of Ra8876LiteTeensy adds the ability to communicate with the RA8876 in 8080 parallel mode.
-It can use either a 8-bit or 16-bit parallel data bus. It is compatible with the Teensy 4.1 and MicroMod boards.
+It can use either a 8-bit or 16-bit parallel data bus. This version is compatible with SDRAM DEV Board V4.0.
 
-        T4.1 pinouts:
-T4.1                      ER-TFTM101-1 (40 PIN CONNECTOR)
+        DEV board pinouts:
+DEV Board                ER-TFTM101-1 (40 PIN CONNECTOR)
 ---------------------------------------------------------
-Pin 11 -----------------> Pin 07  /CS
-Pin 12 -----------------> Pin 11  /RST
-Pin 13 -----------------> Pin 08  /RS (/DC)
-Pin 37 -----------------> Pin 05  /RD
-Pin 36 -----------------> Pin 06  /WR
-Pin 19 -----------------> Pin 15   D0
-Pin 18 -----------------> Pin 16   D1
-Pin 14 -----------------> Pin 17   D2
-Pin 15 -----------------> Pin 18   D3
-Pin 40 -----------------> Pin 19   D4
-Pin 41 -----------------> Pin 20   D5
-Pin 17 -----------------> Pin 21   D6
-Pin 16 -----------------> Pin 22   D7
+Pin 14 -----------------> Pin 07  /CS
+Pin 27 -----------------> Pin 11  /RST
+Pin 17 -----------------> Pin 08  /RS (/DC)
+Pin B0_01 -----------------> Pin 05  /RD
+Pin B0_00 -----------------> Pin 06  /WR
+Pin B0_04 -----------------> Pin 15   D0
+Pin B0_05 -----------------> Pin 16   D1
+Pin B0_06 -----------------> Pin 17   D2
+Pin B0_07 -----------------> Pin 18   D3
+Pin B0_08 -----------------> Pin 19   D4
+Pin B0_09 -----------------> Pin 20   D5
+Pin B0_10 -----------------> Pin 21   D6
+Pin B0_11 -----------------> Pin 22   D7
        For 16-Bit bus add
-Pin 22 -----------------> Pin 23   D8
-Pin 23 -----------------> Pin 24   D9
-Pin 20 -----------------> Pin 25   D10
-pin 21 -----------------> Pin 26   D11
-Pin 38 -----------------> Pin 27   D12
-Pin 39 -----------------> Pin 28   D13
-Pin 26 -----------------> Pin 29   D14
-Pin 27 -----------------> Pin 30   D15
+Pin B0_12 -----------------> Pin 23   D8
+Pin B0_13 -----------------> Pin 24   D9
+Pin B0_14 -----------------> Pin 25   D10
+pin B0_15 -----------------> Pin 26   D11
+Pin B1_00 -----------------> Pin 27   D12
+Pin B1_01 -----------------> Pin 28   D13
+Pin B1_02 -----------------> Pin 29   D14
+Pin B1_03 -----------------> Pin 30   D15
 
 Any T41 pin for BL_CONTROl Pin 14 or 3.3v
-Any T41 pin for WINT Pin 9 Optional wait interrupt pin (XnWAIT)
-
+Any T41 pin for WINT Pin 16 Optional wait interrupt pin (XnWAIT)
 
 as of 4/30/20
 Added frame buffering type support:
