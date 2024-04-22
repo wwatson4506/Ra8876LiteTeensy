@@ -1,16 +1,34 @@
-#include <Adafruit_GFX.h>
-
-#include <SPI.h>
 
 #include <_font_ComicSansMS.h>
-#include "Fonts/FreeSansOblique12pt7b.h"
+//#include "Fonts/FreeSansOblique12pt7b.h"
 
 #include "Arduino.h"
 #include "RA8876_t3.h"
-#define RA8876_CS 10
-#define RA8876_RESET 9
-#define BACKLITE 7 //External backlight control connected to this Arduino pin
-RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
+
+//#define RA8876_CS 10
+//#define RA8876_RESET 8
+#define BACKLITE 5 // was 7 //External backlight control connected to this Arduino pin
+//RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
+
+/*
+// MicroMod
+uint8_t dc = 13;
+uint8_t cs = 11;
+uint8_t rst = 5;
+*/
+/*
+// SDRAM DEV board V4.0
+uint8_t dc = 17;
+uint8_t cs = 14;
+uint8_t rst = 27;
+*/
+
+// T4.1
+uint8_t dc = 13;
+uint8_t cs = 11;
+uint8_t rst = 12;
+
+RA8876_t3 tft = RA8876_t3(dc,cs,rst); //(dc, cs, rst)
 
 void setup() {
 #ifdef BACKLITE
@@ -21,7 +39,8 @@ void setup() {
   long unsigned debug_start = millis ();
   while (!Serial && ((millis () - debug_start) <= 5000)) ;
   Serial.println("Setup");
-  tft.begin();
+
+  tft.begin(20);
 
 #ifndef BACKLITE
   tft.backlight(true);
@@ -58,9 +77,9 @@ void setup() {
   tft.println();
 //  wait_for_keyboard();
 
-  tft.setTextColor(WHITE, RED);
-  tft.setFont(&FreeSansOblique12pt7b);
-  tft.println("Opaque GFX FreeSansOblique12pt");
+//  tft.setTextColor(WHITE, RED);
+//  tft.setFont(&FreeSansOblique12pt7b);
+//  tft.println("Opaque GFX FreeSansOblique12pt");
 //  wait_for_keyboard();
 
   cursor_x = tft.getCursorX();
