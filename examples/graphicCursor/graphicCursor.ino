@@ -14,8 +14,8 @@
 * single and double clicks of the left mouse button.
 *
 * For double and single click testing mouse.cpp in USBHost_t36 library
-* has to have "//	buttons = 0;" commented out.
-* 
+* has to have "//  buttons = 0;" commented out.
+
 void MouseController::mouseDataClear() {
 	mouseEvent = false;
 //	buttons = 0;
@@ -25,7 +25,7 @@ void MouseController::mouseDataClear() {
 	wheelH  = 0;
 }
 
-The button presses automatically cleared on release.
+* The button presses automatically cleared on release.
 * I don't think they need to be part of "mouseDataClear();". Also
 * wheel and wheelH are cleared when there is a button press or there is
 * movement of the mouse.
@@ -34,14 +34,37 @@ The button presses automatically cleared on release.
 #include "USBHost_t36.h"
 #include "RA8876_t3.h"
 
-#define RA8876_CS 10
-#define RA8876_RESET 9
-#define BACKLITE 7 //My copy of the display is set for external backlight control
-RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
+//#define RA8876_CS 10
+//#define RA8876_RESET 8
+#define BACKLITE 5 // was 7 //My copy of the display is set for external backlight control
+//RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
+
+
+// MicroMod
+uint8_t dc = 13;
+uint8_t cs = 11;
+uint8_t rst = 5;
+
+/*
+// SDRAM DEV board V4.0
+uint8_t dc = 17;
+uint8_t cs = 14;
+uint8_t rst = 27;
+*/
+/*
+// T4.1
+uint8_t dc = 13;
+uint8_t cs = 11;
+uint8_t rst = 12;
+*/
+
+RA8876_t3 tft = RA8876_t3(dc,cs,rst); //(dc, cs, rst)
 
 USBHost myusb;
 USBHub hub1(myusb);
 USBHub hub2(myusb);
+//USBHub hub3(myusb);
+//USBHub hub4(myusb);
 
 //************************************************************
 // Even though the keyboard is not used we still need
@@ -49,27 +72,28 @@ USBHub hub2(myusb);
 // just in case a wireless keyboard/mouse is used. Otherwise
 // the mouse will not be claimed.
 //************************************************************* 
-KeyboardController keyboard1(myusb); // Not used.
 MouseController mouse1(myusb);
+KeyboardController keyboard1(myusb); // Not used.
 USBHIDParser hid1(myusb); // Needed for USB mouse.
-USBHIDParser hid2(myusb); // Needed for use with wireless keyboard/mouse combo.
+USBHIDParser hid2(myusb); // Needed for USB wireless keyboard/mouse combo.
 
+//typedef struct usbMouseMsg_struct usbMouseMsg_t;
 // A structure to hold results of mouse operations.
 // Some are not used in this sketch.
 struct usbMouseMsg_struct {
-  uint8_t buttons;
-  uint8_t snglClickCnt;
-  uint8_t dblClickCnt;
-  uint8_t clickCount;
-  int8_t mousex;
-  int8_t mousey;
-  int16_t scaledX;
-  int16_t scaledY;
-  int8_t wheel;
-  int8_t wheelH;
-  int16_t mouseXpos;
-  int16_t mouseYpos;
-  boolean mouseEvent;
+	uint8_t buttons;
+	uint8_t snglClickCnt;
+	uint8_t dblClickCnt;
+	uint8_t clickCount;
+	int8_t mousex;
+	int8_t mousey;
+	int16_t scaledX;
+	int16_t scaledY;
+	int8_t wheel;
+	int8_t wheelH;
+	int16_t mouseXpos;
+	int16_t mouseYpos;
+	boolean mouseEvent;
 };
 
 usbMouseMsg_struct mouse_msg;
@@ -86,52 +110,57 @@ int16_t delta = 127;
 int16_t accel = 5;
 int16_t scaleX = 2;
 int16_t scaleY = 2;
-uint8_t scCount = 0;
-uint8_t dcCount = 0;
 
 // Scale mouse XY to fit our screen (1023x599).
 void scaleMouseXY(void) {
-  nevent_dx = (int16_t)mouse1.getMouseX();
-  nevent_dy = (int16_t)mouse1.getMouseY();
-  if(abs(nevent_dx) + abs(nevent_dy) > delta) {
-    nevent_dx *= accel;
-    nevent_dy *= accel;
-  }
-  event_dx += nevent_dx;
-  event_dy += nevent_dy;
-  fine_dx += event_dx; 
-  fine_dy += event_dy; 
-  event_dx = fine_dx / scaleX;
-  event_dy = fine_dy / scaleY;
-  fine_dx %= scaleX;
-  fine_dy %= scaleY;
-  mouse_msg.scaledX += event_dx;
-  mouse_msg.scaledY += event_dy;
-  if(mouse_msg.scaledX < 0)
-    mouse_msg.scaledX = 0;
-  if(mouse_msg.scaledX > (uint16_t)1023)
-    mouse_msg.scaledX = (uint16_t)1023;
-  if(mouse_msg.scaledY < 0)
-    mouse_msg.scaledY = 0;
-  if(mouse_msg.scaledY > (uint16_t)599)
-    mouse_msg.scaledY = (uint16_t)599;
+	nevent_dx = (int16_t)mouse1.getMouseX();
+	nevent_dy = (int16_t)mouse1.getMouseY();
+	
+	if(abs(nevent_dx) + abs(nevent_dy) > delta) {
+		nevent_dx *= accel;
+		nevent_dy *= accel;
+	}
+	
+	event_dx += nevent_dx;
+	event_dy += nevent_dy;
+	
+	fine_dx += event_dx; 
+	fine_dy += event_dy; 
+	
+	event_dx = fine_dx / scaleX;
+	event_dy = fine_dy / scaleY;
+	
+	fine_dx %= scaleX;
+	fine_dy %= scaleY;
+	
+	mouse_msg.scaledX += event_dx;
+	mouse_msg.scaledY += event_dy;
+
+	if(mouse_msg.scaledX < 0)
+		mouse_msg.scaledX = 0;
+	if(mouse_msg.scaledX > (uint16_t)1023)
+		mouse_msg.scaledX = (uint16_t)1023;
+	if(mouse_msg.scaledY < 0)
+		mouse_msg.scaledY = 0;
+	if(mouse_msg.scaledY > (uint16_t)599)
+		mouse_msg.scaledY = (uint16_t)599;
 }
 
 // Check for a mouse Event
 bool mouseEvent(void) {
-  if(!mouse1.available())
-    return false;
-  mouse_msg.wheel = (int8_t)mouse1.getWheel(); // Check for wheel movement
-  mouse_msg.wheelH = (int8_t)mouse1.getWheelH();
-  scaleMouseXY();
-  mouse1.mouseDataClear();
-  return true;
+	if(!mouse1.available())
+		return false;
+	mouse_msg.wheel = (int8_t)mouse1.getWheel(); // Check for wheel movement
+	mouse_msg.wheelH = (int8_t)mouse1.getWheelH();
+	scaleMouseXY();
+	mouse1.mouseDataClear();
+	return true;
 }
 
 // Check for mouse button presses
 uint8_t getMouseButtons(void) {
-  mouse_msg.buttons = (uint8_t)mouse1.getButtons();
-  return mouse_msg.buttons;
+	mouse_msg.buttons = (uint8_t)mouse1.getButtons();
+	return mouse_msg.buttons;
 }
 
 // A simple routine to detect for mouse button double clicks.
@@ -166,28 +195,26 @@ void countMouseClicks(void) {
 
 // Check for a double left mouse button click
 uint8_t getDblClick(void) {
-  uint8_t dClick = mouse_msg.dblClickCnt;
-  if(dClick > 0)
-    mouse_msg.dblClickCnt = 0;
-    return dClick;
+	uint8_t dClick = mouse_msg.dblClickCnt;
+	if(dClick > 0)
+		mouse_msg.dblClickCnt = 0;
+	return dClick;
 }
 
 // Check for a single left mouse button click
 uint8_t getSnglClick(void) {
-  uint8_t sClick = mouse_msg.snglClickCnt;
-  if(sClick > 0)
-    mouse_msg.snglClickCnt = 0;
-    return sClick;
+	uint8_t sClick = mouse_msg.snglClickCnt;
+	if(sClick > 0)
+		mouse_msg.snglClickCnt = 0;
+	return sClick;
 }
 
 void setup() {
-  Serial.begin(9600);
-  while (!Serial && millis() < 1000) {} //wait for Serial Monitor
+  while (!Serial && millis() < 5000) {} //wait for Serial Monitor
   myusb.begin();
+  delay(500);
   mouse_msg.scaledX = 512;
   mouse_msg.scaledY = 300;
-
-  Serial.println("USB Mouse and Graphic Cursor Testing");
 
   //I'm guessing most copies of this display are using external PWM
   //backlight control instead of the internal RA8876 PWM.
@@ -198,16 +225,20 @@ void setup() {
   digitalWrite(BACKLITE, HIGH);
 //  analogWrite(BACKLITE, 40);
 
-  bool result = tft.begin();
+  bool result = tft.begin(12);
+
+/*
   if (!result) {
-    Serial.print("TFT initialization failed!");
-    Serial.print("Is it plugged in properly?");
+    Serial.println("TFT initialization failed!");
+    Serial.println("Is it plugged in properly?");
   }
+*/
   tft.fillScreen(DARKBLUE);
   tft.setFontSize(1, false);
   tft.setCursor(0,0);
   tft.setTextColor(YELLOW, DARKBLUE);
-  tft.print("USB Mouse and Graphic Cursor Testing");
+  tft.printf("****NOTE: THIS SKETCH IS NOT SUPPORTED ON THE SDRAM DEV BOARD V4.0*****\n");
+  tft.printf("USB Mouse and Graphic Cursor Testing\n");
 
   tft.Graphic_cursor_initial(); // Initialize all 4 cursors.
   tft.Select_Graphic_Cursor_2(); // Select Arrow Cursor.
@@ -221,7 +252,11 @@ void setup() {
 
 }
 
+uint8_t scCount = 0;
+uint8_t dcCount = 0;
+
 void loop() {
+  myusb.Task();
   if(mouseEvent()) { // Wait for a mouse event.
     tft.Graphic_Cursor_XY(mouse_msg.scaledX, mouse_msg.scaledY); // Center cursor on screen
     tft.textxy(0,5);
@@ -231,8 +266,8 @@ void loop() {
     tft.printf("Wheel: %2d\n", mouse_msg.wheel);
     tft.printf("WheelH: %2d\n", mouse_msg.wheelH);
     countMouseClicks();
-    scCount += getSnglClick(); // Add to Single Click Count.
-    dcCount += getDblClick(); // Add to Double Click Count.
+	scCount += getSnglClick(); // Add to Single Click Count.
+	dcCount += getDblClick(); // Add to Double Click Count.
     tft.printf("Single Clicks: %d\n", scCount);
     tft.printf("Double Clicks: %d\n", dcCount);
   }	
