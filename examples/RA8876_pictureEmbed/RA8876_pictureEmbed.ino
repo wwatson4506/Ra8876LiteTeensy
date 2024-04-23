@@ -6,17 +6,39 @@
 // https://forum.pjrc.com/threads/32601-SPI-Library-Issue-w-ILI9341-TFT-amp-PN532-NFC-Module-on-Teensy-3-2?p=94534&viewfull=1#post94534
 #include <SPI.h>
 #include <RA8876_t3.h>
-#include "font_ComicSansMS.h"
+#include "_font_ComicSansMS.h"
 
 //#define USE_SPI1
 #define USE_WRITERECT
 //#define USE_PUTPICTURE
 
+//#define RA8876_CS 10
+//#define RA8876_RESET 8
+#define BACKLITE 5 // was 7 //External backlight control connected to this Arduino pin
+//RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
 
-#define RA8876_CS  10//restriction for Teensy3 and CS
-#define RA8876_RST 9//any pin
 
-RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RST); //Using standard SPI pins
+// MicroMod
+uint8_t dc = 13;
+uint8_t cs = 11;
+uint8_t rst = 5;
+
+/*
+// SDRAM DEV board V4.0
+uint8_t dc = 17;
+uint8_t cs = 14;
+uint8_t rst = 27;
+*/
+/*
+// T4.1
+uint8_t dc = 13;
+uint8_t cs = 11;
+uint8_t rst = 12;
+*/
+
+RA8876_t3 tft = RA8876_t3(dc,cs,rst); //(dc, cs, rst)
+
+
 uint8_t rotation = 0;
 
 // Converted to code with:
@@ -54,9 +76,11 @@ uint8_t rotation = 0;
 
 void setup() {
   while (!Serial && millis() < 5000) ;
-  Serial.begin(115200);
+
   Serial.printf("\n\nStart RA8876 picture embed test"); Serial.flush();
-  tft.begin(40000000);
+
+  tft.begin(8);
+
   tft.backlight(1);
   Serial.printf("Screen Width:%d Height: %d\n", tft.width(), tft.height());
   tft.fillScreen(BLACK);
@@ -77,11 +101,11 @@ void drawImage(uint16_t image_width, uint16_t image_height, uint16_t *image, uin
   // first lets fill in part of screen that our image does not cover
   int16_t start_x = (tft.width() - image_width) / 2;
   int16_t start_y = (tft.height() - image_height) / 2;
-
   tft.fillRect(0, 0, tft.width(), start_y, bgColor);  // top
   tft.fillRect(0, start_y, start_x, image_height, bgColor); // left
   tft.fillRect(start_x + image_width, start_y, tft.width() - (start_x + image_width), image_height, bgColor); // right
   tft.fillRect(0, start_y + image_height, tft.width(), tft.height() - (start_y + image_height), bgColor); // top;
+
   if (preRotatedImage) {
     if (image) tft.writeRotatedRect(start_x, start_y, image_width, image_height, image);
     else {
@@ -90,6 +114,7 @@ void drawImage(uint16_t image_width, uint16_t image_height, uint16_t *image, uin
     }
   }
   else tft.writeRect(start_x, start_y, image_width, image_height, image);
+Serial.printf("\n         drawImage()\n");
   uint32_t dt = em;
   tft.setCursor(10, 10);
   tft.print(dt, DEC);
