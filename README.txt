@@ -28,8 +28,8 @@ Pin B1_01 -----------------> Pin 28   D13
 Pin B1_02 -----------------> Pin 29   D14
 Pin B1_03 -----------------> Pin 30   D15
 
-Any T41 pin for BL_CONTROl Pin xx or 3.3v
-Any T41 pin for WINT Pin 16 Optional wait interrupt pin (XnWAIT)
+Any SDRAM Dev Board pin for BL_CONTROl Pin xx or 3.3v
+Any SDRAM Dev Board pin for WINT Pin 16 Optional wait interrupt pin (XnWAIT)
 
 as of 4/30/20
 Added frame buffering type support:
