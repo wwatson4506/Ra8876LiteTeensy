@@ -7,11 +7,11 @@ Version   : v1.0
 *
 * Modified Version of: File Name : Ra8876_Lite.h                                   
  *			Author    : RAiO Application Team                             
- *			Edit Date : 09/13/2017
- * 	  	     : For Teensy 3.x and T4
+ *			Edit Date : 09/13/2024
+ * 	  	     : For Teensy 3.x and T4 and MicroMod
  *                   : By Warren Watson
- *                   : 06/07/2018 - 11/31/2019
- *                   : Copyright (c) 2017-2019 Warren Watson.
+ *                   : 06/07/2018 - 11/31/2024
+ *                   : Copyright (c) 2017-2024 Warren Watson.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -995,8 +995,7 @@ Not all users need this so you can select if include Render Text Optimizations o
 //#define RA8875_VISPIXDEBUG 								// [default commented]
 #define FORCE_RA8875_TXTREND_FOLLOW_CURS 					// [default uncommented]
 
-	//#define CENTER 				9998
-	static const int16_t CENTER = 9998;
+	#define CENTER 				9998
 	#define ARC_ANGLE_MAX 		360		
 	#define ARC_ANGLE_OFFSET 	-90	
 	#define ANGLE_OFFSET		-90

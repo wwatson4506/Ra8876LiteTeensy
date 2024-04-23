@@ -7,11 +7,11 @@ Version   : v1.0
 *
 * Modified Version of: File Name : Ra8876_Lite.h                                   
  *			Author    : RAiO Application Team                             
- *			Edit Date : 09/13/2017
+ *			Edit Date : 09/13/2024
  * 	  	     : For Teensy 3.x and T4
  *                   : By Warren Watson
- *                   : 06/07/2018 - 11/31/2019
- *                   : Copyright (c) 2017-2019 Warren Watson.
+ *                   : 06/07/2018 - 11/31/2024
+ *                   : Copyright (c) 2017-2024 Warren Watson.
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -69,13 +69,26 @@ Version   : v1.0
  ***************************************************************/
 
 #include "Arduino.h"
-#include "SPI.h"
 #include "RA8876Registers.h"
 
 #ifndef _RA8876_T3
 #define _RA8876_T3
 
-#define USE_FT5206_TOUCH
+//#define WINT 16       // RA8876 xnWAIT pin (Dev Board)
+
+//#define USE_FT5206_TOUCH
+
+#include "FlexIO_t4.h"
+
+#define BUS_WIDTH 8  /*Available options are 8 or 16 */
+#define SHIFTER_DMA_REQUEST 3 // only 0, 1, 2, 3 expected to work
+#define SHIFTNUM 8 // number of shifters used (up to 8)
+#define BYTES_PER_BEAT (sizeof(uint8_t))
+#define BEATS_PER_SHIFTER (sizeof(uint32_t)/BYTES_PER_BEAT)
+#define BYTES_PER_BURST (sizeof(uint32_t)*SHIFTNUM)
+#define SHIFTER_IRQ (SHIFTNUM-1)
+#define TIMER_IRQ 0
+#define FLEXIO_ISR_PRIORITY 64 // interrupt is timing sensitive, so use relatively high priority (supersedes USB)
 
 /* Addins for ILI and GFX Fonts */
 #include "_fonts.h"
@@ -119,11 +132,6 @@ typedef struct {
 
 #endif // _GFXFONT_H_ 
 
-
-// Default to a relatively slow speed for breadboard testing. 
-//const ru32 SPIspeed = 47000000;
-const ru32 SPIspeed = 3000000;
-
 // Max. size in byte of SDRAM
 const uint32_t MEM_SIZE_MAX	= 16l*1024l*1024l;
 
@@ -135,16 +143,17 @@ const uint32_t MEM_SIZE_MAX	= 16l*1024l*1024l;
 class RA8876_t3 : public Print
 {
 public:
-	RA8876_t3(const uint8_t CSp = 10, const uint8_t RSTp = 8, const uint8_t mosi_pin = 11, const uint8_t sclk_pin = 13, const uint8_t miso_pin = 12);
+	RA8876_t3(const uint8_t DCp = 13, const uint8_t CSp = 11, const uint8_t RSTp = 12);
 
-	
-	volatile bool	RA8876_BUSY; //This is used to show an SPI transaction is in progress. 
-	volatile bool   activeDMA=false; //Unfortunately must be public so asyncEventResponder() can set it
+	volatile bool	RA8876_BUSY; //This is used to show an transaction is in progress. 
 	void textRotate(boolean on);
 	void		setRotation(uint8_t rotation); //rotate text and graphics
 	uint8_t		getRotation(); //return the current rotation 0-3
+
 	/* Initialize RA8876 */
-	boolean begin(uint32_t spi_clock=SPIspeed);
+	boolean begin(uint8_t baud_div);
+
+    void RA8876_SW_Reset(void);
 	boolean ra8876Initialize(); 
 	boolean ra8876PllInitial (void);
 	boolean ra8876SdramInitial(void);
@@ -163,6 +172,9 @@ public:
 	ru8 lcdRegDataRead(ru8 reg, bool finalize = true);
 	void lcdDataWrite16bbp(ru16 data, bool finalize = true); 
 	
+    uint16_t lcdDataRead16(bool finalize);
+    void lcdDataWrite16(uint16_t data, bool finalize = true);
+
 	/*Status*/
 	void checkWriteFifoNotFull(void);
 	void checkWriteFifoEmpty(void);
@@ -355,7 +367,6 @@ public:
 							ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned char *data);
 	void bteMpuWriteWithROPData16(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
 							ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned short *data);
-	bool DMAFinished() {return !activeDMA;}
 	void bteMpuWriteWithROP(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
 							ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code);                     
 	void bteMpuWriteWithChromaKeyData8(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 chromakey_color,
@@ -438,7 +449,6 @@ public:
 	void setPromptSize(uint16_t ps);
 	uint8_t fontLoad(char *fontfile);
 	uint8_t fontLoadMEM(char *fontsrc);
-	//void setFontSource(uint8_t source);
 	boolean setFontSize(uint8_t scale, boolean runflag=false);
 	//void setTextSize(uint8_t scale, boolean runflag=false) { setFontSize(scale, runflag);}
 	int16_t getTextY(void);
@@ -475,13 +485,6 @@ public:
 	uint16_t GetGCursorX() {return gCursorX;}
 	uint16_t GetGCursorY() {return gCursorY;}
 
-
-	void touchEnable(boolean enabled);
-	void readTouchADC(uint16_t *x, uint16_t *y);
-
-	
-	boolean TStouched(void);
-	void getTSpoint(uint16_t *x, uint16_t *y);
 	#if defined (USE_FT5206_TOUCH)
 	bool 		touched(bool safe=false);
 	void 		setTouchLimit(uint8_t limit);//5 for FT5206, 1 for  RA8875
@@ -613,36 +616,6 @@ public:
 	}
 	#endif
 
-	//SPI Functions - should these be private?
-	inline __attribute__((always_inline)) 
-	void startSend(){
-		#ifdef SPI_HAS_TRANSFER_ASYNC
-		while(activeDMA) {}; //wait forever while DMA is finishing- can't start a new transfer
-		#endif
-		if(!RA8876_BUSY) {
-	        RA8876_BUSY = true;
-			_pspi->beginTransaction(SPISettings(_SPI_CLOCK, MSBFIRST, SPI_MODE0));
-		}
-		#if defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x 
-		DIRECT_WRITE_LOW(_csport, _cspinmask);
-		#else
-			*_csport  &= ~_cspinmask;
-		#endif
-	}
-
-	inline __attribute__((always_inline)) 
-	void endSend(bool finalize){
-		#if defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x 
-		DIRECT_WRITE_HIGH(_csport, _cspinmask);
-		#else
-		*_csport |= _cspinmask;
-		#endif
-		if(finalize) {
-			_pspi->endTransaction();
-			RA8876_BUSY = false;
-		}
-	} 
-	
 	// overwrite print functions:
 	virtual size_t write(uint8_t);
 	virtual size_t write(const uint8_t *buffer, size_t size);
@@ -651,7 +624,52 @@ public:
 	
 	void LCD_CmdWrite(unsigned char cmd);
 
-	
+  typedef void(*CBF)();
+  CBF _callback;
+  void onCompleteCB(CBF callback);
+
+  void FlexIO_Clear_Config_SnglBeat();
+  void MulBeatWR_nPrm_DMA(const void *value, uint32_t const length);
+
+  void pushPixels16bitDMA(const uint16_t * pcolors, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2);
+  void lcdRegDataWrite16(ru8 reg, ru16 data, bool finalize);
+
+  FlexIOHandler *pFlex;
+  IMXRT_FLEXIO_t *p;
+  const FlexIOHandler::FLEXIO_Hardware_t *hw;
+   
+    uint8_t _baud_div = 20; 
+    int8_t  _dc; //, _cs, _rst;
+
+    uint8_t _dummy;
+
+    volatile bool WR_IRQTransferDone = true;
+    uint32_t MulBeatCountRemain;
+    uint16_t *MulBeatDataRemain;
+    uint32_t TotalSize; 
+
+    /* variables used by ISR */
+    volatile uint32_t bytes_remaining;
+    volatile unsigned int bursts_to_complete;
+    volatile uint32_t *readPtr;
+    uint32_t finalBurstBuffer[SHIFTNUM];
+
+    void displayInit();
+    void CSLow();
+    void CSHigh();
+    void DCLow();
+    void DCHigh();
+    void FlexIO_Init();
+    void FlexIO_Config_SnglBeat();
+    void FlexIO_Config_MultiBeat();
+    void FlexIO_Config_SnglBeat_Read();
+    
+    void microSecondDelay();
+
+    bool isCB = false;
+    void _onCompleteCB();
+    
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //    RA8876 Parameters
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -664,41 +682,8 @@ public:
 using Print::write;
 
 private:
-	// int _xnscs, _xnreset;
-	int _mosi;
-	int _miso;
-	int _sclk;
 	int _cs;
 	int _rst;
-	int	_errorCode;
-	SPIClass *_pspi = nullptr;
-//	SPIClass::SPI_Hardware_t *_spi_hardware;
-
-  	uint8_t   	_spi_num;         	// Which buss is this spi on? 
-	uint32_t 	_SPI_CLOCK;			// #define ILI9341_SPICLOCK 30000000
-	uint32_t	_SPI_CLOCK_READ; 	//#define ILI9341_SPICLOCK_READ 2000000
-
-#if defined(KINETISK)
- 	KINETISK_SPI_t *_pkinetisk_spi;
-#elif defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x
- 	IMXRT_LPSPI_t *_pimxrt_spi;
-
-#elif defined(KINETISL)
- 	KINETISL_SPI_t *_pkinetisl_spi;
-#endif
-
-#ifdef SPI_HAS_TRANSFER_ASYNC
-	EventResponder finishedDMAEvent;
-#endif
-	// add support to allow only one hardware CS (used for dc)
-#if defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x
-    uint32_t _cspinmask;
-    volatile uint32_t *_csport;
-    uint32_t _spi_tcr_current;
-#else
-    uint8_t _cspinmask;
-    volatile uint8_t *_csport;
-#endif
 
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //    RA8876 Parameters
@@ -724,7 +709,7 @@ private:
 	uint16_t	_scrollXL,_scrollXR,_scrollYT,_scrollYB;
 	uint16_t	_TXTForeColor;
 	uint16_t	_TXTBackColor;
-	
+
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //    Font Parameters
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -902,9 +887,15 @@ protected:
 	void 					_disableCapISR(void);
 	volatile boolean	  	_needCTS_ISRrearm;
 	static void 			cts_isr(void);
-	TwoWire 				 *_wire=&Wire;
+	TwoWire 				 *_wire=&Wire2;
 	#endif	
 
+    volatile bool WR_DMATransferDone = true;
+    void DMAerror();
+    static void dmaISR();
+    void flexDma_Callback();
+    static DMAChannel flexDma;
+    static RA8876_t3 *dmaCallback;
 
 };
 

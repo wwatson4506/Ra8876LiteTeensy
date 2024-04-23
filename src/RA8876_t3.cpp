@@ -37,10 +37,6 @@
 
 #include "RA8876_t3.h"
 #include "Arduino.h"
-#include "SPI.h"
-#ifdef SPI_HAS_TRANSFER_ASYNC
-#include "EventResponder.h"
-#endif
 
 #if defined (USE_FT5206_TOUCH)
 	const uint8_t _ctpAdrs = 0x38;
@@ -170,160 +166,553 @@ tftSave_t *screenPage9 = &screenSave9;
 	int16_t SCREEN_WIDTH  = HDW;
 	int16_t SCREEN_HEIGHT = VDH;
 
-#ifdef SPI_HAS_TRANSFER_ASYNC
-//**************************************************************//
-// If using DMA, must close transaction and de-assert _CS
-// after the data has been sent.
-//**************************************************************//
-void asyncEventResponder(EventResponderRef event_responder) {
-  RA8876_t3 *tft = (RA8876_t3*)event_responder.getContext();
-  tft->activeDMA = false;
-  tft->endSend(true);
-}
-#endif
-
 //**************************************************************//
 // RA8876_t3()
 //**************************************************************//
-// Create RA8876 driver instance
-RA8876_t3::RA8876_t3(const uint8_t CSp, const uint8_t RSTp, const uint8_t mosi_pin, const uint8_t sclk_pin, const uint8_t miso_pin)
+// Create RA8876 driver instance 8080 IF
+//**************************************************************//
+RA8876_t3::RA8876_t3(const uint8_t DCp, const uint8_t CSp, const uint8_t RSTp)
 {
-	_mosi = mosi_pin;
-	_miso = miso_pin;
-	_sclk = sclk_pin;
 	_cs = CSp;
 	_rst = RSTp;
+    _dc = DCp;
+Serial.print("_cs = ");
+Serial.println(_cs,DEC);
 }
 
-//**************************************************************//
-// Ra8876_begin()
-//**************************************************************//
-#ifndef FLASHMEM
-#define FLASHMEM
-#endif
-FLASHMEM boolean RA8876_t3::begin(uint32_t spi_clock) 
+FLASHMEM boolean RA8876_t3::begin(uint8_t baud_div) 
 { 
-  //initialize the bus for Teensy 3.6/4.0
-  // Figure out which SPI Buss to use.  
-  _SPI_CLOCK = spi_clock;				// #define ILI9341_SPICLOCK 30000000
-	if (SPI.pinIsMOSI(_mosi) && ((_miso == 0xff) || SPI.pinIsMISO(_miso)) && SPI.pinIsSCK(_sclk)) {
-		_pspi = &SPI;
-		_spi_num = 0;          // Which buss is this spi on? 
-		#ifdef KINETISK
-		_pkinetisk_spi = &KINETISK_SPI0;  // Could hack our way to grab this from SPI object, but...
-		//_fifo_full_test = (3 << 12);
-		#elif defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x 
-		_pimxrt_spi = &IMXRT_LPSPI4_S;  // Could hack our way to grab this from SPI object, but...
-		#else
-		_pkinetisl_spi = &KINETISL_SPI0;
-		#endif				
-	
-	#if defined(__MK64FX512__) || defined(__MK66FX1M0__) || defined(__IMXRT1062__) || defined(__MKL26Z64__)
-	} else if (SPI1.pinIsMOSI(_mosi) && ((_miso == 0xff) || SPI1.pinIsMISO(_miso)) && SPI1.pinIsSCK(_sclk)) {
-		_pspi = &SPI1;
-		_spi_num = 1;          // Which buss is this spi on? 
-		#ifdef KINETISK
-		_pkinetisk_spi = &KINETISK_SPI1;  // Could hack our way to grab this from SPI object, but...
-		//_fifo_full_test = (0 << 12);
-		#elif defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x 
-		_pimxrt_spi = &IMXRT_LPSPI3_S;  // Could hack our way to grab this from SPI object, but...
-		#else
-		_pkinetisl_spi = &KINETISL_SPI1;
-		#endif				
-	#if !defined(__MKL26Z64__)
-	} else if (SPI2.pinIsMOSI(_mosi) && ((_miso == 0xff) || SPI2.pinIsMISO(_miso)) && SPI2.pinIsSCK(_sclk)) {
-		_pspi = &SPI2;
-		_spi_num = 2;          // Which buss is this spi on? 
-		#ifdef KINETISK
-		_pkinetisk_spi = &KINETISK_SPI2;  // Could hack our way to grab this from SPI object, but...
-		//_fifo_full_test = (0 << 12);
-		#elif defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x 
-		_pimxrt_spi = &IMXRT_LPSPI1_S;  // Could hack our way to grab this from SPI object, but...
-		#endif				
-	#endif
-	#endif
-	} else {
-		Serial.println("RA8876_t3: The IO pins on the constructor are not valid SPI pins");
-	
-		Serial.printf("    mosi:%d miso:%d SCLK:%d CS:%d\n", _mosi, _miso, _sclk, _cs); Serial.flush();
-		_errorCode |= (1 << 1);//set
-		return false;  // most likely will go bomb
-
-	}
-	// Make sure we have all of the proper SPI pins selected.
-	_pspi->setMOSI(_mosi);
-	_pspi->setSCK(_sclk);
-	if (_miso != 0xff) _pspi->setMISO(_miso);
-
-	// And startup SPI...
-	_pspi->begin();
-
-	// for this round will punt on trying to use CS as hardware CS...
-#ifdef KINETISK
-	pinMode(_cs, OUTPUT);
-	_csport    = portOutputRegister(digitalPinToPort(_cs));
-	_cspinmask = digitalPinToBitMask(_cs);
-	*_csport |= _cspinmask;
-
-#elif defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x 
-	// Serial.println("   T4 setup CS/DC"); Serial.flush();
-	_csport = portOutputRegister(_cs);
-	_cspinmask = digitalPinToBitMask(_cs);
-	pinMode(_cs, OUTPUT);	
-	DIRECT_WRITE_HIGH(_csport, _cspinmask);
-//	maybeUpdateTCR(_tcr_dc_not_assert | LPSPI_TCR_FRAMESZ(7));
-
-#else
-	// TLC
-	pinMode(_cs, OUTPUT);
-	_csport    = portOutputRegister(digitalPinToPort(_cs));
-	_cspinmask = digitalPinToBitMask(_cs);
-	*_csport |= _cspinmask;
-#endif	
-
-	#ifdef SPI_HAS_TRANSFER_ASYNC
-		finishedDMAEvent.setContext(this);	// Set the contxt to us
-		finishedDMAEvent.attachImmediate(asyncEventResponder);
-	#endif
+  switch (baud_div) {
+    case 2:  _baud_div = 120;
+              break;
+    case 4:  _baud_div = 60;
+              break;
+    case 8:  _baud_div = 30;
+              break;
+    case 12: _baud_div = 20;
+              break;
+    case 20: _baud_div = 12;
+              break;
+    case 24: _baud_div = 10;
+              break;
+    case 30: _baud_div = 8;
+              break;
+    case 40: _baud_div = 6;
+              break;
+    case 60: _baud_div = 4;
+              break;
+    case 120: _baud_div = 2;
+              break;
+   default: _baud_div = 20; // 12Mhz
+              break;           
+  }
+    pinMode(_cs, OUTPUT); // CS
+    pinMode(_dc, OUTPUT); // DC
+    pinMode(_rst, OUTPUT); // RST
+    *(portControlRegister(_cs)) = 0xFF;
+    *(portControlRegister(_dc)) = 0xFF;
+    *(portControlRegister(_rst)) = 0xFF;
   
-	// toggle RST low to reset
-	if (_rst < 255) {
-		pinMode(_rst, OUTPUT);
-		digitalWrite(_rst, HIGH);
-		delay(5);
-		digitalWrite(_rst, LOW);
-		delay(20);
-		digitalWrite(_rst, HIGH);
-		delay(150);
-	}
+    digitalWriteFast(_cs, HIGH);
+    digitalWriteFast(_dc, HIGH);
+    digitalWriteFast(_rst, HIGH);
 
-	#if defined(USE_FT5206_TOUCH)
-		_intCTSPin = 255;
-		_rstCTSPin = 255;
-	#endif
+    delay(15);
+    digitalWrite(_rst, LOW);
+    delay(15);
+    digitalWriteFast(_rst, HIGH);
+    delay(100);
+
+    FlexIO_Init();
 
 	if(!checkIcReady())
 		return false;
+
 	//read ID code must disable pll, 01h bit7 set 0
-	lcdRegDataWrite(0x01,0x08);
+    if(BUS_WIDTH == 16) {
+	  lcdRegDataWrite(0x01,0x09);
+	} else {
+	  lcdRegDataWrite(0x01,0x08);
+	}
 	delay(1);
-	if ((lcdRegDataRead(0xff) != 0x76)&&(lcdRegDataRead(0xff) != 0x77))
+	if ((lcdRegDataRead(0xff) != 0x76)&&(lcdRegDataRead(0xff) != 0x77)) {
 		return false;
+    }
 
 	// Initialize RA8876 to default settings
-	if(!ra8876Initialize())
+	if(!ra8876Initialize()) {
 		return false;
-	//------- time for capacitive touch stuff -----------------
-	#if defined(USE_FT5206_TOUCH)
-		_maxTouch = 5;
-		_gesture = 0;
-		_currentTouches = 0;
-		_currentTouchState = 0;
-	#endif
+    }
+
+    return true;
+}
+
+FASTRUN void RA8876_t3::CSLow() 
+{
+  digitalWriteFast(_cs, LOW);       //Select TFT
+}
+
+FASTRUN void RA8876_t3::CSHigh() 
+{
+  digitalWriteFast(_cs, HIGH);       //Deselect TFT
+}
+
+FASTRUN void RA8876_t3::DCLow() 
+{
+  digitalWriteFast(_dc, LOW);       //Writing command to TFT
+}
+
+FASTRUN void RA8876_t3::DCHigh() 
+{
+  digitalWriteFast(_dc, HIGH);       //Writing data to TFT
+}
+
+FASTRUN void RA8876_t3::microSecondDelay()
+{
+  for (uint32_t i=0; i<99; i++) __asm__("nop\n\t");
+}
+
+FASTRUN void RA8876_t3::FlexIO_Init() {
+  /* Get a FlexIO channel */
+    pFlex = FlexIOHandler::flexIOHandler_list[1]; // use FlexIO2
+    /* Pointer to the port structure in the FlexIO channel */
+    p = &pFlex->port();
+    /* Pointer to the hardware structure in the FlexIO channel */
+    hw = &pFlex->hardware();
+
+    /* Basic pin setup */
+    pinMode(10, OUTPUT); // FlexIO2:0 WR
+    pinMode(12, OUTPUT); // FlexIO2:1 RD
+    pinMode(40, OUTPUT); // FlexIO2:4 D0
+    pinMode(41, OUTPUT); // FlexIO2:5 |
+    pinMode(42, OUTPUT); // FlexIO2:6 |
+    pinMode(43, OUTPUT); // FlexIO2:7 |
+    pinMode(44, OUTPUT); // FlexIO2:8 |
+    pinMode(45, OUTPUT); // FlexIO2:9 |
+    pinMode(6, OUTPUT); // FlexIO2:10 |
+    pinMode(9, OUTPUT); // FlexIO2:11 D7
+
+    digitalWriteFast(10,HIGH);
+    digitalWriteFast(12,HIGH);
+
+    /* High speed and drive strength configuration */
+    *(portControlRegister(10)) = 0xFF;
+    *(portControlRegister(12)) = 0xFF; 
+    *(portControlRegister(40)) = 0xFF;
+    *(portControlRegister(41)) = 0xFF;
+    *(portControlRegister(42)) = 0xFF;
+    *(portControlRegister(43)) = 0xFF;
+    *(portControlRegister(44)) = 0xFF;
+    *(portControlRegister(45)) = 0xFF;
+    *(portControlRegister(6)) = 0xFF;
+    *(portControlRegister(9)) = 0xFF;
+
+    /* Set clock */
+    pFlex->setClockSettings(3, 1, 0); // (480 MHz source, 1+1, 1+0) >> 480/2/1 >> 240Mhz
+
+    /* Set up pin mux */
+    pFlex->setIOPinToFlexMode(10);
+    pFlex->setIOPinToFlexMode(12);
+    pFlex->setIOPinToFlexMode(40);
+    pFlex->setIOPinToFlexMode(41);
+    pFlex->setIOPinToFlexMode(42);
+    pFlex->setIOPinToFlexMode(43);
+    pFlex->setIOPinToFlexMode(44);
+    pFlex->setIOPinToFlexMode(45);
+    pFlex->setIOPinToFlexMode(6);
+    pFlex->setIOPinToFlexMode(9);
+
+    /* Set clock */
+    pFlex->setClockSettings(3, 1, 0); // (480 MHz source, 1+1, 1+0) >> 480/2/1 >> 240Mhz
+
+    /* Enable the clock */
+    hw->clock_gate_register |= hw->clock_gate_mask  ;
+    /* Enable the FlexIO with fast access */
+    p->CTRL = FLEXIO_CTRL_FLEXEN;// | FLEXIO_CTRL_FASTACC;
+}
+
+FASTRUN void RA8876_t3::FlexIO_Config_SnglBeat_Read() {
+    pFlex->setIOPinToFlexMode(12);
+
+    p->CTRL &= ~FLEXIO_CTRL_FLEXEN;
+    p->CTRL |= FLEXIO_CTRL_SWRST;
+    p->CTRL &= ~FLEXIO_CTRL_SWRST;
+
+    /* Configure the shifters */
+    p->SHIFTCFG[3] = 
+        //FLEXIO_SHIFTCFG_INSRC                                                /* Shifter input */
+        FLEXIO_SHIFTCFG_SSTOP(0)                                               /* Shifter stop bit disabled */
+       | FLEXIO_SHIFTCFG_SSTART(0)                                             /* Shifter start bit disabled and loading data on enabled */
+       | FLEXIO_SHIFTCFG_PWIDTH(BUS_WIDTH - 1);                                            /* Bus width */
+     
+    p->SHIFTCTL[3] = 
+        FLEXIO_SHIFTCTL_TIMSEL(0)                                              /* Shifter's assigned timer index */
+      | FLEXIO_SHIFTCTL_TIMPOL*(1)                                             /* Shift on posedge of shift clock */
+      | FLEXIO_SHIFTCTL_PINCFG(0)                                              /* Shifter's pin configured as input */
+      | FLEXIO_SHIFTCTL_PINSEL(4)  //4                                            /* Shifter's pin start index */
+      | FLEXIO_SHIFTCTL_PINPOL*(0) //0                                            /* Shifter's pin active high */
+      | FLEXIO_SHIFTCTL_SMOD(1);                                               /* Shifter mode as recieve */
+
+    /* Configure the timer for shift clock */
+    p->TIMCMP[0] = 
+        (((1 * 2) - 1) << 8)                                                   /* TIMCMP[15:8] = number of beats x 2 – 1 */
+      | (((_baud_div)/2) - 1);       //30             /* TIMCMP[7:0] = baud rate divider / 2 – 1 ::: 30 = 8Mhz with current controller speed */
+    
+    p->TIMCFG[0] = 
+        FLEXIO_TIMCFG_TIMOUT(0)                                                /* Timer output logic one when enabled and not affected by reset */
+      | FLEXIO_TIMCFG_TIMDEC(0)                                                /* Timer decrement on FlexIO clock, shift clock equals timer output */
+      | FLEXIO_TIMCFG_TIMRST(0)                                                /* Timer never reset */
+      | FLEXIO_TIMCFG_TIMDIS(2)                                                /* Timer disabled on timer compare */
+      | FLEXIO_TIMCFG_TIMENA(2)                                                /* Timer enabled on trigger high */
+      | FLEXIO_TIMCFG_TSTOP(1)                                                 /* Timer stop bit disabled */
+      | FLEXIO_TIMCFG_TSTART*(0);                                              /* Timer start bit disabled */
+    
+    p->TIMCTL[0] = 
+        FLEXIO_TIMCTL_TRGSEL((((3) << 2) | 1))                                 /* Timer trigger selected as shifter's status flag */
+      | FLEXIO_TIMCTL_TRGPOL*(1)                                               /* Timer trigger polarity as active low */
+      | FLEXIO_TIMCTL_TRGSRC*(1)                                               /* Timer trigger source as internal */
+      | FLEXIO_TIMCTL_PINCFG(3)                                                /* Timer' pin configured as output */
+      | FLEXIO_TIMCTL_PINSEL(1)                                                /* Timer' pin index: RD pin */
+      | FLEXIO_TIMCTL_PINPOL*(1)                                               /* Timer' pin active low */
+      | FLEXIO_TIMCTL_TIMOD(1);                                                /* Timer mode as dual 8-bit counters baud/bit */
+
+  
+    /* Enable FlexIO */
+   p->CTRL |= FLEXIO_CTRL_FLEXEN;      
+
+}
+
+FASTRUN void RA8876_t3::FlexIO_Config_SnglBeat() {
+
+    p->CTRL &= ~FLEXIO_CTRL_FLEXEN;
+    p->CTRL |= FLEXIO_CTRL_SWRST;
+    p->CTRL &= ~FLEXIO_CTRL_SWRST;
+
+    pFlex->setIOPinToFlexMode(10);
+
+    /* Configure the shifters */
+    p->SHIFTCFG[0] = 
+       FLEXIO_SHIFTCFG_INSRC*(1)                                                    /* Shifter input */
+       |FLEXIO_SHIFTCFG_SSTOP(0)                                               /* Shifter stop bit disabled */
+       | FLEXIO_SHIFTCFG_SSTART(0)                                             /* Shifter start bit disabled and loading data on enabled */
+       | FLEXIO_SHIFTCFG_PWIDTH(BUS_WIDTH - 1);                                /* Bus width */
+     
+    p->SHIFTCTL[0] = 
+        FLEXIO_SHIFTCTL_TIMSEL(0)                                              /* Shifter's assigned timer index */
+      | FLEXIO_SHIFTCTL_TIMPOL*(0)                                             /* Shift on posedge of shift clock */
+      | FLEXIO_SHIFTCTL_PINCFG(3)                                              /* Shifter's pin configured as output */
+      | FLEXIO_SHIFTCTL_PINSEL(4)                                              /* Shifter's pin start index */
+      | FLEXIO_SHIFTCTL_PINPOL*(0)                                             /* Shifter's pin active high */
+      | FLEXIO_SHIFTCTL_SMOD(2);                                               /* Shifter mode as transmit */
+
+    /* Configure the timer for shift clock */
+    p->TIMCMP[0] = 
+        (((1 * 2) - 1) << 8)                                                   /* TIMCMP[15:8] = number of beats x 2 – 1 */
+      | ((_baud_div/2) - 1);                                                    /* TIMCMP[7:0] = baud rate divider / 2 – 1 */
+    
+    p->TIMCFG[0] = 
+        FLEXIO_TIMCFG_TIMOUT(0)                                                /* Timer output logic one when enabled and not affected by reset */
+      | FLEXIO_TIMCFG_TIMDEC(0)                                                /* Timer decrement on FlexIO clock, shift clock equals timer output */
+      | FLEXIO_TIMCFG_TIMRST(0)                                                /* Timer never reset */
+      | FLEXIO_TIMCFG_TIMDIS(2)                                                /* Timer disabled on timer compare */
+      | FLEXIO_TIMCFG_TIMENA(2)                                                /* Timer enabled on trigger high */
+      | FLEXIO_TIMCFG_TSTOP(0)                                                 /* Timer stop bit disabled */
+      | FLEXIO_TIMCFG_TSTART*(0);                                              /* Timer start bit disabled */
+    
+    p->TIMCTL[0] = 
+        FLEXIO_TIMCTL_TRGSEL((((0) << 2) | 1))                                 /* Timer trigger selected as shifter's status flag */
+      | FLEXIO_TIMCTL_TRGPOL*(1)                                               /* Timer trigger polarity as active low */
+      | FLEXIO_TIMCTL_TRGSRC*(1)                                               /* Timer trigger source as internal */
+      | FLEXIO_TIMCTL_PINCFG(3)                                                /* Timer' pin configured as output */
+      | FLEXIO_TIMCTL_PINSEL(0)                                                /* Timer' pin index: WR pin */
+      | FLEXIO_TIMCTL_PINPOL*(1)                                               /* Timer' pin active low */
+      | FLEXIO_TIMCTL_TIMOD(1);                                                /* Timer mode as dual 8-bit counters baud/bit */
+
+    /* Enable FlexIO */
+   p->CTRL |= FLEXIO_CTRL_FLEXEN ;      
+ 
+}
+
+FASTRUN void RA8876_t3::FlexIO_Clear_Config_SnglBeat(){
+    p->CTRL &= ~FLEXIO_CTRL_FLEXEN;
+    p->CTRL |= FLEXIO_CTRL_SWRST;
+    p->CTRL &= ~FLEXIO_CTRL_SWRST;
+
+    p->SHIFTCFG[0] = 0;                                 
+    p->SHIFTCTL[0] = 0;
+    p->SHIFTSTAT = (1 << 0);
+    p->TIMCMP[0] = 0;
+    p->TIMCFG[0] = 0;
+    p->TIMSTAT = (1U << 0);                                          /* Timer start bit disabled */
+    p->TIMCTL[0] = 0;      
+    
+    /* Enable FlexIO */
+    p->CTRL |= FLEXIO_CTRL_FLEXEN;      
 
 
-	// return success
-	return true;
+}
+
+FASTRUN void RA8876_t3::FlexIO_Config_MultiBeat()
+{
+    uint32_t i;
+    uint8_t MulBeatWR_BeatQty = SHIFTNUM * sizeof(uint32_t) / sizeof(uint8_t);   //Number of beats = number of shifters * beats per shifter
+
+    pFlex->setIOPinToFlexMode(10);
+
+    /* Disable and reset FlexIO */
+    p->CTRL &= ~FLEXIO_CTRL_FLEXEN;
+    p->CTRL |= FLEXIO_CTRL_SWRST;
+    p->CTRL &= ~FLEXIO_CTRL_SWRST;
+
+
+    for(i=0; i<=SHIFTNUM-1; i++)
+    {
+        p->SHIFTCFG[i] = 
+        FLEXIO_SHIFTCFG_INSRC*(1U)                                                /* Shifter input from next shifter's output */
+      | FLEXIO_SHIFTCFG_SSTOP(0U)                                                 /* Shifter stop bit disabled */
+      | FLEXIO_SHIFTCFG_SSTART(0U)                                                /* Shifter start bit disabled and loading data on enabled */
+      | FLEXIO_SHIFTCFG_PWIDTH(BUS_WIDTH - 1);                                    /* 8 bit shift width */
+    }
+
+    p->SHIFTCTL[0] = 
+    FLEXIO_SHIFTCTL_TIMSEL(0)                                                     /* Shifter's assigned timer index */
+      | FLEXIO_SHIFTCTL_TIMPOL*(0U)                                               /* Shift on posedge of shift clock */
+      | FLEXIO_SHIFTCTL_PINCFG(3U)                                                /* Shifter's pin configured as output */
+      | FLEXIO_SHIFTCTL_PINSEL(4)  //4                                               /* Shifter's pin start index */
+      | FLEXIO_SHIFTCTL_PINPOL*(0U)                                               /* Shifter's pin active high */
+      | FLEXIO_SHIFTCTL_SMOD(2U);                                                 /* shifter mode transmit */
+
+    for(i=1; i<=SHIFTNUM-1; i++)
+    {
+        p->SHIFTCTL[i] = 
+        FLEXIO_SHIFTCTL_TIMSEL(0)                                                 /* Shifter's assigned timer index */
+      | FLEXIO_SHIFTCTL_TIMPOL*(0U)                                               /* Shift on posedge of shift clock */
+      | FLEXIO_SHIFTCTL_PINCFG(0U)                                                /* Shifter's pin configured as output disabled */
+      | FLEXIO_SHIFTCTL_PINSEL(4)                                                 /* Shifter's pin start index */
+      | FLEXIO_SHIFTCTL_PINPOL*(0U)                                               /* Shifter's pin active high */
+      | FLEXIO_SHIFTCTL_SMOD(2U);                                                 /* shifter mode transmit */          
+    }
+
+    /* Configure the timer for shift clock */
+    p->TIMCMP[0] = 
+        ((MulBeatWR_BeatQty * 2U - 1) << 8)                                       /* TIMCMP[15:8] = number of beats x 2 – 1 */
+      | (_baud_div/2U - 1U);                                                       /* TIMCMP[7:0] = shift clock divide ratio / 2 - 1 */
+      
+    p->TIMCFG[0] =   FLEXIO_TIMCFG_TIMOUT(0U)                                     /* Timer output logic one when enabled and not affected by reset */
+      | FLEXIO_TIMCFG_TIMDEC(0U)                                                  /* Timer decrement on FlexIO clock, shift clock equals timer output */
+      | FLEXIO_TIMCFG_TIMRST(0U)                                                  /* Timer never reset */
+      | FLEXIO_TIMCFG_TIMDIS(2U)                                                  /* Timer disabled on timer compare */
+      | FLEXIO_TIMCFG_TIMENA(2U)                                                  /* Timer enabled on trigger high */
+      | FLEXIO_TIMCFG_TSTOP(0U)                                                   /* Timer stop bit disabled */
+      | FLEXIO_TIMCFG_TSTART*(0U);                                                /* Timer start bit disabled */
+
+    p->TIMCTL[0] = 
+        FLEXIO_TIMCTL_TRGSEL((0 << 2) | 1U)                                       /* Timer trigger selected as highest shifter's status flag */
+      | FLEXIO_TIMCTL_TRGPOL*(1U)                                                 /* Timer trigger polarity as active low */
+      | FLEXIO_TIMCTL_TRGSRC*(1U)                                                 /* Timer trigger source as internal */
+      | FLEXIO_TIMCTL_PINCFG(3U)                                                  /* Timer' pin configured as output */
+      | FLEXIO_TIMCTL_PINSEL(0)                                                   /* Timer' pin index: WR pin */
+      | FLEXIO_TIMCTL_PINPOL*(1U)                                                 /* Timer' pin active low */
+      | FLEXIO_TIMCTL_TIMOD(1U);                                                  /* Timer mode 8-bit baud counter */
+
+
+    /* Enable FlexIO */
+   p->CTRL |= FLEXIO_CTRL_FLEXEN;
+   p->SHIFTSDEN |= 1U << (SHIFTER_DMA_REQUEST); // enable DMA trigger when shifter status flag is set on shifter SHIFTER_DMA_REQUEST
+}
+
+RA8876_t3 * RA8876_t3::dmaCallback = nullptr;
+DMAChannel RA8876_t3::flexDma;
+
+FASTRUN void RA8876_t3::MulBeatWR_nPrm_DMA(const void *value, uint32_t const length) 
+{
+  while(WR_DMATransferDone == false) {}  //Wait for any DMA transfers to complete
+
+    uint32_t BeatsPerMinLoop = SHIFTNUM * sizeof(uint32_t) / sizeof(uint8_t);   // Number of shifters * number of 8 bit values per shifter
+    uint32_t majorLoopCount, minorLoopBytes;
+    uint32_t destinationModulo = 31-(__builtin_clz(SHIFTNUM*sizeof(uint32_t))); // defines address range for circular DMA destination buffer 
+
+//    FlexIO_Config_SnglBeat();
+    CSLow();
+    DCHigh();
+
+  if (length < 8){
+//Serial.println ("In DMA but to Short to multibeat");
+    const uint16_t * newValue = (uint16_t*)value;
+    uint16_t buf;
+    for(uint32_t i=0; i<length; i++)
+      {
+        buf = *newValue++;
+          while(0 == (p->SHIFTSTAT & (1U << 0)))
+          {
+          }
+          p->SHIFTBUF[0] = buf >> 8;
+          while(0 == (p->SHIFTSTAT & (1U << 0)))
+          {
+          }
+          p->SHIFTBUF[0] = buf & 0xFF;
+      }        
+      //Wait for transfer to be completed 
+      while(0 == (p->TIMSTAT & (1U << 0)))
+      {
+      }
+    CSHigh();
+
+  } else {
+    //memcpy(framebuff, value, length); 
+    //arm_dcache_flush((void*)framebuff, sizeof(framebuff)); // always flush cache after writing to DMAMEM variable that will be accessed by DMA
+    
+    FlexIO_Config_MultiBeat();
+    
+    MulBeatCountRemain = length % BeatsPerMinLoop;
+    MulBeatDataRemain = (uint16_t*)value + ((length - MulBeatCountRemain)); // pointer to the next unused byte (overflow if MulBeatCountRemain = 0)
+    TotalSize = (length - MulBeatCountRemain)*2;               /* in bytes */
+    minorLoopBytes = SHIFTNUM * sizeof(uint32_t);
+    majorLoopCount = TotalSize/minorLoopBytes;
+//Serial.printf("Length(16bit): %d, Count remain(16bit): %d, Data remain: %d, TotalSize(8bit): %d, majorLoopCount: %d \n",length, MulBeatCountRemain, MulBeatDataRemain, TotalSize, majorLoopCount );
+    /* Configure FlexIO with multi-beat write configuration */
+    flexDma.begin();
+
+    /* Setup DMA transfer with on-the-fly swapping of MSB and LSB in 16-bit data:
+     *  Within each minor loop, read 16-bit values from buf in reverse order, then write 32bit values to SHIFTBUFBYS[i] in reverse order.
+     *  Result is that every pair of bytes are swapped, while half-words are unswapped.
+     *  After each minor loop, advance source address using minor loop offset. */
+    int destinationAddressOffset, destinationAddressLastOffset, sourceAddressOffset, sourceAddressLastOffset, minorLoopOffset;
+    volatile void *destinationAddress, *sourceAddress;
+
+    DMA_CR |= DMA_CR_EMLM; // enable minor loop mapping
+
+    sourceAddress = (uint16_t*)value + minorLoopBytes/sizeof(uint16_t) - 1; // last 16bit address within current minor loop
+    sourceAddressOffset = -sizeof(uint16_t); // read values in reverse order
+    minorLoopOffset = 2*minorLoopBytes; // source address offset at end of minor loop to advance to next minor loop
+    sourceAddressLastOffset = minorLoopOffset - TotalSize; // source address offset at completion to reset to beginning
+    destinationAddress = (uint32_t*)&p->SHIFTBUF[SHIFTNUM-1]; // last 32bit shifter address (with reverse byte order)
+//    destinationAddress = (uint32_t*)&p->SHIFTBUFBYS[7]; // last 32bit shifter address (with reverse byte order)
+    destinationAddressOffset = -sizeof(uint32_t); // write words in reverse order
+    destinationAddressLastOffset = 0;
+
+    flexDma.TCD->SADDR = sourceAddress;
+    flexDma.TCD->SOFF = sourceAddressOffset;
+    flexDma.TCD->SLAST = sourceAddressLastOffset;
+    flexDma.TCD->DADDR = destinationAddress;
+    flexDma.TCD->DOFF = destinationAddressOffset;
+    flexDma.TCD->DLASTSGA = destinationAddressLastOffset;
+    flexDma.TCD->ATTR =
+        DMA_TCD_ATTR_SMOD(0U)
+      | DMA_TCD_ATTR_SSIZE(DMA_TCD_ATTR_SIZE_16BIT) // 16bit reads
+      | DMA_TCD_ATTR_DMOD(destinationModulo)
+      | DMA_TCD_ATTR_DSIZE(DMA_TCD_ATTR_SIZE_32BIT); // 32bit writes
+    flexDma.TCD->NBYTES_MLOFFYES = 
+        DMA_TCD_NBYTES_SMLOE
+      | DMA_TCD_NBYTES_MLOFFYES_MLOFF(minorLoopOffset)
+      | DMA_TCD_NBYTES_MLOFFYES_NBYTES(minorLoopBytes);
+    flexDma.TCD->CITER = majorLoopCount; // Current major iteration count
+    flexDma.TCD->BITER = majorLoopCount; // Starting major iteration count
+
+    flexDma.triggerAtHardwareEvent(hw->shifters_dma_channel[SHIFTER_DMA_REQUEST]);
+    flexDma.disableOnCompletion();
+    flexDma.interruptAtCompletion();
+    flexDma.clearComplete();
+    //Serial.println("Dma setup done");
+
+    /* Start data transfer by using DMA */
+    WR_DMATransferDone = false;
+    flexDma.attachInterrupt(dmaISR);
+    flexDma.enable();
+    //Serial.println("Starting transfer");
+    dmaCallback = this;
+   }
+}
+
+FASTRUN void RA8876_t3::dmaISR()
+{
+  flexDma.clearInterrupt();
+  asm volatile ("dsb"); // prevent interrupt from re-entering
+  dmaCallback->flexDma_Callback();
+}
+
+FASTRUN void RA8876_t3::flexDma_Callback()
+{
+//Serial.printf("DMA callback start triggred \n");
+    
+    /* the interrupt is called when the final DMA transfer completes writing to the shifter buffers, which would generally happen while
+    data is still in the process of being shifted out from the second-to-last major iteration. In this state, all the status flags are cleared.
+    when the second-to-last major iteration is fully shifted out, the final data is transfered from the buffers into the shifters which sets all the status flags.
+    if you have only one major iteration, the status flags will be immediately set before the interrupt is called, so the while loop will be skipped. */
+    while(0 == (p->SHIFTSTAT & (1U << (SHIFTNUM-1)))) {}
+    
+    /* Wait the last multi-beat transfer to be completed. Clear the timer flag
+    before the completing of the last beat. The last beat may has been completed
+    at this point, then code would be dead in the while() below. So mask the
+    while() statement and use the software delay .*/
+    p->TIMSTAT |= (1U << 0U);
+
+    /* Wait timer flag to be set to ensure the completing of the last beat. */
+    while(0 == (p->TIMSTAT & (1U << 0U))) {}
+
+//Serial.printf("MulBeatCountRemain = %d\n",MulBeatCountRemain);    
+    if(MulBeatCountRemain)
+    {
+      //Serial.printf("MulBeatCountRemain in DMA callback: %d, MulBeatDataRemain %x \n", MulBeatCountRemain,MulBeatDataRemain);
+      uint16_t value;
+        /* Configure FlexIO with 1-beat write configuration */
+        FlexIO_Config_SnglBeat();
+
+//Serial.printf("Starting single beat completion: %d \n", MulBeatCountRemain);
+
+        /* Use polling method for data transfer */
+        for(uint32_t i=0; i<(MulBeatCountRemain); i++)
+        {
+          value = *MulBeatDataRemain++;
+            while(0 == (p->SHIFTSTAT & (1U << 0))) {}
+            p->SHIFTBUF[0] = value >> 8;
+
+            while(0 == (p->SHIFTSTAT & (1U << 0))) {}
+            p->SHIFTBUF[0] = value & 0xFF;
+        }
+        p->TIMSTAT |= (1U << 0);
+        /*Wait for transfer to be completed */
+        while(0 == (p->TIMSTAT |= (1U << 0))) {}
+//Serial.println("Finished single beat completion");
+    }
+    CSHigh();
+    /* the for loop is probably not sufficient to complete the transfer. Shifting out all 32 bytes takes (32 beats)/(6 MHz) = 5.333 microseconds which is over 3000 CPU cycles.
+    If you really need to wait in this callback until all the data has been shifted out, the while loop is probably the correct solution and I don't think it risks an infinite loop.
+    however, it seems like a waste of time to wait here, since the process otherwise completes in the background and the shifter buffers are ready to receive new data while the transfer completes.
+    I think in most applications you could continue without waiting. You can start a new DMA transfer as soon as the first one completes (no need to wait for FlexIO to finish shifting). */
+    WR_DMATransferDone = true;
+//    flexDma.disable(); // not necessary because flexDma is already configured to disable on completion
+    if(isCB){
+//Serial.printf("custom callback triggred \n");
+    _onCompleteCB();
+    }
+//Serial.printf("DMA callback end triggred \n");
+}
+
+void RA8876_t3::DMAerror(){
+  if(flexDma.error()){
+    Serial.print("DMA error: ");
+    Serial.println(DMA_ES, HEX);
+  } 
+}
+
+FASTRUN void RA8876_t3::pushPixels16bitDMA(const uint16_t * pcolors, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2){
+  while(WR_DMATransferDone == false) {}    //Wait for any DMA transfers to complete
+  uint32_t area = (x2)*(y2);
+	graphicMode(true);
+	activeWindowXY(x1,y1);
+	activeWindowWH(x2,y2);
+	setPixelCursor(x1,y1);
+	ramAccessPrepare();
+  MulBeatWR_nPrm_DMA(pcolors, area);
+}
+
+FASTRUN void RA8876_t3::_onCompleteCB()
+{
+  if (_callback){
+        _callback();
+      }
+      return;
 }
 
 //**************************************************************//
@@ -333,18 +722,23 @@ FLASHMEM boolean RA8876_t3::begin(uint32_t spi_clock)
 boolean RA8876_t3::ra8876Initialize() {
 	
 	// Init PLL
-	if(!ra8876PllInitial())
+	if(!ra8876PllInitial()) {
 		return false;
+    }
 	// Init SDRAM
-	if(!ra8876SdramInitial())
+	if(!ra8876SdramInitial()) {
 		return false;
-
-	lcdRegWrite(RA8876_CCR);//01h
-//  lcdDataWrite(RA8876_PLL_ENABLE<<7|RA8876_WAIT_MASK<<6|RA8876_KEY_SCAN_DISABLE<<5|RA8876_TFT_OUTPUT24<<3
+	}
   
   lcdRegWrite(RA8876_CCR);//01h
-  lcdDataWrite(RA8876_PLL_ENABLE<<7|RA8876_WAIT_NO_MASK<<6|RA8876_KEY_SCAN_DISABLE<<5|RA8876_TFT_OUTPUT24<<3
-  |RA8876_I2C_MASTER_DISABLE<<2|RA8876_SERIAL_IF_ENABLE<<1|RA8876_HOST_DATA_BUS_SERIAL);
+
+  if(BUS_WIDTH == 16) {
+    lcdDataWrite(RA8876_PLL_ENABLE<<7|RA8876_WAIT_NO_MASK<<6|RA8876_KEY_SCAN_DISABLE<<5|RA8876_TFT_OUTPUT24<<3
+    |RA8876_I2C_MASTER_DISABLE<<2|RA8876_SERIAL_IF_DISABLE<<1|RA8876_HOST_DATA_BUS_16BIT);
+  } else {
+    lcdDataWrite(RA8876_PLL_ENABLE<<7|RA8876_WAIT_NO_MASK<<6|RA8876_KEY_SCAN_DISABLE<<5|RA8876_TFT_OUTPUT24<<3
+    |RA8876_I2C_MASTER_DISABLE<<2|RA8876_SERIAL_IF_DISABLE<<1|RA8876_HOST_DATA_BUS_8BIT);
+  }
 
   lcdRegWrite(RA8876_MACR);//02h
   lcdDataWrite(RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_LRTB<<1);
@@ -518,59 +912,135 @@ boolean RA8876_t3::ra8876Initialize() {
   return true;
 }
 
-//**************************************************************//
-// Write to a RA8876 register
-//**************************************************************//
-void RA8876_t3::lcdRegWrite(ru8 reg, bool finalize) 
-{
-  ru16 _data = (RA8876_SPI_CMDWRITE16 | reg);
-  
-  startSend();
-  _pspi->transfer16(_data);
-  endSend(finalize);
+//**********************************************************************
+// Do a software reset of RA8876
+//**********************************************************************
+void RA8876_t3::RA8876_SW_Reset(void) {
+	unsigned char temp;
+
+	lcdRegWrite(0x00,false);
+	temp = lcdDataRead();
+	temp |= 0x01;
+	lcdDataWrite(temp);
+
+    do
+    {
+	    temp = lcdDataRead();
+    }
+    while( temp&0x01 );
 }
 
+//**********************************************************************
+// This section defines the low level parallel 8080 access routines.
+// It uses "BUS_WIDTH" (8 or 16) to decide which drivers to use.  
+//**********************************************************************
 void RA8876_t3::LCD_CmdWrite(unsigned char cmd)
 {	
-  startSend();
-  _pspi->transfer16(0x00);
-  _pspi->transfer(cmd);
-  endSend(true);
+//  startSend();
+//  _pspi->transfer16(0x00);
+//  _pspi->transfer(cmd);
+//  endSend(true);
 }
 
-//**************************************************************//
-// Write RA8876 Data
-//**************************************************************//
-void RA8876_t3::lcdDataWrite(ru8 data, bool finalize) 
+//****************************************************************
+// Write to a RA8876 register (8 bit only) in 8/16 bbit buss mode.
+//****************************************************************
+void RA8876_t3::lcdRegWrite(ru8 reg, bool finalize) 
 {
-  ru16 _data = (RA8876_SPI_DATAWRITE16 | data);
-  startSend();
-  _pspi->transfer16(_data);
-  endSend(finalize);
+  while(WR_IRQTransferDone == false) {} //Wait for any DMA transfers to complete
+  FlexIO_Config_SnglBeat();
+  CSLow();
+  DCLow();
+  /* Write command index */
+  p->SHIFTBUF[0] = reg;
+  /*Wait for transfer to be completed */
+  while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+  while(0 == (p->TIMSTAT & (1 << 0))) {}
+  /* De-assert RS pin */
+  DCHigh();
+  CSHigh();
+}
+
+
+//*****************************************************************
+// Write RA8876 Data 8 bit data reg or memory in 8/16 bit bus mode.
+//*****************************************************************
+void RA8876_t3::lcdDataWrite(ru8 data, bool finalize) {
+  while(WR_DMATransferDone == false) {}
+//  while(digitalReadFast(WINT) == 0);  // If monitoring XnWAIT signal from RA8876.
+
+  FlexIO_Config_SnglBeat();
+
+  CSLow();
+  DCHigh();
+
+  p->SHIFTBUF[0] = data;
+  /*Wait for transfer to be completed */
+  while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+  while(0 == (p->TIMSTAT & (1 << 0))) {}
+  CSHigh();
 }
 
 //**************************************************************//
-// Read RA8876 Data
+// Read RA8876 parallel Data (8-bit read) 8/16 bit bus mode.
 //**************************************************************//
-ru8 RA8876_t3::lcdDataRead(bool finalize) 
-{
-  ru16 _data = (RA8876_SPI_DATAREAD16 | 0x00);
-  
-  startSend();
-  ru8 data = _pspi->transfer16(_data);
-  endSend(finalize);
-  return data;
+ru8 RA8876_t3::lcdDataRead(bool finalize) {
+  uint16_t dummy = 0;
+  uint16_t data = 0;
+
+  while(WR_DMATransferDone == false) {} //Wait for any DMA transfers to complete
+//  while(digitalReadFast(WINT) == 0);  // If monitoring XnWAIT signal from RA8876.
+
+  CSLow();  // Must to go low after config and delay above.
+  DCHigh(); // Should already be HIGH
+
+  FlexIO_Config_SnglBeat_Read();
+
+  while (0 == (p->SHIFTSTAT & (1 << 3))) {}
+  dummy = p->SHIFTBUFBYS[3];
+  while (0 == (p->SHIFTSTAT & (1 << 3))) {}
+  data = p->SHIFTBUFBYS[3];
+  CSHigh();
+
+//  Serial.printf("lcdDataread(): Dummy 0x%4.4x, data 0x%4.4x\n", dummy, data);
+
+  //Set FlexIO back to Write mode
+  FlexIO_Config_SnglBeat(); // Not sure if this is needed.
+   if(BUS_WIDTH == 8)
+     return data;
+   else
+     return (data >> 8) & 0xff;
 }
 
 //**************************************************************//
-// Read RA8876 status register
+// Read RA8876 status register 8bit data R/W only. 8/16 bit bus.
+// Special case for status register access:
+// /CS = 0, /DC = 0, /RD = 0, /WR = 1.
 //**************************************************************//
 ru8 RA8876_t3::lcdStatusRead(bool finalize) 
 {
-  startSend();
-  ru8 data = _pspi->transfer16(RA8876_SPI_STATUSREAD16);
-  endSend(finalize);
-  return data;
+  while(WR_DMATransferDone == false) {} //Wait for any DMA transfers to complete
+//  while(digitalReadFast(WINT) == 0);  // If monitoring XnWAIT signal from RA8876.
+  FlexIO_Config_SnglBeat_Read();
+
+  CSLow();
+  DCLow();
+
+  uint16_t data = 0;
+  while (0 == (p->SHIFTSTAT & (1 << 3))) {}
+  data = p->SHIFTBUFBYS[3];
+
+  DCHigh();
+  CSHigh();
+//Serial.printf("Dummy 0x%4.4x, data 0x%4.4x\n", dummy, data);
+
+  //Set FlexIO back to Write mode
+  FlexIO_Config_SnglBeat();
+   
+  if(BUS_WIDTH == 8)
+    return data;
+  else
+    return (data >> 8) & 0xff;
 }
 
 //**************************************************************//
@@ -578,16 +1048,9 @@ ru8 RA8876_t3::lcdStatusRead(bool finalize)
 //**************************************************************//
 void RA8876_t3::lcdRegDataWrite(ru8 reg, ru8 data, bool finalize)
 {
-  //write the register we wish to write to, then send the data
-  //don't need to release _CS between the two transfers
-  //ru16 _reg = (RA8876_SPI_CMDWRITE16 | reg);
-  //ru16 _data = (RA8876_SPI_DATAWRITE16 | data);
-  uint8_t buf[4] = {RA8876_SPI_CMDWRITE, reg, RA8876_SPI_DATAWRITE, data };
-  startSend();
-  //_pspi->transfer16(_reg);
-  //_pspi->transfer16(_data);
-  _pspi->transfer(buf, nullptr, 4);
-  endSend(finalize);
+//  while(digitalReadFast(WINT) == 0);  // If monitoring XnWAIT signal from RA8876.
+  lcdRegWrite(reg);
+  lcdDataWrite(data);
 }
 
 //**************************************************************//
@@ -595,19 +1058,84 @@ void RA8876_t3::lcdRegDataWrite(ru8 reg, ru8 data, bool finalize)
 //**************************************************************//
 ru8 RA8876_t3::lcdRegDataRead(ru8 reg, bool finalize)
 {
+//  while(digitalReadFast(WINT) == 0);  // If monitoring XnWAIT signal from RA8876.
   lcdRegWrite(reg, finalize);
   return lcdDataRead();
 }
 
-//**************************************************************//
-// support SPI interface to write 16bpp data after Regwrite 04h
-//**************************************************************//
+//******************************************************************
+// support 8080 bus interface to write 16bpp data after Regwrite 04h
+//******************************************************************
 void RA8876_t3::lcdDataWrite16bbp(ru16 data, bool finalize) 
 {
-	startSend();
-	_pspi->transfer(RA8876_SPI_DATAWRITE);
-	_pspi->transfer16(data);
-	endSend(finalize);
+//  while(digitalReadFast(WINT) == 0);  // If monitoring XnWAIT signal from RA8876.
+  if(BUS_WIDTH == 8) {
+    lcdDataWrite(data & 0xff);
+    lcdDataWrite(data >> 8);
+  } else {
+    lcdDataWrite16(data, false );
+  }
+}
+
+//**************************************************************//
+// 16 bit read RA8876 Data. 8/16 bit bus mode.
+//**************************************************************//
+uint16_t RA8876_t3::lcdDataRead16(bool finalize) 
+{
+  uint16_t dummy = 0;
+  uint16_t data = 0;
+
+  while(WR_DMATransferDone == false) {} //Wait for any DMA transfers to complete
+//  while(digitalReadFast(WINT) == 0);  // If monitoring XnWAIT signal from RA8876.
+
+  CSLow();  // Must to go low after config and delay above.
+  DCHigh(); // Should already be HIGH
+
+  FlexIO_Config_SnglBeat_Read();
+
+  while (0 == (p->SHIFTSTAT & (1 << 3))) {}
+  dummy = p->SHIFTBUFBYS[3];
+
+  while (0 == (p->SHIFTSTAT & (1 << 3))) {}
+  data = p->SHIFTBUFBYS[3];
+  CSHigh();
+
+//  Serial.printf("lcdDataread16(): Dummy 0x%4.4x, data 0x%4.4x\n", dummy, data);
+
+  //Set FlexIO back to Write mode
+  FlexIO_Config_SnglBeat(); // Not sure if this is needed.
+  if(BUS_WIDTH == 8)
+    return (dummy << 8) | (data & 0xff); // High byte to low byte and mask.
+  else
+    return (data >> 8) | (data << 8);
+}
+
+//*********************************************************
+// Write RA8876 data to display memory, 8/16 bit buss mode.
+//*********************************************************
+void RA8876_t3::lcdDataWrite16(uint16_t data, bool finalize) 
+{
+  while(WR_DMATransferDone == false) {} //Wait for any DMA transfers to complete
+//  while(digitalReadFast(WINT) == 0);  // If monitoring XnWAIT signal from RA8876.
+
+  FlexIO_Config_SnglBeat();
+
+  CSLow();
+  DCHigh();
+
+  if(BUS_WIDTH == 16) {
+    p->SHIFTBUF[0] = data;
+    while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+    while(0 == (p->TIMSTAT & (1 << 0))) {}
+  } else {
+    p->SHIFTBUF[0] = data >> 8;
+    while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+    p->SHIFTBUF[0] = data & 0xff;
+    while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+    while(0 == (p->TIMSTAT & (1 << 0))) {}
+  }
+  /* De-assert /CS pin */
+  CSHigh();
 }
 
 //**************************************************************//
@@ -676,13 +1204,13 @@ A large filled rectangle might take 3300 microseconds
 *****************************************************************/
 void RA8876_t3::check2dBusy(void)  
 {  ru32 i; 
-   for(i=0;i<50000;i++)   //Please according to your usage to modify i value.
+   for(i=0;i<100000;i++)   //Please according to your usage to modify i value.
    { 
    delayMicroseconds(1);
     if( (lcdStatusRead()&0x08)==0x00 )
     {return;}
    }
-   Serial.println("2D ready failed");
+   Serial.println("2D ready failed...");
 }  
 
 
@@ -690,14 +1218,14 @@ void RA8876_t3::check2dBusy(void)
 /*[Status Register] bit2   SDRAM ready for access
 0: SDRAM is not ready for access   1: SDRAM is ready for access*/	
 //**************************************************************//
-boolean RA8876_t3::checkSdramReady(void)
-{ru32 i;
+boolean RA8876_t3::checkSdramReady(void) {
+ ru32 i;
  for(i=0;i<1000000;i++) //Please according to your usage to modify i value.
  { 
    delayMicroseconds(1);
-   if( (lcdStatusRead()&0x04)==0x04 )
-    {return true;}
-    
+   if( (lcdStatusRead()&0x04)==0x04 ) {
+	 return true;
+   }
  }
  return false;
 }
@@ -708,17 +1236,18 @@ boolean RA8876_t3::checkSdramReady(void)
 Inhibit operation state means internal reset event keep running or
 initial display still running or chip enter power saving state.	*/
 //**************************************************************//
-boolean RA8876_t3::checkIcReady(void)
-{ru32 i;
-  for(i=0;i<1000000;i++)  //Please according to your usage to modify i value.
-   {
-     delayMicroseconds(1);
-     if( (lcdStatusRead()&0x02)==0x00 )
-    {return true;}     
-   }
-   return false;
+boolean RA8876_t3::checkIcReady(void) {
+  ru32 i;
+  for(i=0;i<1000000;i++) { //Please according to your usage to modify i value.
+    delayMicroseconds(1);
+    if( (lcdStatusRead()&0x02)==0x00 ) {
+	  return true;
+	}     
+  }
+  return false;
 }
 
+//**************************************************************************************
 //**************************************************************//
 // Initialize PLL
 //**************************************************************//
@@ -850,7 +1379,6 @@ ex:
 			lcdRegDataWrite(0x09,0x06);				//PLL Divided by 8
 			lcdRegDataWrite(0x0A,(30*8/OSC_FREQ)-1);	//set to 30MHz if out off range
 		}
-
 	delay(1);
 	lcdRegWrite(0x01);
 	delay(2);
@@ -1008,8 +1536,7 @@ ru16	Auto_Refresh;
 //**************************************************************//
 // Turn Display ON/Off (true = ON)
 //**************************************************************//
-void RA8876_t3::displayOn(boolean on)
-{
+void RA8876_t3::displayOn(boolean on) {
 	unsigned char temp;
 	
 	// Maybe preserve some of the bits. 
@@ -1019,16 +1546,13 @@ void RA8876_t3::displayOn(boolean on)
    lcdRegDataWrite(RA8876_DPCR, XPCLK_INV<<7|RA8876_DISPLAY_ON<<6|RA8876_OUTPUT_RGB|temp);
   else
    lcdRegDataWrite(RA8876_DPCR, XPCLK_INV<<7|RA8876_DISPLAY_OFF<<6|RA8876_OUTPUT_RGB|temp);
-   
   delay(20);
  }
 
 //**************************************************************//
 // Turn Backlight ON/Off (true = ON)
 //**************************************************************//
-void RA8876_t3::backlight(boolean on)
-{
-
+void RA8876_t3::backlight(boolean on) {
   if(on) {
 	//Enable_PWM0_Interrupt();
 	//Clear_PWM0_Interrupt_Flag();
@@ -1058,8 +1582,7 @@ void RA8876_t3::backlight(boolean on)
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::lcdHorizontalWidthVerticalHeight(ru16 width,ru16 height)
-{
+void RA8876_t3::lcdHorizontalWidthVerticalHeight(ru16 width,ru16 height) {
 	unsigned char temp;
 	temp=(width/8)-1;
 	lcdRegDataWrite(RA8876_HDWR,temp);
@@ -1073,8 +1596,7 @@ void RA8876_t3::lcdHorizontalWidthVerticalHeight(ru16 width,ru16 height)
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::lcdHorizontalNonDisplay(ru16 numbers)
-{
+void RA8876_t3::lcdHorizontalNonDisplay(ru16 numbers) {
 	ru8 temp;
 	if(numbers<8)
 	{
@@ -1090,8 +1612,7 @@ void RA8876_t3::lcdHorizontalNonDisplay(ru16 numbers)
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::lcdHsyncStartPosition(ru16 numbers)
-{
+void RA8876_t3::lcdHsyncStartPosition(ru16 numbers) {
 	ru8 temp;
 	if(numbers<8)
 	{
@@ -1104,8 +1625,7 @@ void RA8876_t3::lcdHsyncStartPosition(ru16 numbers)
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::lcdHsyncPulseWidth(ru16 numbers)
-{
+void RA8876_t3::lcdHsyncPulseWidth(ru16 numbers) {
 	ru8 temp;
 	if(numbers<8)
 	{
@@ -1118,8 +1638,7 @@ void RA8876_t3::lcdHsyncPulseWidth(ru16 numbers)
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::lcdVerticalNonDisplay(ru16 numbers)
-{
+void RA8876_t3::lcdVerticalNonDisplay(ru16 numbers) {
 	ru8 temp;
 	temp=numbers-1;
 	lcdRegDataWrite(RA8876_VNDR0,temp);
@@ -1128,8 +1647,7 @@ void RA8876_t3::lcdVerticalNonDisplay(ru16 numbers)
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::lcdVsyncStartPosition(ru16 numbers)
-{
+void RA8876_t3::lcdVsyncStartPosition(ru16 numbers) {
 	ru8 temp;
 	temp=numbers-1;
 	lcdRegDataWrite(RA8876_VSTR,temp);
@@ -1137,8 +1655,7 @@ void RA8876_t3::lcdVsyncStartPosition(ru16 numbers)
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::lcdVsyncPulseWidth(ru16 numbers)
-{
+void RA8876_t3::lcdVsyncPulseWidth(ru16 numbers) {
 	ru8 temp;
 	temp=numbers-1;
 	lcdRegDataWrite(RA8876_VPWR,temp);
@@ -1146,8 +1663,7 @@ void RA8876_t3::lcdVsyncPulseWidth(ru16 numbers)
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::displayImageStartAddress(ru32 addr)	
-{
+void RA8876_t3::displayImageStartAddress(ru32 addr)	{
 	lcdRegDataWrite(RA8876_MISA0,addr);//20h
 	lcdRegDataWrite(RA8876_MISA1,addr>>8);//21h 
 	lcdRegDataWrite(RA8876_MISA2,addr>>16);//22h  
@@ -1156,7 +1672,7 @@ void RA8876_t3::displayImageStartAddress(ru32 addr)
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::displayImageWidth(ru16 width)	
+void RA8876_t3::displayImageWidth(ru16 width) 
 {
 	lcdRegDataWrite(RA8876_MIW0,width); //24h
 	lcdRegDataWrite(RA8876_MIW1,width>>8); //25h 
@@ -1164,8 +1680,7 @@ void RA8876_t3::displayImageWidth(ru16 width)
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::displayWindowStartXY(ru16 x0,ru16 y0)	
-{
+void RA8876_t3::displayWindowStartXY(ru16 x0,ru16 y0) {
 	lcdRegDataWrite(RA8876_MWULX0,x0);//26h
 	lcdRegDataWrite(RA8876_MWULX1,x0>>8);//27h
 	lcdRegDataWrite(RA8876_MWULY0,y0);//28h
@@ -1174,8 +1689,7 @@ void RA8876_t3::displayWindowStartXY(ru16 x0,ru16 y0)
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::canvasImageStartAddress(ru32 addr)	
-{
+void RA8876_t3::canvasImageStartAddress(ru32 addr) {
 	lcdRegDataWrite(RA8876_CVSSA0,addr);//50h
 	lcdRegDataWrite(RA8876_CVSSA1,addr>>8);//51h
 	lcdRegDataWrite(RA8876_CVSSA2,addr>>16);//52h
@@ -1184,16 +1698,14 @@ void RA8876_t3::canvasImageStartAddress(ru32 addr)
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::canvasImageWidth(ru16 width)	
-{
+void RA8876_t3::canvasImageWidth(ru16 width) {
 	lcdRegDataWrite(RA8876_CVS_IMWTH0,width);//54h
 	lcdRegDataWrite(RA8876_CVS_IMWTH1,width>>8); //55h
 }
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::activeWindowXY(ru16 x0,ru16 y0)	
-{
+void RA8876_t3::activeWindowXY(ru16 x0,ru16 y0)	{
 	lcdRegDataWrite(RA8876_AWUL_X0,x0);//56h
 	lcdRegDataWrite(RA8876_AWUL_X1,x0>>8);//57h 
 	lcdRegDataWrite(RA8876_AWUL_Y0,y0);//58h
@@ -1202,8 +1714,7 @@ void RA8876_t3::activeWindowXY(ru16 x0,ru16 y0)
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::activeWindowWH(ru16 width,ru16 height)	
-{
+void RA8876_t3::activeWindowWH(ru16 width,ru16 height) {
 	lcdRegDataWrite(RA8876_AW_WTH0,width);//5ah
 	lcdRegDataWrite(RA8876_AW_WTH1,width>>8);//5bh
 	lcdRegDataWrite(RA8876_AW_HT0,height);//5ch
@@ -1212,8 +1723,7 @@ void RA8876_t3::activeWindowWH(ru16 width,ru16 height)
 
 //**************************************************************//
 //**************************************************************//
-void  RA8876_t3::setPixelCursor(ru16 x,ru16 y)
-{
+void  RA8876_t3::setPixelCursor(ru16 x,ru16 y) {
 	switch (_rotation) {
 		case 1: swapvals(x,y); break;
 		case 2: x = _width-x; break;
@@ -1227,8 +1737,7 @@ void  RA8876_t3::setPixelCursor(ru16 x,ru16 y)
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::linearAddressSet(ru32 addr)	
-{
+void RA8876_t3::linearAddressSet(ru32 addr) {
 	lcdRegDataWrite(RA8876_CURH0,addr); //5fh
 	lcdRegDataWrite(RA8876_CURH1,addr>>8); //60h
 	lcdRegDataWrite(RA8876_CURV0,addr>>16); //61h
@@ -1237,15 +1746,14 @@ void RA8876_t3::linearAddressSet(ru32 addr)
 
 //**************************************************************//
 //**************************************************************//
-ru8 RA8876_t3::vmemReadData(ru32 addr)	
-{
+ru8 RA8876_t3::vmemReadData(ru32 addr) {
 	ru8 vmemData = 0;
   
 	graphicMode(true);
 	Memory_Linear_Mode();
 	linearAddressSet(addr);
 	ramAccessPrepare();
-	vmemData = lcdDataRead(); // dummyread to alert SPI
+	vmemData = lcdDataRead(); // dummyread to alert 8080 bus read
 	vmemData = lcdDataRead(); // read byte
 	check2dBusy();
 	Memory_XY_Mode();
@@ -1254,8 +1762,7 @@ ru8 RA8876_t3::vmemReadData(ru32 addr)
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::vmemWriteData(ru32 addr, ru8 vmemData)	
-{
+void RA8876_t3::vmemWriteData(ru32 addr, ru8 vmemData) {
 	graphicMode(true);
 	Memory_Linear_Mode();
 	linearAddressSet(addr);
@@ -1270,8 +1777,7 @@ void RA8876_t3::vmemWriteData(ru32 addr, ru8 vmemData)
 
 //**************************************************************//
 //**************************************************************//
-ru16 RA8876_t3::vmemReadData16(ru32 addr)	
-{
+ru16 RA8876_t3::vmemReadData16(ru32 addr) {
 	ru16 vmemData = 0;
   
 	vmemData = (vmemReadData(addr) & 0xff); // lo byte
@@ -1281,16 +1787,14 @@ ru16 RA8876_t3::vmemReadData16(ru32 addr)
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::vmemWriteData16(ru32 addr, ru16 vmemData)	
-{
+void RA8876_t3::vmemWriteData16(ru32 addr, ru16 vmemData) {
 	vmemWriteData(addr,vmemData); // lo byte
 	vmemWriteData(addr+1,vmemData>>8); // hi byte
 }
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::bte_Source0_MemoryStartAddr(ru32 addr)	
-{
+void RA8876_t3::bte_Source0_MemoryStartAddr(ru32 addr) {
 	lcdRegDataWrite(RA8876_S0_STR0,addr);//93h
 	lcdRegDataWrite(RA8876_S0_STR1,addr>>8);//94h
 	lcdRegDataWrite(RA8876_S0_STR2,addr>>16);//95h
@@ -1299,16 +1803,14 @@ void RA8876_t3::bte_Source0_MemoryStartAddr(ru32 addr)
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::bte_Source0_ImageWidth(ru16 width)	
-{
+void RA8876_t3::bte_Source0_ImageWidth(ru16 width) {
 	lcdRegDataWrite(RA8876_S0_WTH0,width);//97h
 	lcdRegDataWrite(RA8876_S0_WTH1,width>>8);//98h
 }
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::bte_Source0_WindowStartXY(ru16 x0,ru16 y0)	
-{
+void RA8876_t3::bte_Source0_WindowStartXY(ru16 x0,ru16 y0) {
 	lcdRegDataWrite(RA8876_S0_X0,x0);//99h
 	lcdRegDataWrite(RA8876_S0_X1,x0>>8);//9ah
 	lcdRegDataWrite(RA8876_S0_Y0,y0);//9bh
@@ -1317,8 +1819,7 @@ void RA8876_t3::bte_Source0_WindowStartXY(ru16 x0,ru16 y0)
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::bte_Source1_MemoryStartAddr(ru32 addr)	
-{
+void RA8876_t3::bte_Source1_MemoryStartAddr(ru32 addr) {
 	lcdRegDataWrite(RA8876_S1_STR0,addr);//9dh
 	lcdRegDataWrite(RA8876_S1_STR1,addr>>8);//9eh
 	lcdRegDataWrite(RA8876_S1_STR2,addr>>16);//9fh
@@ -1327,16 +1828,14 @@ void RA8876_t3::bte_Source1_MemoryStartAddr(ru32 addr)
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::bte_Source1_ImageWidth(ru16 width)	
-{
+void RA8876_t3::bte_Source1_ImageWidth(ru16 width) {
 	lcdRegDataWrite(RA8876_S1_WTH0,width);//a1h
 	lcdRegDataWrite(RA8876_S1_WTH1,width>>8);//a2h
 }
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::bte_Source1_WindowStartXY(ru16 x0,ru16 y0)	
-{
+void RA8876_t3::bte_Source1_WindowStartXY(ru16 x0,ru16 y0) {
 	lcdRegDataWrite(RA8876_S1_X0,x0);//a3h
 	lcdRegDataWrite(RA8876_S1_X1,x0>>8);//a4h
 	lcdRegDataWrite(RA8876_S1_Y0,y0);//a5h
@@ -1345,8 +1844,7 @@ void RA8876_t3::bte_Source1_WindowStartXY(ru16 x0,ru16 y0)
 
 //**************************************************************//
 //**************************************************************//
-void  RA8876_t3::bte_DestinationMemoryStartAddr(ru32 addr)	
-{
+void  RA8876_t3::bte_DestinationMemoryStartAddr(ru32 addr) {
 	lcdRegDataWrite(RA8876_DT_STR0,addr);//a7h
 	lcdRegDataWrite(RA8876_DT_STR1,addr>>8);//a8h
 	lcdRegDataWrite(RA8876_DT_STR2,addr>>16);//a9h
@@ -1355,16 +1853,14 @@ void  RA8876_t3::bte_DestinationMemoryStartAddr(ru32 addr)
 
 //**************************************************************//
 //**************************************************************//
-void  RA8876_t3::bte_DestinationImageWidth(ru16 width)	
-{
+void  RA8876_t3::bte_DestinationImageWidth(ru16 width) {
 	lcdRegDataWrite(RA8876_DT_WTH0,width);//abh
 	lcdRegDataWrite(RA8876_DT_WTH1,width>>8);//ach
 }
 
 //**************************************************************//
 //**************************************************************//
-void  RA8876_t3::bte_DestinationWindowStartXY(ru16 x0,ru16 y0)	
-{
+void  RA8876_t3::bte_DestinationWindowStartXY(ru16 x0,ru16 y0) {
 	lcdRegDataWrite(RA8876_DT_X0,x0);//adh
 	lcdRegDataWrite(RA8876_DT_X1,x0>>8);//aeh
 	lcdRegDataWrite(RA8876_DT_Y0,y0);//afh
@@ -1373,8 +1869,7 @@ void  RA8876_t3::bte_DestinationWindowStartXY(ru16 x0,ru16 y0)
 
 //**************************************************************//
 //**************************************************************//
-void  RA8876_t3::bte_WindowSize(ru16 width, ru16 height)
-{
+void  RA8876_t3::bte_WindowSize(ru16 width, ru16 height) {
 	lcdRegDataWrite(RA8876_BTE_WTH0,width);//b1h
 	lcdRegDataWrite(RA8876_BTE_WTH1,width>>8);//b2h
 	lcdRegDataWrite(RA8876_BTE_HIG0,height);//b3h
@@ -1388,8 +1883,7 @@ void  RA8876_t3::bte_WindowSize(ru16 width, ru16 height)
 // 
 // alpha can be from 0 to 32
 //**************************************************************//
-void  RA8876_t3::bte_WindowAlpha(ru8 alpha)
-{
+void  RA8876_t3::bte_WindowAlpha(ru8 alpha) {
 	lcdRegDataWrite(RA8876_APB_CTRL,alpha);//b5h
 }
 
@@ -1397,15 +1891,13 @@ void  RA8876_t3::bte_WindowAlpha(ru8 alpha)
 // These 8 bits determine prescaler value for Timer 0 and 1.*/
 // Time base is “Core_Freq / (Prescaler + 1)”*/
 //**************************************************************//
-void RA8876_t3::pwm_Prescaler(ru8 prescaler)
-{
+void RA8876_t3::pwm_Prescaler(ru8 prescaler) {
 	lcdRegDataWrite(RA8876_PSCLR,prescaler);//84h
 }
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::pwm_ClockMuxReg(ru8 pwm1_clk_div, ru8 pwm0_clk_div, ru8 xpwm1_ctrl, ru8 xpwm0_ctrl)
-{
+void RA8876_t3::pwm_ClockMuxReg(ru8 pwm1_clk_div, ru8 pwm0_clk_div, ru8 xpwm1_ctrl, ru8 xpwm0_ctrl) {
 	lcdRegDataWrite(RA8876_PMUXR,pwm1_clk_div<<6|pwm0_clk_div<<4|xpwm1_ctrl<<2|xpwm0_ctrl);//85h
 }
 
@@ -1419,32 +1911,28 @@ void RA8876_t3::pwm_Configuration(ru8 pwm1_inverter,ru8 pwm1_auto_reload,ru8 pwm
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::pwm0_Duty(ru16 duty)
-{
+void RA8876_t3::pwm0_Duty(ru16 duty) {
 	lcdRegDataWrite(RA8876_TCMPB0L,duty);//88h 
 	lcdRegDataWrite(RA8876_TCMPB0H,duty>>8);//89h 
 }
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::pwm0_ClocksPerPeriod(ru16 clocks_per_period)
-{
+void RA8876_t3::pwm0_ClocksPerPeriod(ru16 clocks_per_period) {
 	lcdRegDataWrite(RA8876_TCNTB0L,clocks_per_period);//8ah
 	lcdRegDataWrite(RA8876_TCNTB0H,clocks_per_period>>8);//8bh
 }
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::pwm1_Duty(ru16 duty)
-{
+void RA8876_t3::pwm1_Duty(ru16 duty) {
 	lcdRegDataWrite(RA8876_TCMPB1L,duty);//8ch 
 	lcdRegDataWrite(RA8876_TCMPB1H,duty>>8);//8dh
 }
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::pwm1_ClocksPerPeriod(ru16 clocks_per_period)
-{
+void RA8876_t3::pwm1_ClocksPerPeriod(ru16 clocks_per_period) {
 	lcdRegDataWrite(RA8876_TCNTB1L,clocks_per_period);//8eh
 	lcdRegDataWrite(RA8876_TCNTB1F,clocks_per_period>>8);//8fh
 }
@@ -1459,8 +1947,7 @@ void  RA8876_t3::ramAccessPrepare(void)
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::foreGroundColor16bpp(ru16 color, bool finalize)
-{
+void RA8876_t3::foreGroundColor16bpp(ru16 color, bool finalize) {
 	lcdRegDataWrite(RA8876_FGCR,color>>8, false);//d2h
 	lcdRegDataWrite(RA8876_FGCG,color>>3, false);//d3h
 	lcdRegDataWrite(RA8876_FGCB,color<<3, finalize);//d4h
@@ -1468,8 +1955,7 @@ void RA8876_t3::foreGroundColor16bpp(ru16 color, bool finalize)
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::backGroundColor16bpp(ru16 color, bool finalize)
-{
+void RA8876_t3::backGroundColor16bpp(ru16 color, bool finalize) {
 	lcdRegDataWrite(RA8876_BGCR,color>>8, false);//d5h
 	lcdRegDataWrite(RA8876_BGCG,color>>3, false);//d6h
 	lcdRegDataWrite(RA8876_BGCB,color<<3, finalize);//d7h
@@ -1478,13 +1964,11 @@ void RA8876_t3::backGroundColor16bpp(ru16 color, bool finalize)
 //***************************************************//
 /*                 GRAPHIC FUNCTIONS                 */
 //***************************************************//
-
 //**************************************************************//
 /* Turn RA8876 graphic mode ON/OFF (True = ON)                  */
 /* Inverse of text mode                                         */
 //**************************************************************//
-void RA8876_t3::graphicMode(boolean on)
-{
+void RA8876_t3::graphicMode(boolean on) {
 	if(on)
 		lcdRegDataWrite(RA8876_ICR,RA8877_LVDS_FORMAT<<3|RA8876_GRAPHIC_MODE<<2|RA8876_MEMORY_SELECT_IMAGE);//03h  //switch to graphic mode
 	else
@@ -1495,37 +1979,37 @@ void RA8876_t3::graphicMode(boolean on)
 //**************************************************************//
 /* Read a 16bpp pixel                                           */
 //**************************************************************//
-ru16 RA8876_t3::getPixel(ru16 x,ru16 y)
-{
+ru16 RA8876_t3::getPixel(ru16 x,ru16 y) {
 	ru16 rdata = 0;
 	graphicMode(true);
 	setPixelCursor(x, y);		// set memory address
 	ramAccessPrepare();			// Setup SDRAM Access
-	rdata = lcdDataRead();		// dummyread to alert SPI
-	rdata = lcdDataRead();		// read low byte
-	rdata |= lcdDataRead()<<8;	// add high byte 
-	return rdata;
+//	rdata = lcdDataRead();		// dummyread to alert MPU
+//	rdata = lcdDataRead();		// dummyread to alert MPU
+//	rdata = (lcdDataRead() & 0xff);		// read low byte
+//	rdata |= lcdDataRead()<<8;	// add high byte 
+//	rdata = lcdDataRead16(false);	//
+	rdata = lcdDataRead16(false);	//
+ 	return rdata;
 }
 
 //**************************************************************//
 /* Write a 16bpp pixel                                          */
 //**************************************************************//
-void  RA8876_t3::drawPixel(ru16 x,ru16 y,ru16 color)
-{
+void  RA8876_t3::drawPixel(ru16 x,ru16 y,ru16 color) {
 	graphicMode(true);
 	setPixelCursor(x,y);
 	ramAccessPrepare();
 	lcdDataWrite(color);
 	lcdDataWrite(color>>8);
-	//lcdDataWrite16bbp(color);
+	lcdDataWrite16bbp(color);
 }
 
 //**************************************************************//
 /* Write 16bpp(RGB565) picture data for user operation          */
 /* Not recommended for future use - use BTE instead             */
 //**************************************************************//
-void  RA8876_t3::putPicture_16bpp(ru16 x,ru16 y,ru16 width, ru16 height)
-{
+void  RA8876_t3::putPicture_16bpp(ru16 x,ru16 y,ru16 width, ru16 height) {
 	graphicMode(true);
 	activeWindowXY(x,y);
 	activeWindowWH(width,height);
@@ -1538,48 +2022,60 @@ void  RA8876_t3::putPicture_16bpp(ru16 x,ru16 y,ru16 width, ru16 height)
 /* write 16bpp(RGB565) picture data in byte format from data pointer */
 /* Not recommended for future use - use BTE instead                  */
 //*******************************************************************//
-void  RA8876_t3::putPicture_16bppData8(ru16 x,ru16 y,ru16 width, ru16 height, const unsigned char *data)
-{
-	ru16 i,j;
-	graphicMode(true);
-	activeWindowXY(x,y);
-	activeWindowWH(width,height);
-	setPixelCursor(x,y);
-	ramAccessPrepare();
-	for(j=0;j<height;j++) {
-		for(i=0;i<width;i++) {
-			//checkWriteFifoNotFull();	//if high speed mcu and without Xnwait check
-			lcdDataWrite(*data);
-			data++;
-			//checkWriteFifoNotFull();	//if high speed mcu and without Xnwait check
-			lcdDataWrite(*data);
-			data++;
-		}
-	} 
-	checkWriteFifoEmpty();				//if high speed mcu and without Xnwait check
-	activeWindowXY(0,0);
-    activeWindowWH(_width,_height);
+void  RA8876_t3::putPicture_16bppData8(ru16 x,ru16 y,ru16 width, ru16 height, const unsigned char *data) {
+  ru16 i,j;
+
+  putPicture_16bpp(x, y, width, height);
+  while(WR_DMATransferDone == false) {} //Wait for any DMA transfers to complete
+  FlexIO_Config_SnglBeat();
+  CSLow();
+  DCHigh();
+  for(j=0;j<height;j++) {
+    for(i=0;i<width;i++) {
+      delayNanoseconds(10);   // Initially setup for the dev board v4.0 
+      p->SHIFTBUF[0] = *data++;
+      /*Wait for transfer to be completed */
+      while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+      while(0 == (p->TIMSTAT & (1 << 0))) {}
+      p->SHIFTBUF[0] = *data++;
+      /*Wait for transfer to be completed */
+      while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+      while(0 == (p->TIMSTAT & (1 << 0))) {}
+    }
+  }
+  /* De-assert /CS pin */
+  CSHigh();
+  checkWriteFifoEmpty();				//if high speed mcu and without Xnwait check
+  activeWindowXY(0,0);
+  activeWindowWH(_width,_height);
 }
 
 //****************************************************************//
 /* Write 16bpp(RGB565) picture data word format from data pointer */
 /* Not recommended for future use - use BTE instead               */
 //****************************************************************//
-void  RA8876_t3::putPicture_16bppData16(ru16 x,ru16 y,ru16 width, ru16 height, const unsigned short *data)
-{
-	ru16 i,j;
-	putPicture_16bpp(x, y, width, height);
-	for(j=0;j<height;j++) {
-		for(i=0;i<width;i++) {
-			//checkWriteFifoNotFull();//if high speed mcu and without Xnwait check
-			lcdDataWrite16bbp(*data);
-			data++;
-			//checkWriteFifoEmpty();//if high speed mcu and without Xnwait check
-		}
-	} 
-	checkWriteFifoEmpty();//if high speed mcu and without Xnwait check
-	activeWindowXY(0,0);
-	activeWindowWH(_width,_height);
+void  RA8876_t3::putPicture_16bppData16(ru16 x,ru16 y,ru16 width, ru16 height, const unsigned short *data) {
+  ru16 i,j;
+
+  putPicture_16bpp(x, y, width, height);
+  while(WR_DMATransferDone == false) {} //Wait for any DMA transfers to complete
+  FlexIO_Config_SnglBeat();
+  CSLow();
+  DCHigh();
+  for(j=0;j<height;j++) {
+	for(i=0;i<width;i++) {
+      delayNanoseconds(25);   // Initially setup for the dev board v4.0 
+      p->SHIFTBUF[0] = *data++;
+      /*Wait for transfer to be completed */
+      while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+      while(0 == (p->TIMSTAT & (1 << 0))) {}
+    }
+  }
+  /* De-assert /CS pin */
+  CSHigh();
+  checkWriteFifoEmpty();//if high speed mcu and without Xnwait check
+  activeWindowXY(0,0);
+  activeWindowWH(_width,_height);
 }
 
 //***************************************************//
@@ -1589,8 +2085,7 @@ void  RA8876_t3::putPicture_16bppData16(ru16 x,ru16 y,ru16 width, ru16 height, c
 //**************************************************************//
 /* Turn on RA8876 Text Mode, (Same Graphics Mode in reverse)    */
 //**************************************************************//
-void RA8876_t3::textMode(boolean on)
-{
+void RA8876_t3::textMode(boolean on) {
 	if(on)
 		lcdRegDataWrite(RA8876_ICR,RA8877_LVDS_FORMAT<<3|RA8876_TEXT_MODE<<2|RA8876_MEMORY_SELECT_IMAGE);//03h  //switch to text mode
 	else
@@ -1600,8 +2095,7 @@ void RA8876_t3::textMode(boolean on)
 //**************************************************************//
 /* Set text Foreground and Bckground colors (16 bit)            */
 //**************************************************************//
-void RA8876_t3::textColor(ru16 foreground_color,ru16 background_color)
-{
+void RA8876_t3::textColor(ru16 foreground_color,ru16 background_color) {
 	check2dBusy();
 	foreGroundColor16bpp(foreground_color, false);
 	backGroundColor16bpp(background_color, true);
@@ -1613,8 +2107,7 @@ void RA8876_t3::textColor(ru16 foreground_color,ru16 background_color)
 /* Position Text Cursor                                         */
 /* in pixel coordinates                                         */
 //**************************************************************//
-void  RA8876_t3::setTextCursor(ru16 x,ru16 y)
-{
+void  RA8876_t3::setTextCursor(ru16 x,ru16 y) {
 	lcdRegDataWrite(RA8876_F_CURX0,x, false); //63h
 	lcdRegDataWrite(RA8876_F_CURX1,x>>8, false);//64h
 	lcdRegDataWrite(RA8876_F_CURY0,y, false);//65h
@@ -1625,8 +2118,7 @@ void  RA8876_t3::setTextCursor(ru16 x,ru16 y)
 //***************************************************************//
 /* Position text cursor in character units                       */
 //***************************************************************//
-void RA8876_t3::textxy(ru16 x, ru16 y)
-{
+void RA8876_t3::textxy(ru16 x, ru16 y) {
 	x += (_scrollXL / (_FNTwidth  * _scaleX));
 	y += (_scrollYT / (_FNTheight * _scaleY));
 	if(x > (_scrollXR / (_FNTwidth  * _scaleX)))
@@ -1641,8 +2133,7 @@ void RA8876_t3::textxy(ru16 x, ru16 y)
 /* size_select = 0 : 8*16/16*16, size_select = 1 : 12*24/24*24, size_select = 2 : 16*32/32*32  */
 /* iso_select = 0 : iso8859-1, iso_select = 1 : iso8859-2, iso_select = 2 : iso8859-4, iso_select = 3 : iso8859-5*/
 //**************************************************************//
-void RA8876_t3::setTextParameter1(ru8 source_select,ru8 size_select,ru8 iso_select)
-{
+void RA8876_t3::setTextParameter1(ru8 source_select,ru8 size_select,ru8 iso_select) {
 	lcdRegDataWrite(RA8876_CCR0,source_select<<6|size_select<<4|iso_select); //cch
 }
 
@@ -1651,16 +2142,14 @@ void RA8876_t3::setTextParameter1(ru8 source_select,ru8 size_select,ru8 iso_sele
 /* chroma_key = 0 : text with chroma key disable, chroma_key = 1 : text with chroma key enable   */
 /* width_enlarge and height_enlarge can be set 0~3, (00b: X1) (01b : X2)  (10b : X3)  (11b : X4) */
 //***********************************************************************************************//
-void RA8876_t3::setTextParameter2(ru8 align, ru8 chroma_key, ru8 width_enlarge, ru8 height_enlarge)
-{
+void RA8876_t3::setTextParameter2(ru8 align, ru8 chroma_key, ru8 width_enlarge, ru8 height_enlarge) {
 	lcdRegDataWrite(RA8876_CCR1,align<<7|chroma_key<<6|width_enlarge<<2|height_enlarge);//cdh
 }
 
 //**************************************************************//
 /* Setup SPI to read character rom selected font set            */
 //**************************************************************//
-void RA8876_t3::genitopCharacterRomParameter(ru8 scs_select, ru8 clk_div, ru8 rom_select, ru8 character_select, ru8 gt_width)
-{ 
+void RA8876_t3::genitopCharacterRomParameter(ru8 scs_select, ru8 clk_div, ru8 rom_select, ru8 character_select, ru8 gt_width) { 
   if(scs_select==0)
   lcdRegDataWrite(RA8876_SFL_CTRL,RA8876_SERIAL_FLASH_SELECT0<<7|RA8876_SERIAL_FLASH_FONT_MODE<<6|RA8876_SERIAL_FLASH_ADDR_24BIT<<5|RA8876_FOLLOW_RA8876_MODE<<4|RA8876_SPI_FAST_READ_8DUMMY);//b7h
   if(scs_select==1)
@@ -1675,8 +2164,7 @@ void RA8876_t3::genitopCharacterRomParameter(ru8 scs_select, ru8 clk_div, ru8 ro
 //**************************************************************//
 /* Print a string using internal font or external font code     */
 //**************************************************************//
-void  RA8876_t3::putString(ru16 x0,ru16 y0, const char *str)
-{
+void  RA8876_t3::putString(ru16 x0,ru16 y0, const char *str) {
   textMode(true);
   while(*str != '\0')
   {
@@ -1701,8 +2189,7 @@ void RA8876_t3::clearStatusLine(uint16_t color) {
 /* bgcolor is background color                                  */
 /* str is a pointer to a text string                            */
 //**************************************************************//
-void  RA8876_t3::writeStatusLine(ru16 x0, uint16_t fgcolor, uint16_t bgcolor, const char *str)
-{
+void  RA8876_t3::writeStatusLine(ru16 x0, uint16_t fgcolor, uint16_t bgcolor, const char *str) {
 	uint16_t tempX = _cursorX;
 	uint16_t tempY = _cursorY;
 	uint16_t tempBGColor = _TXTBackColor;
@@ -1713,7 +2200,6 @@ void  RA8876_t3::writeStatusLine(ru16 x0, uint16_t fgcolor, uint16_t bgcolor, co
 	uint8_t tempFontHeight = _FNTheight;
 	uint16_t temp_height = _height;
 	_height = SCREEN_HEIGHT-STATUS_LINE_HEIGHT;
-
 	// Set fontsize to a constant value
 	if(UDFont) {
 		_scaleX = _scaleY = 1;
@@ -1765,8 +2251,7 @@ void  RA8876_t3::writeStatusLine(ru16 x0, uint16_t fgcolor, uint16_t bgcolor, co
 }
 
 // Support function for VT100: Clear to End Of Line
-void RA8876_t3::clreol(void)
-{
+void RA8876_t3::clreol(void) {
 	uint16_t tempX = _cursorX;
 	uint16_t tempY = _cursorY;
 	drawSquareFill(tempX, _cursorY, _width-1, _cursorY+(_FNTheight*_scaleY), _TXTBackColor);
@@ -1775,8 +2260,7 @@ void RA8876_t3::clreol(void)
 }
 
 // Support function for VT100: Clear to End Of Screen
-void RA8876_t3::clreos(void)
-{
+void RA8876_t3::clreos(void) {
 	uint16_t tempX = _cursorX;
 	uint16_t tempY = _cursorY;
 	clreol();
@@ -1786,8 +2270,7 @@ void RA8876_t3::clreos(void)
 }
 
 // Support function for VT100: Clear to End Of Line
-void RA8876_t3::clrbol(void)
-{
+void RA8876_t3::clrbol(void) {
 	uint16_t tempX = _cursorX;
 	uint16_t tempY = _cursorY;
 	drawSquareFill(0, _cursorY, tempX, _cursorY+(_FNTheight*_scaleY), _TXTBackColor);
@@ -1796,8 +2279,7 @@ void RA8876_t3::clrbol(void)
 }
 
 // Support function for VT100: Clear to begining of Screen
-void RA8876_t3::clrbos(void)
-{
+void RA8876_t3::clrbos(void) {
 	uint16_t tempX = _cursorX;
 	uint16_t tempY = _cursorY;
 	clrbol();
@@ -1807,8 +2289,7 @@ void RA8876_t3::clrbos(void)
 }
 
 // Support function for VT100: Clear Line
-void RA8876_t3::clrlin(void)
-{
+void RA8876_t3::clrlin(void) {
 	uint16_t tempX = _cursorX;
 	uint16_t tempY = _cursorY;
 	setTextCursor(0,tempY);
@@ -1818,8 +2299,7 @@ void RA8876_t3::clrlin(void)
 }
 
 // Clear current Active Screen. Home Cursor. Set default forground and background colors.
-void RA8876_t3::clearActiveScreen(void)
-{
+void RA8876_t3::clearActiveScreen(void) {
 	drawSquareFill(0, 0, _width-1, _height-1, _TXTBackColor);
 	textColor(_TXTForeColor,_TXTBackColor);
 	textxy(0,0);
@@ -1833,8 +2313,7 @@ extern void tone(uint8_t pin, uint16_t frequency, uint32_t duration);
 //**************************************************************//
 /* update display coordinates and scroll screen if needed        */
 //**************************************************************//
-void RA8876_t3::update_xy(void)
-{
+void RA8876_t3::update_xy(void) {
    if(_cursorY >= _scrollYB) 
    {
       scroll();
@@ -1847,8 +2326,7 @@ void RA8876_t3::update_xy(void)
 //**************************************************************//
 /* Write character to active text screen                        */
 //**************************************************************//
-void RA8876_t3::update_tft(uint8_t data)
-{
+void RA8876_t3::update_tft(uint8_t data) {
 	CGRAM_Start_address(PATTERN1_RAM_START_ADDR);
 	textMode(true);
 	setTextCursor(_cursorX,_cursorY);
@@ -1864,24 +2342,6 @@ void RA8876_t3::update_tft(uint8_t data)
 	}
 	check2dBusy();
 }
-
-//**************************************************************//
-/* Select RA8876 fonts or user defined fonts                    */
-//**************************************************************//
-/*
-void RA8876_t3::setFontSource(uint8_t source) {
-	switch(source) {
-		case 0:
-			UDFont = false;
-			break;
-		case 1:
-			UDFont = true;
-			break;
-		default:
-			UDFont = false;
-	}
-}
-*/
 
 //********************************************************************//
 /* Set up the current active screen based on global setup parameters  */
@@ -1926,8 +2386,7 @@ void RA8876_t3::buildTextScreen(void)
 /* Set Character Generator Starting RAM address (32 bit aligned)      */
 /* RA8876 registers[DBh]~[DEh]                                        */
 //********************************************************************//
-void RA8876_t3::CGRAM_Start_address(uint32_t Addr)
-{
+void RA8876_t3::CGRAM_Start_address(uint32_t Addr) {
 
 	//CGRAM START ADDRESS [31:0] 
 	lcdRegDataWrite(RA8876_CGRAM_STR0, Addr);
@@ -1939,8 +2398,7 @@ void RA8876_t3::CGRAM_Start_address(uint32_t Addr)
 //********************************************************************//
 /* Initialize CGRAM with user defined font                            */
 //********************************************************************//
-void RA8876_t3::CGRAM_initial(uint32_t charAddr, const uint8_t *data, uint16_t count)
-{
+void RA8876_t3::CGRAM_initial(uint32_t charAddr, const uint8_t *data, uint16_t count) {
   uint16_t i;
 
   graphicMode(true);//switch to graphic mode
@@ -1971,8 +2429,7 @@ void RA8876_t3::CGRAM_initial(uint32_t charAddr, const uint8_t *data, uint16_t c
 /* Initialize graphic cursor RAM with 4 available graphic cursor shapes      */
 /* These are 8x32 byte arrays, 256 bytes per image * 4 images (2048 bytes)   */  
 //***************************************************************************//
-void RA8876_t3::Graphic_cursor_initial(void)
-{
+void RA8876_t3::Graphic_cursor_initial(void) {
 	unsigned int i ;
 
     check2dBusy();
@@ -2023,8 +2480,7 @@ void RA8876_t3::Graphic_cursor_initial(void)
 /*       10  Background (transparent)                                        */
 /*       11  Invert background (annoying flashy, don't normally use it)      */
 //***************************************************************************//
-void RA8876_t3::Upload_Graphic_Cursor(uint8_t cursorNum, uint8_t *data)
-{
+void RA8876_t3::Upload_Graphic_Cursor(uint8_t cursorNum, uint8_t *data) {
 	unsigned int i ;
 
     check2dBusy();
@@ -2059,8 +2515,7 @@ void RA8876_t3::Upload_Graphic_Cursor(uint8_t cursorNum, uint8_t *data)
 //***************************************************//
 /* Select Character Generator RAM                    */
 //***************************************************//
-void RA8876_t3::Memory_Select_CGRAM(void) // this may not be right
-{
+void RA8876_t3::Memory_Select_CGRAM(void) { // this may not be right
 	unsigned char temp;
 	temp = lcdRegDataRead(RA8876_ICR); //0x03
 //    temp &= cClrb1; // manual says this bit is clear
@@ -2072,8 +2527,7 @@ void RA8876_t3::Memory_Select_CGRAM(void) // this may not be right
 //***************************************************//
 /* Select display buffer RAM                         */
 //***************************************************//
-void RA8876_t3::Memory_Select_SDRAM(void)
-{
+void RA8876_t3::Memory_Select_SDRAM(void) {
 	unsigned char temp;
 	temp = lcdRegDataRead(RA8876_ICR); //0x03
     temp &= cClrb1;
@@ -2084,8 +2538,7 @@ void RA8876_t3::Memory_Select_SDRAM(void)
 //***************************************************//
 /* Select graphic cursor RAM                         */
 //***************************************************//
-void RA8876_t3::Memory_Select_Graphic_Cursor_RAM(void)
-{
+void RA8876_t3::Memory_Select_Graphic_Cursor_RAM(void) {
 	unsigned char temp;
 	temp = lcdRegDataRead(RA8876_ICR); //0x03
     temp |= cSetb1;
@@ -2096,8 +2549,7 @@ void RA8876_t3::Memory_Select_Graphic_Cursor_RAM(void)
 //***************************************************//
 /* Select RAM X-Y addressing mode                    */
 //***************************************************//
-void RA8876_t3::Memory_XY_Mode(void)	
-{
+void RA8876_t3::Memory_XY_Mode(void) {
 /*
 Canvas addressing mode
 	0: Block mode (X-Y coordination addressing)
@@ -2113,8 +2565,7 @@ Canvas addressing mode
 //***************************************************//
 /* Select RAM linear addressing mode                 */
 //***************************************************//
-void RA8876_t3::Memory_Linear_Mode(void)	
-{
+void RA8876_t3::Memory_Linear_Mode(void) {
 /*
 Canvas addressing mode
 	0: Block mode (X-Y coordination addressing)
@@ -2130,8 +2581,7 @@ Canvas addressing mode
 //***************************************************//
 /* Enable Graphic Cursor                             */
 //***************************************************//
-void RA8876_t3::Enable_Graphic_Cursor(void)	
-{
+void RA8876_t3::Enable_Graphic_Cursor(void)	{
 /*
 Graphic Cursor Enable
 	0 : Graphic Cursor disable.
@@ -2147,8 +2597,7 @@ Graphic Cursor Enable
 //***************************************************//
 /* Disable Graphic Cursor                            */
 //***************************************************//
-void RA8876_t3::Disable_Graphic_Cursor(void)	
-{
+void RA8876_t3::Disable_Graphic_Cursor(void) {
 /*
 Graphic Cursor Enable
 	0 : Graphic Cursor disable.
@@ -2164,8 +2613,7 @@ Graphic Cursor Enable
 //************************************************/
 /* Select one of four available graphic cursors  */
 //************************************************/
-void RA8876_t3::Select_Graphic_Cursor_1(void)	
-{
+void RA8876_t3::Select_Graphic_Cursor_1(void) {
 /*
 Graphic Cursor Selection Bit
 Select one from four graphic cursor types. (00b to 11b)
@@ -2184,8 +2632,7 @@ Select one from four graphic cursor types. (00b to 11b)
 //************************************************/
 /* Select one of four available graphic cursors  */
 //************************************************/
-void RA8876_t3::Select_Graphic_Cursor_2(void)	
-{
+void RA8876_t3::Select_Graphic_Cursor_2(void) {
 /*
 Graphic Cursor Selection Bit
 Select one from four graphic cursor types. (00b to 11b)
@@ -2204,8 +2651,7 @@ Select one from four graphic cursor types. (00b to 11b)
 //************************************************/
 /* Select one of four available graphic cursors  */
 //************************************************/
-void RA8876_t3::Select_Graphic_Cursor_3(void)	
-{
+void RA8876_t3::Select_Graphic_Cursor_3(void) {
 /*
 Graphic Cursor Selection Bit
 Select one from four graphic cursor types. (00b to 11b)
@@ -2224,8 +2670,7 @@ Select one from four graphic cursor types. (00b to 11b)
 //************************************************/
 /* Select one of four available graphic cursors  */
 //************************************************/
-void RA8876_t3::Select_Graphic_Cursor_4(void)	
-{
+void RA8876_t3::Select_Graphic_Cursor_4(void) {
 /*
 Graphic Cursor Selection Bit
 Select one from four graphic cursor types. (00b to 11b)
@@ -2244,8 +2689,7 @@ Select one from four graphic cursor types. (00b to 11b)
 //************************************************/
 /* Position graphic cursor                       */
 //************************************************/
-void RA8876_t3::Graphic_Cursor_XY(int16_t WX,int16_t HY)
-{
+void RA8876_t3::Graphic_Cursor_XY(int16_t WX,int16_t HY) {
 /*
 REG[40h] Graphic Cursor Horizontal Location[7:0]
 REG[41h] Graphic Cursor Horizontal Location[12:8]
@@ -2269,8 +2713,7 @@ Reference main Window coordinates.
 //************************************************/
 /* Set graphic cursor foreground color           */
 //************************************************/
-void RA8876_t3::Set_Graphic_Cursor_Color_1(unsigned char temp)
-{
+void RA8876_t3::Set_Graphic_Cursor_Color_1(unsigned char temp) {
 /*
 REG[44h] Graphic Cursor Color 0 with 256 Colors
 RGB Format [7:0] = RRRGGGBB.
@@ -2281,8 +2724,7 @@ RGB Format [7:0] = RRRGGGBB.
 //************************************************/
 /* Set graphic cursor outline color              */
 //************************************************/
-void RA8876_t3::Set_Graphic_Cursor_Color_2(unsigned char temp)
-{
+void RA8876_t3::Set_Graphic_Cursor_Color_2(unsigned char temp) {
 /*
 REG[45h] Graphic Cursor Color 1 with 256 Colors
 RGB Format [7:0] = RRRGGGBB.
@@ -2293,8 +2735,7 @@ RGB Format [7:0] = RRRGGGBB.
 //************************************************/
 /* turn on text cursor                           */
 //************************************************/
-void RA8876_t3::Enable_Text_Cursor(void)	
-{
+void RA8876_t3::Enable_Text_Cursor(void) {
 /*
 Text Cursor Enable
 	0 : Disable.
@@ -2312,8 +2753,7 @@ Graphic cursor has higher priority then Text cursor if enabled simultaneously.
 //************************************************/
 /* turn off text cursor                          */
 //************************************************/
-void RA8876_t3::Disable_Text_Cursor(void)	
-{
+void RA8876_t3::Disable_Text_Cursor(void) {
 /*
 Text Cursor Enable
 	0 : Disable.
@@ -2330,8 +2770,7 @@ Graphic cursor has higher priority then Text cursor if enabled simultaneously.
 //************************************************/
 /* Turn on blinking text cursor                  */
 //************************************************/
-void RA8876_t3::Enable_Text_Cursor_Blinking(void)	
-{
+void RA8876_t3::Enable_Text_Cursor_Blinking(void) {
 /*
 Text Cursor Blinking Enable
 	0 : Disable.
@@ -2347,8 +2786,7 @@ Text Cursor Blinking Enable
 //************************************************/
 /* Turn off blinking text cursor                  */
 //************************************************/
-void RA8876_t3::Disable_Text_Cursor_Blinking(void)	
-{
+void RA8876_t3::Disable_Text_Cursor_Blinking(void) {
 /*
 Text Cursor Blinking Enable
 	0 : Disable.
@@ -2363,8 +2801,7 @@ Text Cursor Blinking Enable
 //************************************************/
 /* Set text cursor blink rate                    */
 //************************************************/
-void RA8876_t3::Blinking_Time_Frames(unsigned char temp)	
-{
+void RA8876_t3::Blinking_Time_Frames(unsigned char temp) {
 /*
 Text Cursor Blink Time Setting (Unit: Frame)
 	00h : 1 frame time.
@@ -2379,8 +2816,7 @@ Text Cursor Blink Time Setting (Unit: Frame)
 //************************************************/
 /* Set text cursor horizontal and vertical size  */
 //************************************************/
-void RA8876_t3::Text_Cursor_H_V(unsigned short WX,unsigned short HY)
-{
+void RA8876_t3::Text_Cursor_H_V(unsigned short WX,unsigned short HY) {
 /*
 REG[3Eh]
 Text Cursor Horizontal Size Setting[4:0]
@@ -2402,8 +2838,7 @@ same times as the font enlargement.
 //************************************************/
 /* Turn on color bar test screen                 */
 //************************************************/
-void RA8876_t3::Color_Bar_ON(void)
-{
+void RA8876_t3::Color_Bar_ON(void) {
 /*	
 Display Test Color Bar
 	0b: Disable.
@@ -2418,8 +2853,7 @@ Display Test Color Bar
 //************************************************/
 /* Turn off color bar test screen                */
 //************************************************/
-void RA8876_t3::Color_Bar_OFF(void)
-{
+void RA8876_t3::Color_Bar_OFF(void) {
 /*	
 Display Test Color Bar
 	0b: Disable.
@@ -2440,8 +2874,7 @@ Display Test Color Bar
 /* x0,y0: Line start coords                                     */
 /* x1,y1: Line end coords                                       */
 //**************************************************************//
-void RA8876_t3::drawLine(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
-{
+void RA8876_t3::drawLine(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color) {
 	x0 += _originx; x1 += _originx;
 	y0 += _originy; y1 += _originy;
 	
@@ -2475,8 +2908,7 @@ void RA8876_t3::drawLine(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 // x0,y0 is upper left start
 // x1,y1 is lower right end corner
 //**************************************************************//
-void RA8876_t3::drawSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
-{
+void RA8876_t3::drawSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color) {
 	x0 += _originx; x1 += _originx;
 	y1 += _originy; y1 += _originy;
 	int16_t x_end = x1;
@@ -2519,8 +2951,7 @@ void RA8876_t3::drawSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 // x0,y0 is upper left start
 // x1,y1 is lower right end corner
 //**************************************************************//
-void RA8876_t3::drawSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
-{
+void RA8876_t3::drawSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color) {
 //  Serial.printf("DSF:(%d %d)(%d %d) %x\n", x0, y0, x1, y1, color);	
 	x0 += _originx; x1 += _originx;
 	y1 += _originy; y1 += _originy;
@@ -2565,8 +2996,7 @@ void RA8876_t3::drawSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 color)
 // xr is the major radius of corner (horizontal)
 // yr is the minor radius of corner (vertical)
 //**************************************************************//
-void RA8876_t3::drawCircleSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru16 yr, ru16 color)
-{
+void RA8876_t3::drawCircleSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru16 yr, ru16 color) {
 	x0 += _originx; x1 += _originx;
 	y1 += _originy; y1 += _originy;
 	int16_t x_end = x1;
@@ -2614,8 +3044,7 @@ void RA8876_t3::drawCircleSquare(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru
 // xr is the major radius of corner (horizontal)
 // yr is the minor radius of corner (vertical)
 //**************************************************************//
-void RA8876_t3::drawCircleSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru16 yr, ru16 color)
-{
+void RA8876_t3::drawCircleSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr, ru16 yr, ru16 color) {
 	x0 += _originx; x1 += _originx;
 	y1 += _originy; y1 += _originy;
 	int16_t x_end = x1;
@@ -2662,8 +3091,7 @@ void RA8876_t3::drawCircleSquareFill(ru16 x0, ru16 y0, ru16 x1, ru16 y1, ru16 xr
 // x1,y1 is triangle second point
 // x2,y2 is triangle end point
 //**************************************************************//
-void RA8876_t3::drawTriangle(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru16 color)
-{
+void RA8876_t3::drawTriangle(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru16 color) {
   x0 += _originx; x1 += _originx; x2 += _originx; 
   y0 += _originy; y1 += _originy; y2 += _originy;
 	
@@ -2704,8 +3132,7 @@ void RA8876_t3::drawTriangle(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru1
 // x1,y1 is triangle second point
 // x2,y2 is triangle end point
 //**************************************************************//
-void RA8876_t3::drawTriangleFill(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru16 color)
-{
+void RA8876_t3::drawTriangleFill(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2,ru16 color) {
   x0 += _originx; x1 += _originx; x2 += _originx; 
   y0 += _originy; y1 += _originy; y2 += _originy;
 	
@@ -2746,8 +3173,7 @@ void RA8876_t3::drawTriangleFill(ru16 x0,ru16 y0,ru16 x1,ru16 y1,ru16 x2,ru16 y2
 // r is radius of circle
 // See page 59 of RA8876.pdf for information on drawing arc's. (1 of 4 quadrants at a time only) 
 //**************************************************************//
-void RA8876_t3::drawCircle(ru16 x0,ru16 y0,ru16 r,ru16 color)
-{
+void RA8876_t3::drawCircle(ru16 x0,ru16 y0,ru16 r,ru16 color) {
   x0 += _originx;
   y0 += _originy;
   
@@ -2757,7 +3183,6 @@ void RA8876_t3::drawCircle(ru16 x0,ru16 y0,ru16 r,ru16 color)
 		return;
 	}
 	if (r > _height / 2) r = (_height / 2) - 1;//this is the (undocumented) hardware limit of RA8875
-	
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
@@ -2785,8 +3210,7 @@ void RA8876_t3::drawCircle(ru16 x0,ru16 y0,ru16 r,ru16 color)
 // r is radius of circle
 // See page 59 of RA8876.pdf for information on drawing arc's. (1 of 4 quadrants at a time only)
 //**************************************************************//
-void RA8876_t3::drawCircleFill(ru16 x0,ru16 y0,ru16 r,ru16 color)
-{
+void RA8876_t3::drawCircleFill(ru16 x0,ru16 y0,ru16 r,ru16 color) {
   x0 += _originx;
   y0 += _originy;
   
@@ -2823,9 +3247,7 @@ void RA8876_t3::drawCircleFill(ru16 x0,ru16 y0,ru16 r,ru16 color)
 // xr is ellipse x radius, major axis
 // yr is ellipse y radius, minor axis
 //**************************************************************//
-void RA8876_t3::drawEllipse(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color)
-{
-	
+void RA8876_t3::drawEllipse(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color) {
   x0 += _originx;
   y0 += _originy;
   
@@ -2842,8 +3264,6 @@ void RA8876_t3::drawEllipse(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color)
 		drawPixel(x0,y0,color);
 		return;
 	}
-	
-	
   check2dBusy();
   graphicMode(true);
   foreGroundColor16bpp(color);
@@ -2869,8 +3289,7 @@ void RA8876_t3::drawEllipse(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color)
 // x1,y1 is ellipse x radius
 // x2,y2 is ellipse y radius
 //**************************************************************//
-void RA8876_t3::drawEllipseFill(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color)
-{
+void RA8876_t3::drawEllipseFill(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color) {
   x0 += _originx;
   y0 += _originy;
   
@@ -2973,8 +3392,7 @@ uint32_t RA8876_t3::boxGet(uint32_t vPageAddr, uint16_t x0, uint16_t y0,
 //**************************************************************//
 void RA8876_t3::bteMemoryCopy(ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
 								ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,
-								ru16 copy_width,ru16 copy_height)
-{
+								ru16 copy_width,ru16 copy_height) {
   check2dBusy();
   graphicMode(true);
   bte_Source0_MemoryStartAddr(s0_addr);
@@ -3004,8 +3422,7 @@ void RA8876_t3::bteMemoryCopyWithROP(
 	ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
 	ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,
     ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,
-    ru16 copy_width,ru16 copy_height,ru8 rop_code)
-{
+    ru16 copy_width,ru16 copy_height,ru8 rop_code) {
   check2dBusy();
   graphicMode(true);
   bte_Source0_MemoryStartAddr(s0_addr);
@@ -3028,8 +3445,7 @@ void RA8876_t3::bteMemoryCopyWithROP(
 void RA8876_t3::bteMemoryCopyWithChromaKey(
 		ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
 		ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,
-		ru16 copy_width, ru16 copy_height, ru16 chromakey_color)
-{
+		ru16 copy_width, ru16 copy_height, ru16 chromakey_color) {
   check2dBusy();
   graphicMode(true);
   bte_Source0_MemoryStartAddr(s0_addr);
@@ -3051,8 +3467,7 @@ void RA8876_t3::bteMemoryCopyWindowAlpha(
 		ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
 		ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,
 		ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,
-		ru16 copy_width, ru16 copy_height, ru8 alpha)
-{
+		ru16 copy_width, ru16 copy_height, ru8 alpha) {
   check2dBusy();
   graphicMode(true);
   bte_Source0_MemoryStartAddr(s0_addr);
@@ -3077,24 +3492,35 @@ void RA8876_t3::bteMemoryCopyWindowAlpha(
 // For a simple overwrite operation, use ROP 12
 //**************************************************************//
 void RA8876_t3::bteMpuWriteWithROPData8(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
-ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned char *data)
-{
+ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned char *data) {
   bteMpuWriteWithROP(s1_addr, s1_image_width, s1_x, s1_y, des_addr, des_image_width, des_x, des_y, width, height, rop_code);
-  
-  startSend();
-  _pspi->transfer(RA8876_SPI_DATAWRITE);
+//MulBeatWR_nPrm_DMA(data,(width)*(height));
+  ru16 i,j;
+  while(WR_DMATransferDone == false) {} //Wait for any DMA transfers to complete
 
-#ifdef SPI_HAS_TRANSFER_ASYNC
-  activeDMA = true;
-  _pspi->transfer(data, NULL, width*height*2, finishedDMAEvent);
-#else
-  //If you try _pspi->transfer(data, length) then this tries to write received data into the data buffer
-  //but if we were given a PROGMEM (unwriteable) data pointer then _pspi->transfer will lock up totally.
-  //So we explicitly tell it we don't care about any return data.
-  _pspi->transfer(data, NULL, width*height*2);
-  endSend(true);
-#endif
+//  while(digitalReadFast(WINT) == 0);  // If monitoring XnWAIT signal from RA8876.
+
+  FlexIO_Config_SnglBeat();
+  CSLow();
+  DCHigh();
+  for(j=0;j<height;j++) {
+	for(i=0;i<width;i++) {
+	  delayNanoseconds(15);  // Initially setup for the dev board v4.0
+      if(_rotation & 1) delayNanoseconds(20);
+      p->SHIFTBUF[0] = *data++;
+      // Wait for transfer to be completed
+      while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+      while(0 == (p->TIMSTAT & (1 << 0))) {}
+      p->SHIFTBUF[0] = *data++;
+      // Wait for transfer to be completed
+      while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+      while(0 == (p->TIMSTAT & (1 << 0))) {}
+    }
+  }
+  // De-assert /CS pin
+  CSHigh();
 }
+
 //**************************************************************//
 // For 16-bit byte-reversed data.
 // Note this is 4-5 milliseconds slower than the 8-bit version above
@@ -3102,30 +3528,35 @@ ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned char *d
 // on all Teensys.
 //**************************************************************//
 void RA8876_t3::bteMpuWriteWithROPData16(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
-ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned short *data)
-{
+ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned short *data) {
   ru16 i,j;
   bteMpuWriteWithROP(s1_addr, s1_image_width, s1_x, s1_y, des_addr, des_image_width, des_x, des_y, width, height, rop_code);
 
-  startSend();
-  _pspi->transfer(RA8876_SPI_DATAWRITE);
-  
-  for(j=0;j<height;j++)
-  {
-    for(i=0;i<width;i++)
-    {
-	  _pspi->transfer16(*data);	  
-      data++;
+  while(WR_DMATransferDone == false) {} //Wait for any DMA transfers to complete
+//  while(digitalReadFast(WINT) == 0);  // If monitoring XnWAIT signal from RA8876.
+
+  FlexIO_Config_SnglBeat();
+  CSLow();
+  DCHigh();
+  for(j=0;j<height;j++) {
+	for(i=0;i<width;i++) {
+      delayNanoseconds(150);   // Initially setup for the dev board v4.0 
+      if(_rotation & 1) delayNanoseconds(70);
+      p->SHIFTBUF[0] = *data++;
+      /*Wait for transfer to be completed */
+      while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+      while(0 == (p->TIMSTAT & (1 << 0))) {}
     }
-  } 
-  
-  endSend(true);
+  }
+  /* De-assert /CS pin */
+  CSHigh();
 }
+
 //**************************************************************//
 //write data after setting, using lcdDataWrite() or lcdDataWrite16bbp()
 //**************************************************************//
-void RA8876_t3::bteMpuWriteWithROP(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code)
-{
+void RA8876_t3::bteMpuWriteWithROP(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
+                                   ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code) {
   check2dBusy();
   graphicMode(true);
   bte_Source1_MemoryStartAddr(s1_addr);
@@ -3145,47 +3576,67 @@ void RA8876_t3::bteMpuWriteWithROP(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru
 // Send data from the microcontroller to the RA8876
 // Does a chromakey (transparent color) to combine with the image already in memory
 //**************************************************************//
-void RA8876_t3::bteMpuWriteWithChromaKeyData8(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 chromakey_color,const unsigned char *data)
-{
+void RA8876_t3::bteMpuWriteWithChromaKeyData8(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,
+                                              ru16 height,ru16 chromakey_color,const unsigned char *data) {
   bteMpuWriteWithChromaKey(des_addr, des_image_width, des_x, des_y, width, height, chromakey_color);  
+//MulBeatWR_nPrm_DMA(data,(width)*(height));
+  ru16 i,j;
+  while(WR_DMATransferDone == false) {} //Wait for any DMA transfers to complete
+//  while(digitalReadFast(WINT) == 0);  // If monitoring XnWAIT signal from RA8876.
 
-  startSend();
-  _pspi->transfer(RA8876_SPI_DATAWRITE);
-
-#ifdef SPI_HAS_TRANSFER_ASYNC
-  activeDMA = true;
-  _pspi->transfer(data, NULL, width*height*2, finishedDMAEvent);
-#else
-  _pspi->transfer(data, NULL, width*height*2);
-  endSend(true);
-#endif
+  FlexIO_Config_SnglBeat();
+  CSLow();
+  DCHigh();
+  for(j=0;j<height;j++) {
+	for(i=0;i<width;i++) {
+	  delayNanoseconds(15);  // Initially setup for the dev board v4.0
+      if(_rotation & 1) delayNanoseconds(20);
+      p->SHIFTBUF[0] = *data++;
+      // Wait for transfer to be completed
+      while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+      while(0 == (p->TIMSTAT & (1 << 0))) {}
+      p->SHIFTBUF[0] = *data++;
+      // Wait for transfer to be completed
+      while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+      while(0 == (p->TIMSTAT & (1 << 0))) {}
+    }
+  }
+  // De-assert /CS pin
+  CSHigh();
 }
 //**************************************************************//
 // Chromakey for 16-bit byte-reversed data. (Slower than 8-bit.)
 //**************************************************************//
-void RA8876_t3::bteMpuWriteWithChromaKeyData16(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height, ru16 chromakey_color,const unsigned short *data)
-{
+void RA8876_t3::bteMpuWriteWithChromaKeyData16(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,
+                                               ru16 width,ru16 height, ru16 chromakey_color,const unsigned short *data) {
   ru16 i,j;
   bteMpuWriteWithChromaKey(des_addr, des_image_width, des_x, des_y, width, height, chromakey_color);
-  
-  startSend();
-  _pspi->transfer(RA8876_SPI_DATAWRITE);
-  for(j=0;j<height;j++)
-  {
-    for(i=0;i<width;i++)
-    {
-	  _pspi->transfer16(*data);
-      data++;
+
+  while(WR_DMATransferDone == false) {} //Wait for any DMA transfers to complete
+//  while(digitalReadFast(WINT) == 0);  // If monitoring XnWAIT signal from RA8876.
+
+  FlexIO_Config_SnglBeat();
+  CSLow();
+  DCHigh();
+  for(j=0;j<height;j++) {
+	for(i=0;i<width;i++) {
+      delayNanoseconds(1);   // Initially setup for the dev board v4.0 
+      if(_rotation & 1) delayNanoseconds(70);
+      p->SHIFTBUF[0] = *data++;
+      /*Wait for transfer to be completed */
+      while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+      while(0 == (p->TIMSTAT & (1 << 0))) {}
     }
-  } 
-  endSend(true);
+  }
+  /* De-assert /CS pin */
+  CSHigh();
 }
 
 //**************************************************************//
 //write data after setting, using lcdDataWrite() or lcdDataWrite16bbp()
 //**************************************************************//
-void RA8876_t3::bteMpuWriteWithChromaKey(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 chromakey_color)
-{
+void RA8876_t3::bteMpuWriteWithChromaKey(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,
+                                         ru16 height,ru16 chromakey_color) {
   check2dBusy();
   graphicMode(true);
   bte_DestinationMemoryStartAddr(des_addr);
@@ -3201,8 +3652,8 @@ void RA8876_t3::bteMpuWriteWithChromaKey(ru32 des_addr,ru16 des_image_width, ru1
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::bteMpuWriteColorExpansionData(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 foreground_color,ru16 background_color,const unsigned char *data)
-{
+void RA8876_t3::bteMpuWriteColorExpansionData(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,
+                                              ru16 height,ru16 foreground_color,ru16 background_color,const unsigned char *data) {
   ru16 i,j;
   check2dBusy();
   graphicMode(true);
@@ -3230,8 +3681,8 @@ void RA8876_t3::bteMpuWriteColorExpansionData(ru32 des_addr,ru16 des_image_width
 //**************************************************************//
 //write data after setting, using lcdDataWrite() or lcdDataWrite16bbp()
 //**************************************************************//
-void RA8876_t3::bteMpuWriteColorExpansion(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 foreground_color,ru16 background_color)
-{
+void RA8876_t3::bteMpuWriteColorExpansion(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,
+                                          ru16 height,ru16 foreground_color,ru16 background_color) {
   check2dBusy();
   graphicMode(true);
   bte_DestinationMemoryStartAddr(des_addr);
@@ -3248,8 +3699,8 @@ void RA8876_t3::bteMpuWriteColorExpansion(ru32 des_addr,ru16 des_image_width, ru
 //**************************************************************//
 /*background_color do not set the same as foreground_color*/
 //**************************************************************//
-void RA8876_t3::bteMpuWriteColorExpansionWithChromaKeyData(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 foreground_color,ru16 background_color, const unsigned char *data)
-{
+void RA8876_t3::bteMpuWriteColorExpansionWithChromaKeyData(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,
+                                              ru16 height,ru16 foreground_color,ru16 background_color, const unsigned char *data) {
   ru16 i,j;
   check2dBusy();
   graphicMode(true);
@@ -3278,8 +3729,8 @@ void RA8876_t3::bteMpuWriteColorExpansionWithChromaKeyData(ru32 des_addr,ru16 de
 /*background_color do not set the same as foreground_color*/
 //write data after setting, using lcdDataWrite() or lcdDataWrite16bbp()
 //**************************************************************//
-void RA8876_t3::bteMpuWriteColorExpansionWithChromaKey(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 foreground_color,ru16 background_color)
-{
+void RA8876_t3::bteMpuWriteColorExpansionWithChromaKey(ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,
+                                                       ru16 height,ru16 foreground_color,ru16 background_color) {
   check2dBusy();
   graphicMode(true);
   bte_DestinationMemoryStartAddr(des_addr);
@@ -3296,8 +3747,7 @@ void RA8876_t3::bteMpuWriteColorExpansionWithChromaKey(ru32 des_addr,ru16 des_im
 //**************************************************************//
 //**************************************************************//
 void  RA8876_t3::btePatternFill(ru8 p8x8or16x16, ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,
-                                 ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height)
-{ 
+                                 ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height) { 
   check2dBusy();
   graphicMode(true);
   bte_Source0_MemoryStartAddr(s0_addr);
@@ -3314,12 +3764,12 @@ void  RA8876_t3::btePatternFill(ru8 p8x8or16x16, ru32 s0_addr,ru16 s0_image_widt
     lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4|RA8876_PATTERN_FORMAT8X8);//90h
   else
     lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4|RA8876_PATTERN_FORMAT16X16);//90h
-   
 }
+
 //**************************************************************//
 //**************************************************************//
-void  RA8876_t3::btePatternFillWithChromaKey(ru8 p8x8or16x16, ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,ru32 des_addr,ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 chromakey_color)
-{
+void  RA8876_t3::btePatternFillWithChromaKey(ru8 p8x8or16x16, ru32 s0_addr,ru16 s0_image_width,ru16 s0_x,ru16 s0_y,ru32 des_addr,
+                                          ru16 des_image_width, ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru16 chromakey_color) {
   check2dBusy();
   graphicMode(true);
   bte_Source0_MemoryStartAddr(s0_addr);
@@ -3337,7 +3787,6 @@ void  RA8876_t3::btePatternFillWithChromaKey(ru8 p8x8or16x16, ru32 s0_addr,ru16 
     lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4|RA8876_PATTERN_FORMAT8X8);//90h
   else
     lcdRegDataWrite(RA8876_BTE_CTRL0,RA8876_BTE_ENABLE<<4|RA8876_PATTERN_FORMAT16X16);//90h
-
 }
 
  /*DMA Function*/
@@ -3345,8 +3794,7 @@ void  RA8876_t3::btePatternFillWithChromaKey(ru8 p8x8or16x16, ru32 s0_addr,ru16 
  /*If used 32bit address serial flash through ra8876, must be set command to serial flash to enter 4bytes mode first.
  only needs set one times after power on */
  //**************************************************************//
- void  RA8876_t3::setSerialFlash4BytesMode(ru8 scs_select)
- {
+ void  RA8876_t3::setSerialFlash4BytesMode(ru8 scs_select) {
   if(scs_select==0)
   {
   lcdRegDataWrite( RA8876_SPIMCR2, RA8876_SPIM_NSS_SELECT_0<<5|RA8876_SPIM_MODE0);//b9h
@@ -3367,12 +3815,12 @@ void  RA8876_t3::btePatternFillWithChromaKey(ru8 p8x8or16x16, ru32 s0_addr,ru16 
   delay(1);
   lcdRegDataWrite( RA8876_SPIMCR2, RA8876_SPIM_NSS_SELECT_1<<5|RA8876_SPIM_NSS_INACTIVE<<4|RA8876_SPIM_MODE0);//b9h 
   } 
- }
+}
+
 //**************************************************************//
 /* scs = 0 : select scs0, scs = 1 : select scs1, */
 //**************************************************************//
- void  RA8876_t3::dma_24bitAddressBlockMode(ru8 scs_select,ru8 clk_div,ru16 x0,ru16 y0,ru16 width,ru16 height,ru16 picture_width,ru32 addr)
- {
+ void  RA8876_t3::dma_24bitAddressBlockMode(ru8 scs_select,ru8 clk_div,ru16 x0,ru16 y0,ru16 width,ru16 height,ru16 picture_width,ru32 addr) {
    if(scs_select==0)
     lcdRegDataWrite(RA8876_SFL_CTRL,RA8876_SERIAL_FLASH_SELECT0<<7|RA8876_SERIAL_FLASH_DMA_MODE<<6|RA8876_SERIAL_FLASH_ADDR_24BIT<<5|RA8876_FOLLOW_RA8876_MODE<<4|RA8876_SPI_FAST_READ_8DUMMY);//b7h
    if(scs_select==1)
@@ -3393,15 +3841,14 @@ void  RA8876_t3::btePatternFillWithChromaKey(ru8 p8x8or16x16, ru32 s0_addr,ru16 
   lcdRegDataWrite(RA8876_DMA_SSTR1,addr>>8);//bdh
   lcdRegDataWrite(RA8876_DMA_SSTR2,addr>>16);//beh
   lcdRegDataWrite(RA8876_DMA_SSTR3,addr>>24);//bfh 
-  
   lcdRegDataWrite(RA8876_DMA_CTRL,RA8876_DMA_START);//b6h 
   check2dBusy(); 
- }
- //**************************************************************//
+}
+
+//**************************************************************//
 /* scs = 0 : select scs0, scs = 1 : select scs1, */
 //**************************************************************//
- void  RA8876_t3::dma_32bitAddressBlockMode(ru8 scs_select,ru8 clk_div,ru16 x0,ru16 y0,ru16 width,ru16 height,ru16 picture_width,ru32 addr)
- {
+ void  RA8876_t3::dma_32bitAddressBlockMode(ru8 scs_select,ru8 clk_div,ru16 x0,ru16 y0,ru16 width,ru16 height,ru16 picture_width,ru32 addr) {
    if(scs_select==0)
     lcdRegDataWrite(RA8876_SFL_CTRL,RA8876_SERIAL_FLASH_SELECT0<<7|RA8876_SERIAL_FLASH_DMA_MODE<<6|RA8876_SERIAL_FLASH_ADDR_32BIT<<5|RA8876_FOLLOW_RA8876_MODE<<4|RA8876_SPI_FAST_READ_8DUMMY);//b7h
    if(scs_select==1)
@@ -3423,10 +3870,9 @@ void  RA8876_t3::btePatternFillWithChromaKey(ru8 p8x8or16x16, ru32 s0_addr,ru16 
   lcdRegDataWrite(RA8876_DMA_SSTR1,addr>>8);//bdh
   lcdRegDataWrite(RA8876_DMA_SSTR2,addr>>16);//beh
   lcdRegDataWrite(RA8876_DMA_SSTR3,addr>>24);//bfh  
-  
   lcdRegDataWrite(RA8876_DMA_CTRL,RA8876_DMA_START);//b6h 
   check2dBusy(); 
- }
+}
  
 //**************************************************************//
 // Setup PIP Windows ( 2 PIP Windows Avaiable)
@@ -3442,8 +3888,7 @@ void RA8876_t3::PIP (
 		,unsigned short Y_Dis //coordinate Y of Display Window
 		,unsigned short X_W //width of PIP and Display Window, It must be divided by 4.
 		,unsigned short Y_H //height of PIP and Display Window , It must be divided by 4.
-		)
-{
+		) {
 	if(Select_PIP == 1 )  
 	{
 	Select_PIP1_Parameter();
@@ -3484,8 +3929,7 @@ void RA8876_t3::PIP (
 }
 
 //[2Ah][2Bh][2Ch][2Dh]=========================================================================
-void RA8876_t3::PIP_Display_Start_XY(unsigned short WX,unsigned short HY)	
-{
+void RA8876_t3::PIP_Display_Start_XY(unsigned short WX,unsigned short HY) {
 /*
 Reference Main Window coordination.
 Unit: Pixel
@@ -3496,8 +3940,6 @@ Function bit will be configured for relative PIP window.
 */
 	lcdRegDataWrite(RA8876_PWDULX0, WX);    // [2Ah] PIP Window Display Upper-Left corner X-coordination [7:0]
 	lcdRegDataWrite(RA8876_PWDULX1, WX>>8); // [2Bh] PIP Window Display Upper-Left corner X-coordination [12:8]
-
-
 /*
 Reference Main Window coordination.
 Unit: Pixel
@@ -3510,8 +3952,7 @@ Function bit will be configured for relative PIP window.
 }
 
 //[2Eh][2Fh][30h][31h]=========================================================================
-void RA8876_t3::PIP_Image_Start_Address(unsigned long Addr)	
-{
+void RA8876_t3::PIP_Image_Start_Address(unsigned long Addr) {
 	lcdRegDataWrite(RA8876_PISA0, Addr); // [2Eh] PIP Image Start Address[7:2]
 	lcdRegDataWrite(RA8876_PISA1, Addr>>8); // [2Fh] PIP Image Start Address[15:8]
 	lcdRegDataWrite(RA8876_PISA2, Addr>>16); // [30h] PIP Image Start Address [23:16]
@@ -3519,8 +3960,7 @@ void RA8876_t3::PIP_Image_Start_Address(unsigned long Addr)
 }
 
 //[32h][33h]=========================================================================
-void RA8876_t3::PIP_Image_Width(unsigned short WX)	
-{
+void RA8876_t3::PIP_Image_Width(unsigned short WX) {
 /*
 Unit: Pixel.
 It must be divisible by 4. PIW Bit [1:0] tie to ¡§0¡š internally.
@@ -3534,8 +3974,7 @@ Function bit will be configured for relative PIP window.
 }
 
 //[34h][35h][36h][37h]=========================================================================
-void RA8876_t3::PIP_Window_Image_Start_XY(unsigned short WX,unsigned short HY)	
-{
+void RA8876_t3::PIP_Window_Image_Start_XY(unsigned short WX,unsigned short HY) {
 /*
 Reference PIP Image coordination.
 Unit: Pixel
@@ -3546,7 +3985,6 @@ Function bit will be configured for relative PIP window.
 */
 	lcdRegDataWrite(RA8876_PWIULX0, WX);    // [34h] PIP 1 or 2 Window Image Upper-Left corner X-coordination [7:0]
 	lcdRegDataWrite(RA8876_PWIULX1, WX>>8); // [35h] PIP Window Image Upper-Left corner X-coordination [12:8]
-
 /*
 Reference PIP Image coordination.
 Unit: Pixel
@@ -3556,14 +3994,11 @@ Function bit will be configured for relative PIP window.
 */
 	lcdRegDataWrite(RA8876_PWIULY0, HY);    // [36h] PIP Windows Display Upper-Left corner Y-coordination [7:0]
 	lcdRegDataWrite(RA8876_PWIULY1, HY>>8); // [37h] PIP Windows Image Upper-Left corner Y-coordination [12:8]
-
 }
 
 //[38h][39h][3Ah][3Bh]=========================================================================
-void RA8876_t3::PIP_Window_Width_Height(unsigned short WX,unsigned short HY)	
-{
+void RA8876_t3::PIP_Window_Width_Height(unsigned short WX,unsigned short HY) {
 /*
-
 Unit: Pixel.
 It must be divisible by 4. The value is physical pixel number.
 Maximum value is 8188 pixels.
@@ -3572,7 +4007,6 @@ Function bit will be configured for relative PIP window.
 */
 	lcdRegDataWrite(RA8876_PWW0, WX);    // [38h] PIP Window Width [7:0]
 	lcdRegDataWrite(RA8876_PWW1, WX>>8); // [39h] PIP Window Width [10:8]
-
 /*
 Unit: Pixel
 The value is physical pixel number. Maximum value is 8191 pixels.
@@ -3581,13 +4015,11 @@ Function bit will be configured for relative PIP window.
 */
 	lcdRegDataWrite(RA8876_PWH0, HY);    // [3Ah] PIP Window Height [7:0]
 	lcdRegDataWrite(RA8876_PWH1, HY>>8); // [3Bh] PIP Window Height [10:8]
-
 }
 
 //[10h]=========================================================================
 // Turn on PIP window 1
-void RA8876_t3::Enable_PIP1(void)
-{
+void RA8876_t3::Enable_PIP1(void) {
 /*
 PIP 1 window Enable/Disable
 0 : PIP 1 window disable.
@@ -3598,12 +4030,10 @@ PIP 1 window always on top of PIP 2 window.
 	temp = lcdRegDataRead(RA8876_MPWCTR); // 0x10
 	temp |= cSetb7;
 	lcdRegDataWrite(RA8876_MPWCTR,temp);
-
 }
 
 // Turn off PIP window 1
-void RA8876_t3::Disable_PIP1(void)
-{
+void RA8876_t3::Disable_PIP1(void) {
 /*
 PIP 1 window Enable/Disable
 0 : PIP 1 window disable.
@@ -3617,8 +4047,7 @@ PIP 1 window always on top of PIP 2 window.
 }
 
 // Turn on PIP window 2
-void RA8876_t3::Enable_PIP2(void)
-{
+void RA8876_t3::Enable_PIP2(void) {
 /*
 PIP 2 window Enable/Disable
 0 : PIP 2 window disable.
@@ -3632,8 +4061,7 @@ PIP 1 window always on top of PIP 2 window.
 }
 
 // Turn off PIP window 1
-void RA8876_t3::Disable_PIP2(void)
-{
+void RA8876_t3::Disable_PIP2(void) {
 /*
 PIP 2 window Enable/Disable
 0 : PIP 2 window disable.
@@ -3646,8 +4074,7 @@ PIP 1 window always on top of PIP 2 window.
 	lcdRegDataWrite(RA8876_MPWCTR,temp);
 }
 
-void RA8876_t3::Select_PIP1_Parameter(void)
-{
+void RA8876_t3::Select_PIP1_Parameter(void) {
 /*
 0: To configure PIP 1¡Šs parameters.
 1: To configure PIP 2¡Šs parameters..
@@ -3658,8 +4085,7 @@ void RA8876_t3::Select_PIP1_Parameter(void)
 	lcdRegDataWrite(RA8876_MPWCTR,temp);
 }
 
-void RA8876_t3::Select_PIP2_Parameter(void)
-{
+void RA8876_t3::Select_PIP2_Parameter(void) {
 /*
 0: To configure PIP 1¡Šs parameters.
 1: To configure PIP 2¡Šs parameters..
@@ -3669,8 +4095,7 @@ void RA8876_t3::Select_PIP2_Parameter(void)
 	temp |= cSetb4;
 	lcdRegDataWrite(RA8876_MPWCTR,temp);
 }
-void RA8876_t3::Select_Main_Window_8bpp(void)
-{
+void RA8876_t3::Select_Main_Window_8bpp(void) {
 /*
 Main Window Color Depth Setting
 00b: 8-bpp generic TFT, i.e. 256 colors.
@@ -3683,8 +4108,7 @@ Main Window Color Depth Setting
     temp &= cClrb2;
 	lcdRegDataWrite(RA8876_MPWCTR,temp);
 }
-void RA8876_t3::Select_Main_Window_16bpp(void)
-{
+void RA8876_t3::Select_Main_Window_16bpp(void) {
 /*
 Main Window Color Depth Setting
 00b: 8-bpp generic TFT, i.e. 256 colors.
@@ -3697,8 +4121,7 @@ Main Window Color Depth Setting
     temp |= cSetb2;
 	lcdRegDataWrite(RA8876_MPWCTR,temp);
 }
-void RA8876_t3::Select_Main_Window_24bpp(void)
-{
+void RA8876_t3::Select_Main_Window_24bpp(void) {
 /*
 Main Window Color Depth Setting
 00b: 8-bpp generic TFT, i.e. 256 colors.
@@ -3711,8 +4134,7 @@ Main Window Color Depth Setting
 	lcdRegDataWrite(RA8876_MPWCTR,temp);
 }
 
-void RA8876_t3::Select_LCD_Sync_Mode(void)
-{
+void RA8876_t3::Select_LCD_Sync_Mode(void) {
 /*
 To Control panel's synchronous signals
 0: Sync Mode: Enable XVSYNC, XHSYNC, XDE
@@ -3723,8 +4145,7 @@ To Control panel's synchronous signals
     temp &= cClrb0;
 	lcdRegDataWrite(RA8876_MPWCTR,temp);
 }
-void RA8876_t3::Select_LCD_DE_Mode(void)
-{
+void RA8876_t3::Select_LCD_DE_Mode(void) {
 /*
 To Control panel's synchronous signals
 0: Sync Mode: Enable XVSYNC, XHSYNC, XDE
@@ -3737,8 +4158,7 @@ To Control panel's synchronous signals
 }
 
 //[11h]=========================================================================
-void RA8876_t3::Select_PIP1_Window_8bpp(void)
-{
+void RA8876_t3::Select_PIP1_Window_8bpp(void) {
 /*
 PIP 1 Window Color Depth Setting
 00b: 8-bpp generic TFT, i.e. 256 colors.
@@ -3752,8 +4172,7 @@ PIP 1 Window Color Depth Setting
 	lcdRegDataWrite(RA8876_PIPCDEP,temp);
 }
 
-void RA8876_t3::Select_PIP1_Window_16bpp(void)
-{
+void RA8876_t3::Select_PIP1_Window_16bpp(void) {
 /*
 PIP 1 Window Color Depth Setting
 00b: 8-bpp generic TFT, i.e. 256 colors.
@@ -3767,8 +4186,7 @@ PIP 1 Window Color Depth Setting
 	lcdRegDataWrite(RA8876_PIPCDEP,temp);
 }
 
-void RA8876_t3::Select_PIP1_Window_24bpp(void)
-{
+void RA8876_t3::Select_PIP1_Window_24bpp(void) {
 /*
 PIP 1 Window Color Depth Setting
 00b: 8-bpp generic TFT, i.e. 256 colors.
@@ -3781,8 +4199,7 @@ PIP 1 Window Color Depth Setting
 	lcdRegDataWrite(RA8876_PIPCDEP,temp);
 }
 
-void RA8876_t3::Select_PIP2_Window_8bpp(void)
-{
+void RA8876_t3::Select_PIP2_Window_8bpp(void) {
 /*
 PIP 2 Window Color Depth Setting
 00b: 8-bpp generic TFT, i.e. 256 colors.
@@ -3796,8 +4213,7 @@ PIP 2 Window Color Depth Setting
 	lcdRegDataWrite(RA8876_PIPCDEP,temp);
 }
 
-void RA8876_t3::Select_PIP2_Window_16bpp(void)
-{
+void RA8876_t3::Select_PIP2_Window_16bpp(void) {
 /*
 PIP 2 Window Color Depth Setting
 00b: 8-bpp generic TFT, i.e. 256 colors.
@@ -3811,8 +4227,7 @@ PIP 2 Window Color Depth Setting
 	lcdRegDataWrite(RA8876_PIPCDEP,temp);
 }
 
-void RA8876_t3::Select_PIP2_Window_24bpp(void)
-{
+void RA8876_t3::Select_PIP2_Window_24bpp(void) {
 /*
 PIP 2 Window Color Depth Setting
 00b: 8-bpp generic TFT, i.e. 256 colors.
@@ -3925,7 +4340,6 @@ void RA8876_t3::selectScreen(uint32_t screenPage) {
 	textColor(_TXTForeColor,_TXTBackColor);
 	// Rebuild the display
 	buildTextScreen();
-	
 }
 
 // Save current screen page parameters 
@@ -3999,8 +4413,7 @@ void RA8876_t3::restoreTFTParams(tftSave_t *screenSave) {
 	 _TXTBackColor = screenSave->TXTBackColor;
 }
 
-void RA8876_t3::useCanvas()
-{
+void RA8876_t3::useCanvas() {
 	displayImageStartAddress(PAGE1_START_ADDR);
 	displayImageWidth(_width);
 	displayWindowStartXY(0,0);
@@ -4020,8 +4433,7 @@ void RA8876_t3::updateScreen() {
 }
 
 // Setup text cursor
-void RA8876_t3::cursorInit(void)
-{
+void RA8876_t3::cursorInit(void) {
 	_cursorXsize = _FNTwidth;
 	_cursorYsize = _FNTheight-1;
 	Text_Cursor_H_V(_cursorXsize,_cursorYsize); 		// Block cusror
@@ -4047,8 +4459,7 @@ void RA8876_t3::cursorInit(void)
 		NOTE: works with any font
 */
 /**************************************************************************/
-void RA8876_t3::setCursor(int16_t x, int16_t y, bool autocenter) 
-{
+void RA8876_t3::setCursor(int16_t x, int16_t y, bool autocenter) {
 	if(_use_default) {
 		//setTextCursor(x, y);
 		//return;
@@ -4116,8 +4527,7 @@ void RA8876_t3::setCursor(int16_t x, int16_t y, bool autocenter)
 		USE: xxx.getCursor(myX,myY);
 */
 /**************************************************************************/
-void RA8876_t3::getCursor(int16_t &x, int16_t &y) 
-{
+void RA8876_t3::getCursor(int16_t &x, int16_t &y) {
 		uint8_t t1,t2,t3,t4;
 		t1 = lcdRegDataRead(RA8876_F_CURX0);
 		t2 = lcdRegDataRead(RA8876_F_CURX1);
@@ -4129,14 +4539,12 @@ void RA8876_t3::getCursor(int16_t &x, int16_t &y)
 	
 }
 
-int16_t RA8876_t3::getCursorX(void)
-{
+int16_t RA8876_t3::getCursorX(void) {
 	//if (_portrait && _use_default) return _cursorY;
 	return _cursorX;
 }
 
-int16_t RA8876_t3::getCursorY(void)
-{
+int16_t RA8876_t3::getCursorY(void) {
 	//if (_portrait && _use_default) return _cursorX;
 	return _cursorY;
 }
@@ -4185,8 +4593,7 @@ void RA8876_t3::fillStatusLine(uint16_t color) {
 //**************************************************************//
 // Note that, unlike the RA88875, this does not set BG transparent!
 //**************************************************************//
-void RA8876_t3::setTextColor(uint16_t color)
-{
+void RA8876_t3::setTextColor(uint16_t color) {
  	check2dBusy();  // don't change colors until not busy
  	foreGroundColor16bpp(color);
 	_backTransparent = true;  // used for ILI and GFX Fonts
@@ -4196,8 +4603,7 @@ void RA8876_t3::setTextColor(uint16_t color)
 
 //**************************************************************//
 //**************************************************************//
-void RA8876_t3::setBackGroundColor(uint16_t color)
-{
+void RA8876_t3::setBackGroundColor(uint16_t color) {
 	backGroundColor16bpp(color);
 }
 
@@ -4286,7 +4692,6 @@ void RA8876_t3::setFontSource(uint8_t source) {
 	default:
 		UDFont = false;	
 	}
-	//Ra8876_Lite::setFontSource(source);
 	// Rebuild current screen page
 	buildTextScreen();
 }
@@ -4508,8 +4913,7 @@ void RA8876_t3::fillRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t col
 
 }
 
-void RA8876_t3::writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors)
-{
+void RA8876_t3::writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors) {
 	uint16_t start_x = (x != CENTER) ? x : (_width - w) / 2;
 	uint16_t start_y = (y != CENTER) ? y : (_height - h) / 2;
 
@@ -4517,23 +4921,36 @@ void RA8876_t3::writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint
 		case 0: // we will just hand off for now to 
 				// unrolled to bte call
 				//Using the BTE function is faster and will use DMA if available
+                if(BUS_WIDTH == 8) {
 			    bteMpuWriteWithROPData8(currentPage, width(), start_x, start_y,  //Source 1 is ignored for ROP 12
                               currentPage, width(), start_x, start_y, w, h,     //destination address, pagewidth, x/y, width/height
                               RA8876_BTE_ROP_CODE_12,
                               ( const unsigned char *)pcolors);
+                } else {
+			    bteMpuWriteWithROPData16(currentPage, width(), start_x, start_y,  //Source 1 is ignored for ROP 12
+                              currentPage, width(), start_x, start_y, w, h,     //destination address, pagewidth, x/y, width/height
+                              RA8876_BTE_ROP_CODE_12,
+                              ( const unsigned short *)pcolors);
+                }
 			break;
 		case 1:
 			{
 				while (h) {
 					//Serial.printf("DP %x, %d, %d %d\n", rotated_row, h, start_x, y);
+                if(BUS_WIDTH == 8) {
 				    bteMpuWriteWithROPData8(currentPage, height(), start_y, start_x,  //Source 1 is ignored for ROP 12
 	                              currentPage, height(),  start_y, start_x, 1, w,     //destination address, pagewidth, x/y, width/height
 	                              RA8876_BTE_ROP_CODE_12,
 	                              ( const unsigned char *)pcolors);
+                } else {
+				    bteMpuWriteWithROPData16(currentPage, height(), start_y, start_x,  //Source 1 is ignored for ROP 12
+	                              currentPage, height(),  start_y, start_x, 1, w,     //destination address, pagewidth, x/y, width/height
+	                              RA8876_BTE_ROP_CODE_12,
+	                              (const unsigned short *)pcolors);
+                }
 				    start_y++;
 				    h--;
 				    pcolors += w;
-
 				}
 			}
 
@@ -4549,18 +4966,21 @@ void RA8876_t3::writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint
 				// lets reverse data per row...
 				while (h) {
 					for (int i = 0; i < w; i++) rotated_buffer[w-i-1] = *pcolors++;
+                if(BUS_WIDTH == 8) {
 				    bteMpuWriteWithROPData8(currentPage, width(), start_x, start_y,  //Source 1 is ignored for ROP 12
                               currentPage, width(), start_x, start_y, w, 1,     //destination address, pagewidth, x/y, width/height
                               RA8876_BTE_ROP_CODE_12,
                               ( const unsigned char *)rotated_buffer);
+                } else {
+				    bteMpuWriteWithROPData16(currentPage, width(), start_x, start_y,  //Source 1 is ignored for ROP 12
+                              currentPage, width(), start_x, start_y, w, 1,     //destination address, pagewidth, x/y, width/height
+                              RA8876_BTE_ROP_CODE_12,
+                              ( const unsigned short *)rotated_buffer);
+                }					
 				    start_y++;
 				    h--;
 				}
-				#ifdef SPI_HAS_TRANSFER_ASYNC
-				while(activeDMA) {}; //wait forever while DMA is finishing- can't start a new transfer
-				#endif
 				free((void*)rotated_buffer_alloc);
-				endSend(true);
 			}
 			break;
 		case 3:
@@ -4568,10 +4988,17 @@ void RA8876_t3::writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint
 			    start_y += h;
 				while (h) {
 					//Serial.printf("DP %x, %d, %d %d\n", rotated_row, h, start_x, y);
+                if(BUS_WIDTH == 8) {
 				    bteMpuWriteWithROPData8(currentPage, height(), start_y, start_x,  //Source 1 is ignored for ROP 12
 	                              currentPage, height(),  start_y, start_x, 1, w,     //destination address, pagewidth, x/y, width/height
 	                              RA8876_BTE_ROP_CODE_12,
 	                              ( const unsigned char *)pcolors);
+                } else {
+				    bteMpuWriteWithROPData16(currentPage, height(), start_y, start_x,  //Source 1 is ignored for ROP 12
+	                              currentPage, height(),  start_y, start_x, 1, w,     //destination address, pagewidth, x/y, width/height
+	                              RA8876_BTE_ROP_CODE_12,
+	                              ( const unsigned short *)pcolors);
+			    }
 				    start_y--;
 				    h--;
 				    pcolors += w;
@@ -4581,8 +5008,7 @@ void RA8876_t3::writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint
 	}
 }
 
-uint16_t *RA8876_t3::rotateImageRect(int16_t w, int16_t h, const uint16_t *pcolors, int16_t rotation) 
-{
+uint16_t *RA8876_t3::rotateImageRect(int16_t w, int16_t h, const uint16_t *pcolors, int16_t rotation) {
 	uint16_t *rotated_colors_alloc = (uint16_t *)malloc(w * h *2+32);
 	int16_t x, y;
 	if (!rotated_colors_alloc) 
@@ -4626,10 +5052,9 @@ uint16_t *RA8876_t3::rotateImageRect(int16_t w, int16_t h, const uint16_t *pcolo
 }
 
 // This one assumes that the data was previously arranged such that you can just ROP it out...
-void RA8876_t3::writeRotatedRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors) 
-{
+void RA8876_t3::writeRotatedRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors) {
 
-	Serial.printf("writeRotatedRect %d %d %d %d (%x)\n", x, y, w, h, pcolors);
+Serial.printf("writeRotatedRect %d %d %d %d (%x)\n", x, y, w, h, pcolors);
 	uint16_t start_x = (x != CENTER) ? x : (_width - w) / 2;
 	uint16_t start_y = (y != CENTER) ? y : (_height - h) / 2;
 
@@ -4638,18 +5063,31 @@ void RA8876_t3::writeRotatedRect(int16_t x, int16_t y, int16_t w, int16_t h, con
 		case 0: 
 		case 2:
 			// Same as normal writeRect
+          if(BUS_WIDTH == 8) {
 		    bteMpuWriteWithROPData8(currentPage, width(), start_x, start_y,  //Source 1 is ignored for ROP 12
                           currentPage, width(), start_x, start_y, w, h,     //destination address, pagewidth, x/y, width/height
                           RA8876_BTE_ROP_CODE_12,
                           ( const unsigned char *)pcolors_aligned);
+          } else {
+		    bteMpuWriteWithROPData16(currentPage, width(), start_x, start_y,  //Source 1 is ignored for ROP 12
+                          currentPage, width(), start_x, start_y, w, h,     //destination address, pagewidth, x/y, width/height
+                          RA8876_BTE_ROP_CODE_12,
+                          ( const unsigned short *)pcolors_aligned);
+	      }
 			break;
 		case 1:
 		case 3:
+          if(BUS_WIDTH == 8) {
 		    bteMpuWriteWithROPData8(currentPage, height(), start_y, start_x,  //Source 1 is ignored for ROP 12
                           currentPage, height(),  start_y, start_x, h, w,     //destination address, pagewidth, x/y, width/height
                           RA8876_BTE_ROP_CODE_12,
                           ( const unsigned char *)pcolors_aligned);
-
+          } else {
+		    bteMpuWriteWithROPData16(currentPage, height(), start_y, start_x,  //Source 1 is ignored for ROP 12
+                          currentPage, height(),  start_y, start_x, h, w,     //destination address, pagewidth, x/y, width/height
+                          RA8876_BTE_ROP_CODE_12,
+                          ( const unsigned short *)pcolors_aligned);
+	      }
 			break;
 	}
 
@@ -4742,17 +5180,6 @@ void RA8876_t3::fillRoundRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, ui
   lcdRegDataWrite(RA8876_DCR1,RA8876_DRAW_CIRCLE_SQUARE_FILL, true);//76h,0xf0
 }
 
-// Enable Touch Screen.
-void RA8876_t3::touchEnable(boolean enabled) {
-//		touchEnable(enabled);
-}
-
-// Return true if screen touched else false
-boolean touchDetect(boolean autoclear) {
-//	return touchDetect(autoclear);
-return false; // return false for now
-}
-
 // Draw a filled circle
 void RA8876_t3::fillCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color) {
 	drawCircleFill(x0, y0, r, color);
@@ -4766,11 +5193,6 @@ void RA8876_t3::fillEllipse(int16_t xCenter, int16_t yCenter, int16_t longAxis, 
 // Draw a filled triangle
 void RA8876_t3::fillTriangle(int16_t x0, int16_t y0, int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color) {
 	drawTriangleFill(x0, y0, x1, y1, x2, y2, color);
-}
-
-// Read touch screen ADC
-void RA8876_t3::readTouchADC(uint16_t *x, uint16_t *y) {
-//	touchReadAdc(x, y);//we using 10bit adc data here
 }
 
 // Setup graphic mouse cursor
@@ -4810,8 +5232,7 @@ void RA8876_t3::gcursorxy(uint16_t gcx, uint16_t gcy) {
 // Initialize a graphic button. 
 void RA8876_t3::initButton(struct Gbuttons *buttons, uint16_t x, uint16_t y, uint8_t w, uint8_t h,
  uint16_t outline, uint16_t fill, uint16_t textcolor,
- char *label, uint8_t textsize)
-{
+ char *label, uint8_t textsize) {
 	buttons->x = x;
 	buttons->y = y;
 	buttons->w = w;
@@ -4882,17 +5303,6 @@ boolean RA8876_t3::buttonJustReleased(struct Gbuttons *buttons) {
 }
 //==========================================================================================
 
-// Check for Touch Screen being touched
-boolean RA8876_t3::TStouched(void ) {
-//    return touch.isTouching();
-return false;
-}
-
-// Get Touch Screen x/y coords.
-void RA8876_t3::getTSpoint(uint16_t *x, uint16_t *y) {
-//	touch.getPosition(x,y);
-}
-
 // Put a picture on the screen using raw picture data
 // This is a simplified wrapper - more advanced uses (such as putting data onto a page other than current) 
 //   should use the underlying BTE functions.
@@ -4950,8 +5360,7 @@ uint32_t RA8876_t3::tft_boxGet(uint32_t vPageAddr, uint16_t x0, uint16_t y0,
 */
 
 
-void RA8876_t3::_fontWrite(const uint8_t* buffer, uint16_t len)
-{
+void RA8876_t3::_fontWrite(const uint8_t* buffer, uint16_t len) {
 	if(_use_default) {
 		//if (_FNTgrandient) _FNTgrandient = false;//cannot use this with write
 		//_textWrite((const char *)buffer, len);
@@ -5030,8 +5439,7 @@ extern "C" const unsigned char glcdfont[];
 
 // Draw a character
 void RA8876_t3::drawChar(int16_t x, int16_t y, unsigned char c,
-			    uint16_t fgcolor, uint16_t bgcolor, uint8_t size_x, uint8_t size_y)
-{
+			    uint16_t fgcolor, uint16_t bgcolor, uint8_t size_x, uint8_t size_y) {
 	if((x >= _width)            || // Clip right
 	   (y >= _height)           || // Clip bottom
 	   ((x + 6 * size_x - 1) < 0) || // Clip left  TODO: is this correct?
@@ -5150,9 +5558,7 @@ void RA8876_t3::drawChar(int16_t x, int16_t y, unsigned char c,
 
 		//Serial.printf("%d, %d, %d, %d\n", x, y, x + w -1, y + h - 1);
 		setActiveWindow(x, y, x + w -1, y + h - 1);
-		//_startSend();
 		y = y_char_top;	// restore the actual y.
-		//writeCommand(RA8875_MRWC);
 		for (yc=0; (yc < 8) && (y < _displayclipy2); yc++) {
 			for (yr=0; (yr < size_y) && (y < _displayclipy2); yr++) {
 				x = x_char_start; 		// get our first x position...
@@ -5178,8 +5584,6 @@ void RA8876_t3::drawChar(int16_t x, int16_t y, unsigned char c,
 			}
 			mask = mask << 1;
 		}
-		//writecommand_last(ILI9488_NOP);
-		//_endSend();
 	}
 }
 
@@ -5212,7 +5616,6 @@ void RA8876_t3::setFont(const ILI9341_t3_font_t &f) {
 		if (_TXTForeColor == _TXTBackColor) _TXTBackColor = (_TXTForeColor==0x0000)?0xFFFF:0x0000;	}
 
 }
-
 
 // Maybe support GFX Fonts as well?
 void RA8876_t3::setFont(const GFXfont *f) {
@@ -5288,8 +5691,7 @@ void RA8876_t3::setFont(const GFXfont *f) {
 }
 
 	
-void RA8876_t3::drawFontChar(unsigned int c)
-{
+void RA8876_t3::drawFontChar(unsigned int c) {
 	uint32_t bitoffset = 0;
 	const uint8_t *data;
 
@@ -5357,7 +5759,6 @@ void RA8876_t3::drawFontChar(unsigned int c)
 	int32_t y = origin_y;
 	
 	bool opaque = !_backTransparent; //(_TXTBackColor != _TXTForeColor);
-
 
 	// Going to try a fast Opaque method which works similar to drawChar, which is near the speed of writerect
 	if (!opaque) {
@@ -5558,8 +5959,7 @@ void RA8876_t3::drawFontChar(unsigned int c)
 }
 
 //strPixelLen			- gets pixel length of given ASCII string
-int16_t RA8876_t3::strPixelLen(const char * str)
-{
+int16_t RA8876_t3::strPixelLen(const char * str) {
 //	Serial.printf("strPixelLen %s\n", str);
 	if (!str) return(0);
 	if (gfxFont) 
@@ -5800,8 +6200,7 @@ void RA8876_t3::getTextBounds(const String &str, int16_t x, int16_t y,
 }
 
 
-void RA8876_t3::drawFontBits(bool opaque, uint32_t bits, uint32_t numbits, int32_t x, int32_t y, uint32_t repeat)
-{
+void RA8876_t3::drawFontBits(bool opaque, uint32_t bits, uint32_t numbits, int32_t x, int32_t y, uint32_t repeat) {
 	//Serial.printf("    drawFontBits: %d %x %x (%d %d) %u\n", opaque, bits, numbits, x, y, repeat);
 	if (bits == 0) {
 		if (opaque) {
@@ -6088,7 +6487,6 @@ void RA8876_t3::drawGFXFontChar(unsigned int c) {
     _cursorX += glyph->xAdvance * (int16_t)textsize_x;
 }
 
-
 // Some fonts overlap characters if we detect that the previous 
 // character wrote out more width than they advanced in X direction
 // we may want to know if the last character output a FG or BG at a position. 
@@ -6126,7 +6524,7 @@ void RA8876_t3::setTextSize(uint8_t s_x, uint8_t s_y) {
 	_gfx_last_char_x_write = 0;	// Don't use cached data here
 }
 
-void RA8876_t3::drawFontPixel( uint8_t alpha, uint32_t x, uint32_t y ){
+void RA8876_t3::drawFontPixel( uint8_t alpha, uint32_t x, uint32_t y ) {
 	// Adjust alpha based on the number of alpha levels supported by the font (based on bpp)
 	// Note: Implemented look-up table for alpha, but made absolutely no difference in speed (T3.6)
 	alpha = (uint8_t)(alpha * fontalphamx);
@@ -6135,8 +6533,7 @@ void RA8876_t3::drawFontPixel( uint8_t alpha, uint32_t x, uint32_t y ){
 }
 
 
-void RA8876_t3::Pixel(int16_t x, int16_t y, uint16_t color)
- {
+void RA8876_t3::Pixel(int16_t x, int16_t y, uint16_t color) {
 	x+=_originx;
 	y+=_originy;
 
@@ -6148,14 +6545,12 @@ void RA8876_t3::Pixel(int16_t x, int16_t y, uint16_t color)
 }
 
 
-uint32_t RA8876_t3::fetchbit(const uint8_t *p, uint32_t index)
-{
+uint32_t RA8876_t3::fetchbit(const uint8_t *p, uint32_t index) {
 	if (p[index >> 3] & (1 << (7 - (index & 7)))) return 1;
 	return 0;
 }
 
-uint32_t RA8876_t3::fetchbits_unsigned(const uint8_t *p, uint32_t index, uint32_t required)
-{
+uint32_t RA8876_t3::fetchbits_unsigned(const uint8_t *p, uint32_t index, uint32_t required) {
 	uint32_t val = 0;
 	do {
 		uint8_t b = p[index >> 3];
@@ -6175,8 +6570,7 @@ uint32_t RA8876_t3::fetchbits_unsigned(const uint8_t *p, uint32_t index, uint32_
 	return val;
 }
 
-uint32_t RA8876_t3::fetchbits_signed(const uint8_t *p, uint32_t index, uint32_t required)
-{
+uint32_t RA8876_t3::fetchbits_signed(const uint8_t *p, uint32_t index, uint32_t required) {
 	uint32_t val = fetchbits_unsigned(p, index, required);
 	if (val & (1 << (required - 1))) {
 		return (int32_t)val - (1 << required);
@@ -6184,8 +6578,7 @@ uint32_t RA8876_t3::fetchbits_signed(const uint8_t *p, uint32_t index, uint32_t 
 	return (int32_t)val;
 }
 
-uint32_t RA8876_t3::fetchpixel(const uint8_t *p, uint32_t index, uint32_t x)
-{
+uint32_t RA8876_t3::fetchpixel(const uint8_t *p, uint32_t index, uint32_t x) {
 	// The byte
 	uint8_t b = p[index >> 3];
 	// Shift to LSB position and mask to get value
@@ -6206,8 +6599,7 @@ uint32_t RA8876_t3::fetchpixel(const uint8_t *p, uint32_t index, uint32_t x)
 	  color: RGB565 color
 */
 /**************************************************************************/
-void RA8876_t3::drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color)
-{
+void RA8876_t3::drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color) {
 	if (h < 1) h = 1;
 	h < 2 ? drawPixel(x,y,color) : drawLine(x, y, x, (y+h)-1, color);
 }
@@ -6223,8 +6615,7 @@ void RA8876_t3::drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color)
 	  color: RGB565 color
 */
 /**************************************************************************/
-void RA8876_t3::drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color)
-{
+void RA8876_t3::drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color) {
 	if (w < 1) w = 1;
 	w < 2 ? drawPixel(x,y,color) : drawLine(x, y, (w+x)-1, y, color);
 }
@@ -6239,8 +6630,7 @@ void RA8876_t3::drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color)
 		YB: Vertical Bottom
 */
 /**************************************************************************/
-void RA8876_t3::setActiveWindow(int16_t XL,int16_t XR ,int16_t YT ,int16_t YB)
-{
+void RA8876_t3::setActiveWindow(int16_t XL,int16_t XR ,int16_t YT ,int16_t YB) {
 	//if (_portrait){ swapvals(XL,YT); swapvals(XR,YB);}
 
 //	if (XR >= SCREEN_WIDTH) XR = SCREEN_WIDTH;
@@ -6256,8 +6646,7 @@ void RA8876_t3::setActiveWindow(int16_t XL,int16_t XR ,int16_t YT ,int16_t YB)
 		Set the Active Window as FULL SCREEN
 */
 /**************************************************************************/
-void RA8876_t3::setActiveWindow(void)
-{
+void RA8876_t3::setActiveWindow(void) {
 	_activeWindowXL = 0; _activeWindowXR = _width;
 	_activeWindowYT = 0; _activeWindowYB = _height;
 	//if (_portrait){swapvals(_activeWindowXL,_activeWindowYT); swapvals(_activeWindowXR,_activeWindowYB);}
@@ -6270,8 +6659,7 @@ void RA8876_t3::setActiveWindow(void)
 		[private]
 */
 /**************************************************************************/
-void RA8876_t3::_updateActiveWindow(bool full)
-{
+void RA8876_t3::_updateActiveWindow(bool full) {
 	if (full){
 		// X
 		activeWindowXY(0, 0);
@@ -6293,8 +6681,7 @@ void RA8876_t3::_updateActiveWindow(bool full)
 		[private]
 */
 /**************************************************************************/
-void RA8876_t3::_textPosition(int16_t x, int16_t y, bool update)
-{
+void RA8876_t3::_textPosition(int16_t x, int16_t y, bool update) {
 	lcdRegDataWrite(RA8876_F_CURX0,x, false); //63h
 	lcdRegDataWrite(RA8876_F_CURX1,x>>8, false);//64h
 	lcdRegDataWrite(RA8876_F_CURY0,y, false);//65h
@@ -6302,8 +6689,7 @@ void RA8876_t3::_textPosition(int16_t x, int16_t y, bool update)
 	if (update){ _cursorX = x; _cursorY = y;}
 }
 
-void RA8876_t3::_setFNTdimensions(uint8_t index) 
-{
+void RA8876_t3::_setFNTdimensions(uint8_t index) {
 	_FNTwidth 		= 	fontDimPar[index][0];
 	_FNTheight 		= 	fontDimPar[index][1];
 	_FNTbaselineLow  = 	fontDimPar[index][2];
@@ -6445,8 +6831,7 @@ size_t RA8876_t3::rawPrint(uint8_t text) {
 /* JB ADD FOR ROTATING TEXT                                     */
 /* Turn RA8876 text rotate mode ON/OFF (True = ON)              */
 //**************************************************************//
-void RA8876_t3::setRotation(uint8_t rotation) //rotate text and graphics
-{
+void RA8876_t3::setRotation(uint8_t rotation) { //rotate text and graphics
 	_rotation = rotation & 0x3;
 	uint8_t macr_settings;
 
@@ -6494,7 +6879,7 @@ void RA8876_t3::setRotation(uint8_t rotation) //rotate text and graphics
 
  	setClipRect();
 	setOrigin();
-	Serial.println("Rotate: After Origins"); Serial.flush();
+//	Serial.println("Rotate: After Origins"); Serial.flush();
 
 }
 
@@ -6503,8 +6888,7 @@ void RA8876_t3::setRotation(uint8_t rotation) //rotate text and graphics
       Get rotation setting
 */
 /**************************************************************************/
-uint8_t RA8876_t3::getRotation()
-{
+uint8_t RA8876_t3::getRotation() {
 	return _rotation;
 
 }
@@ -6513,8 +6897,7 @@ uint8_t RA8876_t3::getRotation()
 /* JB ADD FOR ROTATING TEXT                                     */
 /* Turn RA8876 text rotate mode ON/OFF (True = ON)              */
 //**************************************************************//
-void RA8876_t3::textRotate(boolean on)
-{
+void RA8876_t3::textRotate(boolean on) {
     if(on)
     {
         lcdRegDataWrite(RA8876_CCR1, RA8876_TEXT_ROTATION<<4);//cdh
@@ -6527,8 +6910,7 @@ void RA8876_t3::textRotate(boolean on)
 
 
 
-void RA8876_t3::MemWrite_Left_Right_Top_Down(void)
-{
+void RA8876_t3::MemWrite_Left_Right_Top_Down(void) {
 /* Host Write Memory Direction (Only for Graphic Mode)
 00b: Left .. Right then Top ..Bottom.
 Ignored if canvas in linear addressing mode.		*/
@@ -6545,8 +6927,7 @@ Ignored if canvas in linear addressing mode.		*/
 	Serial.println(temp, BIN);	
 }
 
-void RA8876_t3::MemWrite_Right_Left_Top_Down(void)
-{
+void RA8876_t3::MemWrite_Right_Left_Top_Down(void) {
 /* Host Write Memory Direction (Only for Graphic Mode)
 01b: Right .. Left then Top .. Bottom.
 Ignored if canvas in linear addressing mode.		*/
@@ -6566,24 +6947,23 @@ Ignored if canvas in linear addressing mode.		*/
 	
 }
 
-void RA8876_t3::MemWrite_Top_Down_Left_Right(void)
-{
+void RA8876_t3::MemWrite_Top_Down_Left_Right(void) {
 /* Host Write Memory Direction (Only for Graphic Mode)
 10b: Top .. Bottom then Left .. Right.
 Ignored if canvas in linear addressing mode.		*/
 	unsigned char temp;
 	temp = lcdRegDataRead(RA8876_MACR);
-	Serial.println(temp, BIN);
+//	Serial.println(temp, BIN);
 	//lcdRegWrite(RA8876_MACR);//02h
 	//lcdDataWrite(RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_LRTB<<1);
 
 	//temp = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_BTLR<<4|RA8876_WRITE_MEMORY_BTLR<<1;
 	temp = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_TBLR<<1;
-	Serial.println(temp, BIN);
+//	Serial.println(temp, BIN);
 	lcdRegDataWrite(RA8876_MACR, temp);
 	
 	temp = lcdRegDataRead(RA8876_MACR);
-	Serial.println(temp, BIN);
+//	Serial.println(temp, BIN);
 /*
 	unsigned char temp;
 	lcdDataWrite(0x02);
@@ -6595,21 +6975,20 @@ Ignored if canvas in linear addressing mode.		*/
 
 }
 
-void RA8876_t3::MemWrite_Down_Top_Left_Right(void)
-{
+void RA8876_t3::MemWrite_Down_Top_Left_Right(void) {
 /* Host Write Memory Direction (Only for Graphic Mode)
 11b: Bottom .. Top then Left .. Right.
 Ignored if canvas in linear addressing mode.		*/
 
 	unsigned char temp;
 	temp = lcdRegDataRead(RA8876_MACR);
-	Serial.println(temp, BIN);
+//	Serial.println(temp, BIN);
 	//lcdRegWrite(RA8876_MACR);//02h
 	//lcdDataWrite(RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_LRTB<<1);
 
 	//temp = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_BTLR<<4|RA8876_WRITE_MEMORY_BTLR<<1;
 	temp = RA8876_DIRECT_WRITE<<6|RA8876_READ_MEMORY_LRTB<<4|RA8876_WRITE_MEMORY_BTLR<<1;
-	Serial.println(temp, BIN);
+//	Serial.println(temp, BIN);
 	lcdRegDataWrite(RA8876_MACR, temp);
 	
 	temp = lcdRegDataRead(RA8876_MACR);
@@ -6617,8 +6996,7 @@ Ignored if canvas in linear addressing mode.		*/
 
 }
 
-void RA8876_t3::VSCAN_T_to_B(void)
-{
+void RA8876_t3::VSCAN_T_to_B(void) {
 /*	
 Vertical Scan direction
 0 : From Top to Bottom
@@ -6633,22 +7011,19 @@ PIP window will be disabled when VDIR set as 1.
 
 }
 
-void RA8876_t3::VSCAN_B_to_T(void)
-{
+void RA8876_t3::VSCAN_B_to_T(void) {
 /*	
 Vertical Scan direction
 0 : From Top to Bottom
 1 : From bottom to Top
 PIP window will be disabled when VDIR set as 1.
 */
-  
 	unsigned char temp, temp_in;
 	
 	temp_in =  temp = lcdRegDataRead(RA8876_DPCR);
 	temp |= cSetb3;
 	lcdRegDataWrite(RA8876_DPCR, temp);
-	Serial.printf("call vscan_b_to_t %x %x\n", temp_in, temp);
-
+//	Serial.printf("call vscan_b_to_t %x %x\n", temp_in, temp);
 }
 
 #if defined(USE_FT5206_TOUCH)
@@ -6664,8 +7039,7 @@ PIP window will be disabled when VDIR set as 1.
 	This last parameter it's used only when decide to use an ISR.
 */
 /**************************************************************************/
-void RA8876_t3::useCapINT(const uint8_t INTpin,const uint8_t RSTPin) 
-{
+void RA8876_t3::useCapINT(const uint8_t INTpin,const uint8_t RSTPin) {
 	_intCTSPin = INTpin;
 	_rstCTSPin = RSTPin;
 	pinMode(INTpin ,INPUT_PULLUP);
@@ -6690,8 +7064,7 @@ void RA8876_t3::useCapINT(const uint8_t INTpin,const uint8_t RSTPin)
 		[private]
 */
 /**************************************************************************/
-void RA8876_t3::cts_isr(void)
-{
+void RA8876_t3::cts_isr(void) {
 	_FT5206_INT = true;
 }
 
@@ -6705,8 +7078,7 @@ void RA8876_t3::cts_isr(void)
 		if parameter _needCTS_ISRrearm = true will rearm interrupt
 */
 /**************************************************************************/
-void RA8876_t3::enableCapISR(bool force) 
-{
+void RA8876_t3::enableCapISR(bool force) {
 	if (force || _needCTS_ISRrearm){
 		_needCTS_ISRrearm = false;
 		attachInterrupt(digitalPinToInterrupt(_intCTSPin),cts_isr,FALLING);
@@ -6721,8 +7093,7 @@ void RA8876_t3::enableCapISR(bool force)
 		Works only if previously enabled or do nothing.
 */
 /**************************************************************************/
-void RA8876_t3::_disableCapISR(void) 
-{
+void RA8876_t3::_disableCapISR(void) {
 	if (_useISR){
 		detachInterrupt(digitalPinToInterrupt(_intCTSPin));
 		_FT5206_INT = false;
@@ -6735,8 +7106,7 @@ void RA8876_t3::_disableCapISR(void)
 		Print out some of the FT5206 registers for debug
 */
 /**************************************************************************/
-void RA8876_t3::printTSRegisters(Print &pr, uint8_t start, uint8_t count)
-{
+void RA8876_t3::printTSRegisters(Print &pr, uint8_t start, uint8_t count) {
 	// guessing. from registers pdf
 	_wire->beginTransmission(_ctpAdrs);
 	_wire->write(start);
@@ -6769,8 +7139,7 @@ void RA8876_t3::printTSRegisters(Print &pr, uint8_t start, uint8_t count)
 			  false (
 */
 /**************************************************************************/
-bool RA8876_t3::touched(bool safe)
-{
+bool RA8876_t3::touched(bool safe) {
 	if (_useISR){//using interrupts
 			_needCTS_ISRrearm = safe;
 			if (_FT5206_INT)			{
@@ -6788,14 +7157,12 @@ bool RA8876_t3::touched(bool safe)
 	}
 }
 
-void RA8876_t3::setTouchLimit(uint8_t limit)
-{
+void RA8876_t3::setTouchLimit(uint8_t limit) {
 	if (limit > 5) limit = 5;//max 5 allowed
 	_maxTouch = limit;
 }
 
-uint8_t RA8876_t3::getTouchLimit(void)
-{
+uint8_t RA8876_t3::getTouchLimit(void) {
 	return _maxTouch;
 }
 
@@ -6808,15 +7175,12 @@ static const uint8_t _FT5206REgisters[9] = {
 	0x16,0x3C,0xE9,0x01,0x01,0xA0,0x0A,0x06,0x28
 };
 
-void RA8876_t3::_initializeFT5206(void)
-{
+void RA8876_t3::_initializeFT5206(void) {
 	uint8_t i;
 	for (i=0x80;i<0x89;i++){
 		_sendRegFT5206(i,_FT5206REgisters[i-0x80]);
 	}
 	_sendRegFT5206(0x00,0x00);//Device Mode
-
-
 }
 
 /**************************************************************************/
@@ -6824,8 +7188,7 @@ void RA8876_t3::_initializeFT5206(void)
 		Communicate with FT5206
 */
 /**************************************************************************/
-void RA8876_t3::_sendRegFT5206(uint8_t reg,const uint8_t val)
-{
+void RA8876_t3::_sendRegFT5206(uint8_t reg,const uint8_t val) {
 	_wire->beginTransmission(_ctpAdrs);
 	_wire->write(reg);
 	_wire->write(val);
@@ -6839,8 +7202,7 @@ void RA8876_t3::_sendRegFT5206(uint8_t reg,const uint8_t val)
 		It's developed for use in loop
 */
 /**************************************************************************/
-void RA8876_t3::updateTS(void)
-{
+void RA8876_t3::updateTS(void) {
     _wire->requestFrom((uint8_t)_ctpAdrs,(uint8_t)31); //get 31 registers
     uint8_t index = 0;
     while(_wire->available()) {
@@ -6864,8 +7226,7 @@ void RA8876_t3::updateTS(void)
 		so it MUST be used after updateTS!
 */
 /**************************************************************************/
-uint8_t RA8876_t3::getTScoordinates(uint16_t (*touch_coordinates)[2])
-{
+uint8_t RA8876_t3::getTScoordinates(uint16_t (*touch_coordinates)[2]) {
 	uint8_t i;
 	if (_currentTouches < 1) return 0;
  	for (i=1;i<=_currentTouches;i++){
@@ -6899,8 +7260,7 @@ uint8_t RA8876_t3::getTScoordinates(uint16_t (*touch_coordinates)[2])
 		Gets the current Touch State, must be used AFTER updateTS!
 */
 /**************************************************************************/
-uint8_t RA8876_t3::getTouchState(void)
-{
+uint8_t RA8876_t3::getTouchState(void) {
 	return _currentTouchState;
 }
 
@@ -6911,8 +7271,7 @@ uint8_t RA8876_t3::getTouchState(void)
 		0: no touch
 */
 /**************************************************************************/
-uint8_t RA8876_t3::getTouches(void)
-{
+uint8_t RA8876_t3::getTouches(void) {
 	return _currentTouches;
 }
 
@@ -6921,8 +7280,7 @@ uint8_t RA8876_t3::getTouches(void)
 		Gets the gesture, if identified, must be used AFTER updateTS!
 */
 /**************************************************************************/
-uint8_t RA8876_t3::getGesture(void)
-{
+uint8_t RA8876_t3::getGesture(void) {
 	//if gesture is up, down, left or right, juggle with bit2 & bit3 to match rotation
 	if((_gesture >> 4) & 1){
 		switch(_rotation){
