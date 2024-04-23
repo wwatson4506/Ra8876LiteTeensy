@@ -29,7 +29,7 @@ Pin 26 -----------------> Pin 29   D14
 Pin 27 -----------------> Pin 30   D15
 
 Any T41 pin for BL_CONTROl Pin 14 or 3.3v
-Any T41 pin for WINT Pin 9 Optional wait interrupt pin (XnWAIT)
+Any T41 pin for WINT Pin 33 Optional wait interrupt pin (XnWAIT)
 
 
 as of 4/30/20
