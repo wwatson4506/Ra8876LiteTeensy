@@ -1,17 +1,21 @@
 //**************************************************************//
+// MicroMod 8080 Parallel 8/16 bit with 8 bit DMA support.
+//**************************************************************//
 /*
-File Name : Ra8876_Lite.h                                   
-Author    : RAiO Application Team                             
-Edit Date : 12/29/2015
-Version   : v1.0
-*
-* Modified Version of: File Name : Ra8876_Lite.h                                   
+ * Ra8876LiteTeensy.cpp
+ * Modified Version of: File Name : RA8876_t3.cpp                                   
  *			Author    : RAiO Application Team                             
- *			Edit Date : 09/13/2024
- * 	  	     : For Teensy 3.x and T4
- *                   : By Warren Watson
- *                   : 06/07/2018 - 11/31/2024
- *                   : Copyright (c) 2017-2024 Warren Watson.
+ *			Edit Date : 09/13/2017
+ *			Version   : v2.0  1.modify bte_DestinationMemoryStartAddr bug 
+ *                 			  2.modify ra8876SdramInitial Auto_Refresh
+ *                 			  3.modify ra8876PllInitial 
+ ****************************************************************
+ * 	  	              : New 8080 Parallel version
+ *                    : For MicroMod
+ *                    : By Warren Watson
+ *                    : 06/07/2018 - 05/03/2024
+ *                    : Copyright (c) 2017-2024 Warren Watson.
+ *****************************************************************
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -79,6 +83,9 @@ Version   : v1.0
 //#define USE_FT5206_TOUCH
 
 #include "FlexIO_t4.h"
+
+#define WR_PIN 10  // /WR FlexIO signal pin number.
+#define RD_PIN 12  // /RD NON-FlexIO pin number. Manual assert/deassert.
 
 #define BUS_WIDTH 8  /*Available options are 8 or 16 */
 #define SHIFTER_DMA_REQUEST 3 // only 0, 1, 2, 3 expected to work
@@ -172,7 +179,6 @@ public:
 	ru8 lcdRegDataRead(ru8 reg, bool finalize = true);
 	void lcdDataWrite16bbp(ru16 data, bool finalize = true); 
 	
-    uint16_t lcdDataRead16(bool finalize);
     void lcdDataWrite16(uint16_t data, bool finalize = true);
 
 	/*Status*/

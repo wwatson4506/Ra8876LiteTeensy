@@ -1,4 +1,5 @@
 //**************************************************************//
+// MicroMod 8080 Parallel 8/16 bit with 8 bit DMA support.
 //**************************************************************//
 /*
  * Ra8876LiteTeensy.cpp
@@ -8,11 +9,14 @@
  *			Version   : v2.0  1.modify bte_DestinationMemoryStartAddr bug 
  *                 			  2.modify ra8876SdramInitial Auto_Refresh
  *                 			  3.modify ra8876PllInitial 
- * 	  	      : For Teensy 3.x and T4
+ ****************************************************************
+ * 	  	              : New 8080 Parallel version
+ *                    : For MicroMod
  *                    : By Warren Watson
- *                    : 06/07/2018 - 11/31/2019
- *                    : Copyright (c) 2017-2019 Warren Watson.
- *
+ *                    : 06/07/2018 - 05/03/2024
+ *                    : Copyright (c) 2017-2024 Warren Watson.
+ *****************************************************************
+ * 
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
  * "Software"), to deal in the Software without restriction, including
@@ -281,8 +285,8 @@ FASTRUN void RA8876_t3::FlexIO_Init() {
     hw = &pFlex->hardware();
 
     /* Basic pin setup */
-    pinMode(10, OUTPUT); // FlexIO2:0 WR
-    pinMode(12, OUTPUT); // FlexIO2:1 RD
+    pinMode(WR_PIN, OUTPUT); // FlexIO2:0 WR
+    pinMode(RD_PIN, OUTPUT); // FlexIO2:1 RD
     pinMode(40, OUTPUT); // FlexIO2:4 D0
     pinMode(41, OUTPUT); // FlexIO2:5 |
     pinMode(42, OUTPUT); // FlexIO2:6 |
@@ -292,12 +296,12 @@ FASTRUN void RA8876_t3::FlexIO_Init() {
     pinMode(6, OUTPUT); // FlexIO2:10 |
     pinMode(9, OUTPUT); // FlexIO2:11 D7
 
-    digitalWriteFast(10,HIGH);
-    digitalWriteFast(12,HIGH);
+    digitalWriteFast(WR_PIN,HIGH);
+    digitalWriteFast(RD_PIN,HIGH);
 
     /* High speed and drive strength configuration */
-    *(portControlRegister(10)) = 0xFF;
-    *(portControlRegister(12)) = 0xFF; 
+    *(portControlRegister(WR_PIN)) = 0xFF;
+    *(portControlRegister(RD_PIN)) = 0xFF; 
     *(portControlRegister(40)) = 0xFF;
     *(portControlRegister(41)) = 0xFF;
     *(portControlRegister(42)) = 0xFF;
@@ -311,8 +315,8 @@ FASTRUN void RA8876_t3::FlexIO_Init() {
     pFlex->setClockSettings(3, 1, 0); // (480 MHz source, 1+1, 1+0) >> 480/2/1 >> 240Mhz
 
     /* Set up pin mux */
-    pFlex->setIOPinToFlexMode(10);
-    pFlex->setIOPinToFlexMode(12);
+    pFlex->setIOPinToFlexMode(WR_PIN);
+//    pFlex->setIOPinToFlexMode(RD_PIN);
     pFlex->setIOPinToFlexMode(40);
     pFlex->setIOPinToFlexMode(41);
     pFlex->setIOPinToFlexMode(42);
@@ -332,7 +336,7 @@ FASTRUN void RA8876_t3::FlexIO_Init() {
 }
 
 FASTRUN void RA8876_t3::FlexIO_Config_SnglBeat_Read() {
-    pFlex->setIOPinToFlexMode(12);
+//    pFlex->setIOPinToFlexMode(RD_PIN);
 
     p->CTRL &= ~FLEXIO_CTRL_FLEXEN;
     p->CTRL |= FLEXIO_CTRL_SWRST;
@@ -388,7 +392,7 @@ FASTRUN void RA8876_t3::FlexIO_Config_SnglBeat() {
     p->CTRL |= FLEXIO_CTRL_SWRST;
     p->CTRL &= ~FLEXIO_CTRL_SWRST;
 
-    pFlex->setIOPinToFlexMode(10);
+    pFlex->setIOPinToFlexMode(WR_PIN);
 
     /* Configure the shifters */
     p->SHIFTCFG[0] = 
@@ -457,7 +461,7 @@ FASTRUN void RA8876_t3::FlexIO_Config_MultiBeat()
     uint32_t i;
     uint8_t MulBeatWR_BeatQty = SHIFTNUM * sizeof(uint32_t) / sizeof(uint8_t);   //Number of beats = number of shifters * beats per shifter
 
-    pFlex->setIOPinToFlexMode(10);
+    pFlex->setIOPinToFlexMode(WR_PIN);
 
     /* Disable and reset FlexIO */
     p->CTRL &= ~FLEXIO_CTRL_FLEXEN;
@@ -528,191 +532,161 @@ FASTRUN void RA8876_t3::MulBeatWR_nPrm_DMA(const void *value, uint32_t const len
 {
   while(WR_DMATransferDone == false) {}  //Wait for any DMA transfers to complete
 
-    uint32_t BeatsPerMinLoop = SHIFTNUM * sizeof(uint32_t) / sizeof(uint8_t);   // Number of shifters * number of 8 bit values per shifter
-    uint32_t majorLoopCount, minorLoopBytes;
-    uint32_t destinationModulo = 31-(__builtin_clz(SHIFTNUM*sizeof(uint32_t))); // defines address range for circular DMA destination buffer 
+  uint32_t BeatsPerMinLoop = SHIFTNUM * sizeof(uint32_t) / sizeof(uint8_t);   // Number of shifters * number of 8 bit values per shifter
+  uint32_t majorLoopCount, minorLoopBytes;
+  uint32_t destinationModulo = 31-(__builtin_clz(SHIFTNUM*sizeof(uint32_t))); // defines address range for circular DMA destination buffer 
 
-//    FlexIO_Config_SnglBeat();
-    CSLow();
-    DCHigh();
+  CSLow();
+  DCHigh();
 
   if (length < 8){
-//Serial.println ("In DMA but to Short to multibeat");
     const uint16_t * newValue = (uint16_t*)value;
     uint16_t buf;
-    for(uint32_t i=0; i<length; i++)
-      {
+    for(uint32_t i=0; i<length; i++) {
         buf = *newValue++;
-          while(0 == (p->SHIFTSTAT & (1U << 0)))
-          {
-          }
+          while(0 == (p->SHIFTSTAT & (1U << 0))) {}
           p->SHIFTBUF[0] = buf >> 8;
-          while(0 == (p->SHIFTSTAT & (1U << 0)))
-          {
-          }
+          while(0 == (p->SHIFTSTAT & (1U << 0))) {}
           p->SHIFTBUF[0] = buf & 0xFF;
-      }        
-      //Wait for transfer to be completed 
-      while(0 == (p->TIMSTAT & (1U << 0)))
-      {
-      }
+    }        
+    //Wait for transfer to be completed 
+    while(0 == (p->TIMSTAT & (1U << 0))) {}
     CSHigh();
 
   } else {
-    //memcpy(framebuff, value, length); 
-    //arm_dcache_flush((void*)framebuff, sizeof(framebuff)); // always flush cache after writing to DMAMEM variable that will be accessed by DMA
     
-    FlexIO_Config_MultiBeat();
+  FlexIO_Config_MultiBeat();
     
-    MulBeatCountRemain = length % BeatsPerMinLoop;
-    MulBeatDataRemain = (uint16_t*)value + ((length - MulBeatCountRemain)); // pointer to the next unused byte (overflow if MulBeatCountRemain = 0)
-    TotalSize = (length - MulBeatCountRemain)*2;               /* in bytes */
-    minorLoopBytes = SHIFTNUM * sizeof(uint32_t);
-    majorLoopCount = TotalSize/minorLoopBytes;
-//Serial.printf("Length(16bit): %d, Count remain(16bit): %d, Data remain: %d, TotalSize(8bit): %d, majorLoopCount: %d \n",length, MulBeatCountRemain, MulBeatDataRemain, TotalSize, majorLoopCount );
-    /* Configure FlexIO with multi-beat write configuration */
-    flexDma.begin();
+  MulBeatCountRemain = length % BeatsPerMinLoop;
+  MulBeatDataRemain = (uint16_t*)value + ((length - MulBeatCountRemain)); // pointer to the next unused byte (overflow if MulBeatCountRemain = 0)
+  TotalSize = (length - MulBeatCountRemain)*2;               /* in bytes */
+  minorLoopBytes = SHIFTNUM * sizeof(uint32_t);
+  majorLoopCount = TotalSize/minorLoopBytes;
+  /* Configure FlexIO with multi-beat write configuration */
+  flexDma.begin();
 
-    /* Setup DMA transfer with on-the-fly swapping of MSB and LSB in 16-bit data:
-     *  Within each minor loop, read 16-bit values from buf in reverse order, then write 32bit values to SHIFTBUFBYS[i] in reverse order.
-     *  Result is that every pair of bytes are swapped, while half-words are unswapped.
-     *  After each minor loop, advance source address using minor loop offset. */
-    int destinationAddressOffset, destinationAddressLastOffset, sourceAddressOffset, sourceAddressLastOffset, minorLoopOffset;
-    volatile void *destinationAddress, *sourceAddress;
+  int destinationAddressOffset, destinationAddressLastOffset, sourceAddressOffset, sourceAddressLastOffset, minorLoopOffset;
+  volatile void *destinationAddress, *sourceAddress;
 
-    DMA_CR |= DMA_CR_EMLM; // enable minor loop mapping
+  DMA_CR |= DMA_CR_EMLM; // enable minor loop mapping
+  arm_dcache_flush_delete((void *)value, length * 2);  // important to flush cache before DMA. Otherwise, DMA will read from cache instead of memory and screen shows "snow" effects.
 
-    sourceAddress = (uint16_t*)value + minorLoopBytes/sizeof(uint16_t) - 1; // last 16bit address within current minor loop
-    sourceAddressOffset = -sizeof(uint16_t); // read values in reverse order
-    minorLoopOffset = 2*minorLoopBytes; // source address offset at end of minor loop to advance to next minor loop
-    sourceAddressLastOffset = minorLoopOffset - TotalSize; // source address offset at completion to reset to beginning
-    destinationAddress = (uint32_t*)&p->SHIFTBUF[SHIFTNUM-1]; // last 32bit shifter address (with reverse byte order)
-//    destinationAddress = (uint32_t*)&p->SHIFTBUFBYS[7]; // last 32bit shifter address (with reverse byte order)
-    destinationAddressOffset = -sizeof(uint32_t); // write words in reverse order
-    destinationAddressLastOffset = 0;
+  /* From now on, the SHIFTERS in MultiBeat mode are working correctly. Begin DMA transfer */
+  sourceAddress = (uint16_t*)value + minorLoopBytes/sizeof(uint16_t) - 1; // last 16bit address within current minor loop
+  sourceAddressOffset = -sizeof(uint16_t); // read values in reverse order
+  minorLoopOffset = 2*minorLoopBytes; // source address offset at end of minor loop to advance to next minor loop
+  sourceAddressLastOffset = minorLoopOffset - TotalSize; // source address offset at completion to reset to beginning
+  destinationAddress = (void *)&p->SHIFTBUFHWS[SHIFTNUM - 1]; // last 32bit shifter address (with reverse byte order)
+  destinationAddressOffset = -sizeof(uint32_t); // write words in reverse order
+  destinationAddressLastOffset = 0;
 
-    flexDma.TCD->SADDR = sourceAddress;
-    flexDma.TCD->SOFF = sourceAddressOffset;
-    flexDma.TCD->SLAST = sourceAddressLastOffset;
-    flexDma.TCD->DADDR = destinationAddress;
-    flexDma.TCD->DOFF = destinationAddressOffset;
-    flexDma.TCD->DLASTSGA = destinationAddressLastOffset;
-    flexDma.TCD->ATTR =
-        DMA_TCD_ATTR_SMOD(0U)
-      | DMA_TCD_ATTR_SSIZE(DMA_TCD_ATTR_SIZE_16BIT) // 16bit reads
-      | DMA_TCD_ATTR_DMOD(destinationModulo)
-      | DMA_TCD_ATTR_DSIZE(DMA_TCD_ATTR_SIZE_32BIT); // 32bit writes
-    flexDma.TCD->NBYTES_MLOFFYES = 
-        DMA_TCD_NBYTES_SMLOE
-      | DMA_TCD_NBYTES_MLOFFYES_MLOFF(minorLoopOffset)
-      | DMA_TCD_NBYTES_MLOFFYES_NBYTES(minorLoopBytes);
+  flexDma.TCD->SADDR = sourceAddress;
+  flexDma.TCD->SOFF = sourceAddressOffset;
+  flexDma.TCD->SLAST = sourceAddressLastOffset;
+  flexDma.TCD->DADDR = destinationAddress;
+  flexDma.TCD->DOFF = destinationAddressOffset;
+  flexDma.TCD->DLASTSGA = destinationAddressLastOffset;
+  flexDma.TCD->ATTR =
+    DMA_TCD_ATTR_SMOD(0U)
+    | DMA_TCD_ATTR_SSIZE(DMA_TCD_ATTR_SIZE_16BIT) // 16bit reads
+    | DMA_TCD_ATTR_DMOD(destinationModulo)
+    | DMA_TCD_ATTR_DSIZE(DMA_TCD_ATTR_SIZE_32BIT); // 32bit writes
+  flexDma.TCD->NBYTES_MLOFFYES = 
+    DMA_TCD_NBYTES_SMLOE
+    | DMA_TCD_NBYTES_MLOFFYES_MLOFF(minorLoopOffset)
+    | DMA_TCD_NBYTES_MLOFFYES_NBYTES(minorLoopBytes);
     flexDma.TCD->CITER = majorLoopCount; // Current major iteration count
     flexDma.TCD->BITER = majorLoopCount; // Starting major iteration count
-
     flexDma.triggerAtHardwareEvent(hw->shifters_dma_channel[SHIFTER_DMA_REQUEST]);
     flexDma.disableOnCompletion();
     flexDma.interruptAtCompletion();
     flexDma.clearComplete();
-    //Serial.println("Dma setup done");
 
     /* Start data transfer by using DMA */
     WR_DMATransferDone = false;
     flexDma.attachInterrupt(dmaISR);
     flexDma.enable();
-    //Serial.println("Starting transfer");
     dmaCallback = this;
-   }
+  }
 }
 
-FASTRUN void RA8876_t3::dmaISR()
-{
+FASTRUN void RA8876_t3::dmaISR() {
   flexDma.clearInterrupt();
   asm volatile ("dsb"); // prevent interrupt from re-entering
   dmaCallback->flexDma_Callback();
 }
 
-FASTRUN void RA8876_t3::flexDma_Callback()
-{
-//Serial.printf("DMA callback start triggred \n");
-    
-    /* the interrupt is called when the final DMA transfer completes writing to the shifter buffers, which would generally happen while
-    data is still in the process of being shifted out from the second-to-last major iteration. In this state, all the status flags are cleared.
-    when the second-to-last major iteration is fully shifted out, the final data is transfered from the buffers into the shifters which sets all the status flags.
-    if you have only one major iteration, the status flags will be immediately set before the interrupt is called, so the while loop will be skipped. */
-    while(0 == (p->SHIFTSTAT & (1U << (SHIFTNUM-1)))) {}
-    
-    /* Wait the last multi-beat transfer to be completed. Clear the timer flag
-    before the completing of the last beat. The last beat may has been completed
-    at this point, then code would be dead in the while() below. So mask the
-    while() statement and use the software delay .*/
-    p->TIMSTAT |= (1U << 0U);
+FASTRUN void RA8876_t3::flexDma_Callback() {
+  /* the interrupt is called when the final DMA transfer completes writing to the shifter buffers, which would generally happen while
+  data is still in the process of being shifted out from the second-to-last major iteration. In this state, all the status flags are cleared.
+  when the second-to-last major iteration is fully shifted out, the final data is transfered from the buffers into the shifters which sets all the status flags.
+  if you have only one major iteration, the status flags will be immediately set before the interrupt is called, so the while loop will be skipped. */
+  while(0 == (p->SHIFTSTAT & (1U << (SHIFTNUM-1)))) {}
+  
+  /* Wait the last multi-beat transfer to be completed. Clear the timer flag
+  before the completing of the last beat. The last beat may has been completed
+  at this point, then code would be dead in the while() below. So mask the
+  while() statement and use the software delay .*/
+  p->TIMSTAT |= (1U << 0U);
 
-    /* Wait timer flag to be set to ensure the completing of the last beat. */
-    while(0 == (p->TIMSTAT & (1U << 0U))) {}
+  /* Wait timer flag to be set to ensure the completing of the last beat. */
+  while(0 == (p->TIMSTAT & (1U << 0U))) {}
 
-//Serial.printf("MulBeatCountRemain = %d\n",MulBeatCountRemain);    
-    if(MulBeatCountRemain)
-    {
-      //Serial.printf("MulBeatCountRemain in DMA callback: %d, MulBeatDataRemain %x \n", MulBeatCountRemain,MulBeatDataRemain);
-      uint16_t value;
-        /* Configure FlexIO with 1-beat write configuration */
-        FlexIO_Config_SnglBeat();
+  if(MulBeatCountRemain) {
+    uint16_t value;
 
-//Serial.printf("Starting single beat completion: %d \n", MulBeatCountRemain);
+    /* Configure FlexIO with 1-beat write configuration */
+    FlexIO_Config_SnglBeat();
 
-        /* Use polling method for data transfer */
-        for(uint32_t i=0; i<(MulBeatCountRemain); i++)
-        {
-          value = *MulBeatDataRemain++;
-            while(0 == (p->SHIFTSTAT & (1U << 0))) {}
-            p->SHIFTBUF[0] = value >> 8;
-
-            while(0 == (p->SHIFTSTAT & (1U << 0))) {}
-            p->SHIFTBUF[0] = value & 0xFF;
-        }
-        p->TIMSTAT |= (1U << 0);
-        /*Wait for transfer to be completed */
-        while(0 == (p->TIMSTAT |= (1U << 0))) {}
-//Serial.println("Finished single beat completion");
+    /* Use polling method for data transfer */
+    for(uint32_t i=0; i<(MulBeatCountRemain); i++) {
+      value = *MulBeatDataRemain++;
+      while(0 == (p->SHIFTSTAT & (1U << 0))) {}
+      p->SHIFTBUF[0] = value >> 8;
+      while(0 == (p->SHIFTSTAT & (1U << 0))) {}
+      p->SHIFTBUF[0] = value & 0xFF;
     }
-    CSHigh();
-    /* the for loop is probably not sufficient to complete the transfer. Shifting out all 32 bytes takes (32 beats)/(6 MHz) = 5.333 microseconds which is over 3000 CPU cycles.
-    If you really need to wait in this callback until all the data has been shifted out, the while loop is probably the correct solution and I don't think it risks an infinite loop.
-    however, it seems like a waste of time to wait here, since the process otherwise completes in the background and the shifter buffers are ready to receive new data while the transfer completes.
-    I think in most applications you could continue without waiting. You can start a new DMA transfer as soon as the first one completes (no need to wait for FlexIO to finish shifting). */
-    WR_DMATransferDone = true;
-//    flexDma.disable(); // not necessary because flexDma is already configured to disable on completion
-    if(isCB){
-//Serial.printf("custom callback triggred \n");
+    p->TIMSTAT |= (1U << 0);
+    /*Wait for transfer to be completed */
+    while(0 == (p->TIMSTAT |= (1U << 0))) {}
+  }
+
+  CSHigh();
+
+  /* the for loop is probably not sufficient to complete the transfer. Shifting out all 32 bytes takes (32 beats)/(6 MHz) = 5.333 microseconds which is over 3000 CPU cycles.
+  If you really need to wait in this callback until all the data has been shifted out, the while loop is probably the correct solution and I don't think it risks an infinite loop.
+  however, it seems like a waste of time to wait here, since the process otherwise completes in the background and the shifter buffers are ready to receive new data while the transfer completes.
+  I think in most applications you could continue without waiting. You can start a new DMA transfer as soon as the first one completes (no need to wait for FlexIO to finish shifting). */
+  WR_DMATransferDone = true;
+  if(isCB) {
     _onCompleteCB();
-    }
-//Serial.printf("DMA callback end triggred \n");
+  }
 }
 
-void RA8876_t3::DMAerror(){
-  if(flexDma.error()){
+void RA8876_t3::DMAerror() {
+  if(flexDma.error()) {
     Serial.print("DMA error: ");
     Serial.println(DMA_ES, HEX);
   } 
 }
 
-FASTRUN void RA8876_t3::pushPixels16bitDMA(const uint16_t * pcolors, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2){
-  while(WR_DMATransferDone == false) {}    //Wait for any DMA transfers to complete
+FASTRUN void RA8876_t3::pushPixels16bitDMA(const uint16_t * pcolors, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2) {
   uint32_t area = (x2)*(y2);
-	graphicMode(true);
-	activeWindowXY(x1,y1);
-	activeWindowWH(x2,y2);
-	setPixelCursor(x1,y1);
-	ramAccessPrepare();
+  while(WR_DMATransferDone == false) {}    //Wait for any DMA transfers to complete
+
+  graphicMode(true);
+  activeWindowXY(x1,y1);
+  activeWindowWH(x2,y2);
+  setPixelCursor(x1,y1);
+  ramAccessPrepare();
   MulBeatWR_nPrm_DMA(pcolors, area);
 }
 
-FASTRUN void RA8876_t3::_onCompleteCB()
-{
-  if (_callback){
-        _callback();
-      }
-      return;
+FASTRUN void RA8876_t3::_onCompleteCB() {
+  if(_callback) {
+    _callback();
+  }
+  return;
 }
 
 //**************************************************************//
@@ -720,22 +694,20 @@ FASTRUN void RA8876_t3::_onCompleteCB()
 // Return true on success.
 //**************************************************************//
 boolean RA8876_t3::ra8876Initialize() {
-	
-	// Init PLL
-	if(!ra8876PllInitial()) {
-		return false;
-    }
-	// Init SDRAM
-	if(!ra8876SdramInitial()) {
-		return false;
-	}
-  
-  lcdRegWrite(RA8876_CCR);//01h
+  // Init PLL
+  if(!ra8876PllInitial()) {
+    return false;
+  }
+  // Init SDRAM
+  if(!ra8876SdramInitial()) {
+    return false;
+  }
 
-  if(BUS_WIDTH == 16) {
+  lcdRegWrite(RA8876_CCR);//01h
+  if(BUS_WIDTH == 16) { // Set 8080 16bit wide data bus.
     lcdDataWrite(RA8876_PLL_ENABLE<<7|RA8876_WAIT_NO_MASK<<6|RA8876_KEY_SCAN_DISABLE<<5|RA8876_TFT_OUTPUT24<<3
     |RA8876_I2C_MASTER_DISABLE<<2|RA8876_SERIAL_IF_DISABLE<<1|RA8876_HOST_DATA_BUS_16BIT);
-  } else {
+  } else { // Set 8080 8bit wide data bus
     lcdDataWrite(RA8876_PLL_ENABLE<<7|RA8876_WAIT_NO_MASK<<6|RA8876_KEY_SCAN_DISABLE<<5|RA8876_TFT_OUTPUT24<<3
     |RA8876_I2C_MASTER_DISABLE<<2|RA8876_SERIAL_IF_DISABLE<<1|RA8876_HOST_DATA_BUS_8BIT);
   }
@@ -762,28 +734,28 @@ boolean RA8876_t3::ra8876Initialize() {
   lcdRegWrite(RA8876_DPCR);//12h
   lcdDataWrite(XPCLK_INV<<7|RA8876_DISPLAY_OFF<<6|RA8876_OUTPUT_RGB);
   
-	/* TFT timing configure (1024x600) */
-	lcdRegWrite(RA8876_DPCR);//12h
-	lcdDataWrite(XPCLK_INV<<7|RA8876_DISPLAY_OFF<<6|RA8876_OUTPUT_RGB);
+  /* TFT timing configure (1024x600) */
+  lcdRegWrite(RA8876_DPCR);//12h
+  lcdDataWrite(XPCLK_INV<<7|RA8876_DISPLAY_OFF<<6|RA8876_OUTPUT_RGB);
 	
-	lcdRegWrite(RA8876_PCSR);//13h
-	lcdDataWrite(XHSYNC_INV<<7|XVSYNC_INV<<6|XDE_INV<<5);
+  lcdRegWrite(RA8876_PCSR);//13h
+  lcdDataWrite(XHSYNC_INV<<7|XVSYNC_INV<<6|XDE_INV<<5);
     
-	lcdHorizontalWidthVerticalHeight(HDW,VDH);
-	lcdHorizontalNonDisplay(HND);
-	lcdHsyncStartPosition(HST);
-	lcdHsyncPulseWidth(HPW);
-	lcdVerticalNonDisplay(VND);
-	lcdVsyncStartPosition(VST);
-	lcdVsyncPulseWidth(VPW);
+  lcdHorizontalWidthVerticalHeight(HDW,VDH);
+  lcdHorizontalNonDisplay(HND);
+  lcdHsyncStartPosition(HST);
+  lcdHsyncPulseWidth(HPW);
+  lcdVerticalNonDisplay(VND);
+  lcdVsyncStartPosition(VST);
+  lcdVsyncPulseWidth(VPW);
 	
-	// Init Global Variables
-	_width = 	SCREEN_WIDTH;
-	_height = 	SCREEN_HEIGHT;
-	_rotation = 0;
-	currentPage = PAGE1_START_ADDR; // set default screen page address
-	pageOffset = 0;
-	gCursorX = 0;
+  // Init Global Variables
+  _width = 	SCREEN_WIDTH;
+  _height = 	SCREEN_HEIGHT;
+  _rotation = 0;
+  currentPage = PAGE1_START_ADDR; // set default screen page address
+  pageOffset = 0;
+  gCursorX = 0;
 	gCursorY = 0;
 	_cursorX = 0;
 	_cursorY = 0;
@@ -990,17 +962,22 @@ ru8 RA8876_t3::lcdDataRead(bool finalize) {
 
   while(WR_DMATransferDone == false) {} //Wait for any DMA transfers to complete
 //  while(digitalReadFast(WINT) == 0);  // If monitoring XnWAIT signal from RA8876.
+  FlexIO_Config_SnglBeat_Read();
 
   CSLow();  // Must to go low after config and delay above.
   DCHigh(); // Should already be HIGH
 
-  FlexIO_Config_SnglBeat_Read();
+  digitalWriteFast(RD_PIN,LOW);
 
   while (0 == (p->SHIFTSTAT & (1 << 3))) {}
   dummy = p->SHIFTBUFBYS[3];
   while (0 == (p->SHIFTSTAT & (1 << 3))) {}
   data = p->SHIFTBUFBYS[3];
+
   CSHigh();
+
+  digitalWriteFast(RD_PIN,HIGH);
+
 
 //  Serial.printf("lcdDataread(): Dummy 0x%4.4x, data 0x%4.4x\n", dummy, data);
 
@@ -1026,12 +1003,16 @@ ru8 RA8876_t3::lcdStatusRead(bool finalize)
   CSLow();
   DCLow();
 
+  digitalWriteFast(RD_PIN,LOW);
+
   uint16_t data = 0;
   while (0 == (p->SHIFTSTAT & (1 << 3))) {}
   data = p->SHIFTBUFBYS[3];
 
   DCHigh();
   CSHigh();
+
+  digitalWriteFast(RD_PIN,HIGH);
 //Serial.printf("Dummy 0x%4.4x, data 0x%4.4x\n", dummy, data);
 
   //Set FlexIO back to Write mode
@@ -1075,39 +1056,6 @@ void RA8876_t3::lcdDataWrite16bbp(ru16 data, bool finalize)
   } else {
     lcdDataWrite16(data, false );
   }
-}
-
-//**************************************************************//
-// 16 bit read RA8876 Data. 8/16 bit bus mode.
-//**************************************************************//
-uint16_t RA8876_t3::lcdDataRead16(bool finalize) 
-{
-  uint16_t dummy = 0;
-  uint16_t data = 0;
-
-  while(WR_DMATransferDone == false) {} //Wait for any DMA transfers to complete
-//  while(digitalReadFast(WINT) == 0);  // If monitoring XnWAIT signal from RA8876.
-
-  CSLow();  // Must to go low after config and delay above.
-  DCHigh(); // Should already be HIGH
-
-  FlexIO_Config_SnglBeat_Read();
-
-  while (0 == (p->SHIFTSTAT & (1 << 3))) {}
-  dummy = p->SHIFTBUFBYS[3];
-
-  while (0 == (p->SHIFTSTAT & (1 << 3))) {}
-  data = p->SHIFTBUFBYS[3];
-  CSHigh();
-
-//  Serial.printf("lcdDataread16(): Dummy 0x%4.4x, data 0x%4.4x\n", dummy, data);
-
-  //Set FlexIO back to Write mode
-  FlexIO_Config_SnglBeat(); // Not sure if this is needed.
-  if(BUS_WIDTH == 8)
-    return (dummy << 8) | (data & 0xff); // High byte to low byte and mask.
-  else
-    return (data >> 8) | (data << 8);
 }
 
 //*********************************************************
@@ -1984,12 +1932,9 @@ ru16 RA8876_t3::getPixel(ru16 x,ru16 y) {
 	graphicMode(true);
 	setPixelCursor(x, y);		// set memory address
 	ramAccessPrepare();			// Setup SDRAM Access
-//	rdata = lcdDataRead();		// dummyread to alert MPU
-//	rdata = lcdDataRead();		// dummyread to alert MPU
-//	rdata = (lcdDataRead() & 0xff);		// read low byte
-//	rdata |= lcdDataRead()<<8;	// add high byte 
-//	rdata = lcdDataRead16(false);	//
-	rdata = lcdDataRead16(false);	//
+	rdata = lcdDataRead();		// dummyread to alert MPU
+	rdata = (lcdDataRead() & 0xff);		// read low byte
+	rdata |= lcdDataRead()<<8;	// add high byte 
  	return rdata;
 }
 
@@ -3495,6 +3440,7 @@ void RA8876_t3::bteMpuWriteWithROPData8(ru32 s1_addr,ru16 s1_image_width,ru16 s1
 ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned char *data) {
   bteMpuWriteWithROP(s1_addr, s1_image_width, s1_x, s1_y, des_addr, des_image_width, des_x, des_y, width, height, rop_code);
 //MulBeatWR_nPrm_DMA(data,(width)*(height));
+
   ru16 i,j;
   while(WR_DMATransferDone == false) {} //Wait for any DMA transfers to complete
 
@@ -3505,7 +3451,7 @@ ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned char *d
   DCHigh();
   for(j=0;j<height;j++) {
 	for(i=0;i<width;i++) {
-	  delayNanoseconds(15);  // Initially setup for the dev board v4.0
+//	  delayNanoseconds(15);  // Initially setup for the dev board v4.0
       if(_rotation & 1) delayNanoseconds(20);
       p->SHIFTBUF[0] = *data++;
       // Wait for transfer to be completed
@@ -3519,6 +3465,7 @@ ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned char *d
   }
   // De-assert /CS pin
   CSHigh();
+
 }
 
 //**************************************************************//
@@ -3540,7 +3487,7 @@ ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned short *
   DCHigh();
   for(j=0;j<height;j++) {
 	for(i=0;i<width;i++) {
-      delayNanoseconds(150);   // Initially setup for the dev board v4.0 
+//      delayNanoseconds(150);   // Initially setup for the dev board v4.0 
       if(_rotation & 1) delayNanoseconds(70);
       p->SHIFTBUF[0] = *data++;
       /*Wait for transfer to be completed */
@@ -3589,7 +3536,7 @@ void RA8876_t3::bteMpuWriteWithChromaKeyData8(ru32 des_addr,ru16 des_image_width
   DCHigh();
   for(j=0;j<height;j++) {
 	for(i=0;i<width;i++) {
-	  delayNanoseconds(15);  // Initially setup for the dev board v4.0
+//	  delayNanoseconds(15);  // Initially setup for the dev board v4.0
       if(_rotation & 1) delayNanoseconds(20);
       p->SHIFTBUF[0] = *data++;
       // Wait for transfer to be completed
@@ -3620,7 +3567,7 @@ void RA8876_t3::bteMpuWriteWithChromaKeyData16(ru32 des_addr,ru16 des_image_widt
   DCHigh();
   for(j=0;j<height;j++) {
 	for(i=0;i<width;i++) {
-      delayNanoseconds(1);   // Initially setup for the dev board v4.0 
+//      delayNanoseconds(1);   // Initially setup for the dev board v4.0 
       if(_rotation & 1) delayNanoseconds(70);
       p->SHIFTBUF[0] = *data++;
       /*Wait for transfer to be completed */
