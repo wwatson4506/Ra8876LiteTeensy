@@ -203,8 +203,7 @@ void setup() {
   digitalWrite(BACKLITE, HIGH);
 //  analogWrite(BACKLITE, 256);
 
-//  tft.begin(47000000);
-  bool result = tft.begin(8);
+  bool result = tft.begin(12);
 
   if (!result) {
     Serial.println("TFT initialization failed!");
