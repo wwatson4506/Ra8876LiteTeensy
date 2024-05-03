@@ -1,15 +1,16 @@
 MAJOR UPDATE
 This version of Ra8876LiteTeensy adds the ability to communicate with the RA8876 in 8080 parallel mode.
-It can use either a 8-bit or 16-bit parallel data bus. It is compatible with the Teensy 4.1 and MicroMod boards.
+Either a 8-bit or 16-bit parallel data bus mode is available and is compatible with the Teensy 4.1 and MicroMod boards.
+DMA writes are supported.
 
-        T4.1 pinouts:
-T4.1                      ER-TFTM101-1 (40 PIN CONNECTOR)
+    Teensy MicroMod Pinouts:
+MicroMod                 ER-TFTM101-1 (40 PIN CONNECTOR)
 ---------------------------------------------------------
 Pin 11 -----------------> Pin 07  /CS
-Pin 12 -----------------> Pin 11  /RST
+Pin  5 -----------------> Pin 11  /RST
 Pin 13 -----------------> Pin 08  /RS (/DC)
-Pin 12 -----------------> Pin 05  /RD
 Pin 10 -----------------> Pin 06  /WR
+Pin 12 -----------------> Pin 05  /RD
 Pin 40 -----------------> Pin 15   D0
 Pin 41 -----------------> Pin 16   D1
 Pin 42 -----------------> Pin 17   D2
@@ -19,8 +20,8 @@ Pin 45 -----------------> Pin 20   D5
 Pin  6 -----------------> Pin 21   D6
 Pin  9 -----------------> Pin 22   D7
 
-Any MicroMod pin for BL_CONTROl Pin 14 or 3.3v
-Any MicroMod pin for WINT Pin 5 Optional wait interrupt pin (XnWAIT)
+Any MicroMod pin for RA8876 BL_CONTROl Pin 14 or 3.3v
+*************** RA8876 WINT Pin 9 Optional wait interrupt pin (XnWAIT) is not supported now *******************
 
 as of 4/30/20
 Added frame buffering type support:
