@@ -16,18 +16,18 @@
 //#define RA8876_RESET 8
 #define BACKLITE 5 //External backlight control connected to this Arduino pin
 //RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
-/*
+
 // MicroMod
 uint8_t dc = 13;
 uint8_t cs = 11;
 uint8_t rst = 5;
-*/
 
+/*
 // SDRAM DEV board V4.0
 uint8_t dc = 17;
 uint8_t cs = 14;
 uint8_t rst = 27;
-
+*/
 /*
 // T4.1
 uint8_t dc = 13;
@@ -90,7 +90,6 @@ void setup() {
   Serial.begin(115200);
   while (!Serial);
 
-//  tft.begin();
   tft.begin(20);
   delay(100);
   
