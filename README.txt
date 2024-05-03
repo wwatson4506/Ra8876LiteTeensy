@@ -5,7 +5,7 @@ DMA writes are supported.
 
 NOTE: To use the graphicsCursor.ino sketch "USBHost_t36/mouse.cpp" must be modified to allow mouse buttons to
       function properly. In the "mouseDataClear()" function "buttons = 0;" must be commented out,"// buttons = 0;".
-      The buttons are automatically cleared upon release of the butttons or by mouse movement.
+      The buttons are automatically cleared upon release of the buttons or by mouse movement.
 
     Teensy MicroMod Pinouts:
 MicroMod                 ER-TFTM101-1 (40 PIN CONNECTOR)
