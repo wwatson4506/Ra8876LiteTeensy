@@ -91,8 +91,8 @@ void setup() {
   //backlight control instead of the internal RA8876 PWM.
   //Connect a Teensy pin to pin 14 on the display.
   //Can use analogWrite() but I suggest you increase the PWM frequency first so it doesn't sing.
-  pinMode(BACKLITE, OUTPUT);
-  digitalWrite(BACKLITE, HIGH);
+  //pinMode(BACKLITE, OUTPUT);
+  //digitalWrite(BACKLITE, HIGH);
     
   tft.begin(12);
   delay(100);
@@ -102,7 +102,7 @@ void setup() {
 	tft.setFontSize(1,false);
 	tft.fillStatusLine(myColors[11]);
 	tft.printStatusLine(0,myColors[1],myColors[11],"Sumotoy's treedee sketch on the T4.");
-    tft.setMargins(0, 0, tft.width(), tft.height()); //so fillscreen doesn't erase the status bar
+    tft.setMargins(0, 0, tft.width(), tft.height()-24); //so fillscreen doesn't erase the status bar
 }
 
 
