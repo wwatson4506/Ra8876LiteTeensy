@@ -11,18 +11,13 @@
 // is 16 pixels in height with functions to support it.
 // guages.ino
 #include "Arduino.h"
-//#include "Ra8876_Lite.h"
 #include "RA8876_t3.h"
-
-//#include "vt100.h"
 #include <math.h>
-
 
 //#define RA8876_CS 10
 //#define RA8876_RESET 8
 #define BACKLITE 5 // was 7 //External backlight control connected to this Arduino pin
 //RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
-
 
 // MicroMod
 uint8_t dc = 13;
@@ -119,11 +114,12 @@ void setup() {
   //backlight control instead of the internal RA8876 PWM.
   //Connect a Teensy pin to pin 14 on the display.
   //Can use analogWrite() but I suggest you increase the PWM frequency first so it doesn't sing.
-  pinMode(BACKLITE, OUTPUT);
-  digitalWrite(BACKLITE, HIGH);
+//  pinMode(BACKLITE, OUTPUT);
+//  digitalWrite(BACKLITE, HIGH);
   
-  tft.begin(8);
-	//initVT100();
+  tft.begin(20);
+  delay(100);
+  
 	tft.setFontSize(2,false);
 	tft.setCursor(0,0);
 	tft.fillScreen(myColors[11]);
