@@ -3,6 +3,10 @@ This version of Ra8876LiteTeensy adds the ability to communicate with the RA8876
 Either a 8-bit or 16-bit parallel data bus mode is available and is compatible with the Teensy 4.1 and MicroMod boards.
 DMA writes are supported.
 
+NOTE: To use the graphicsCursor.ino sketch "USBHost_t36/mouse.cpp" must be modified to allow mouse buttons to
+      function properly. In the "mouseDataClear()" function "buttons = 0;" must be commented out,"// buttons = 0;".
+      The buttons are automatically cleared upon release of the butttons or by mouse movement.
+
     Teensy MicroMod Pinouts:
 MicroMod                 ER-TFTM101-1 (40 PIN CONNECTOR)
 ---------------------------------------------------------
