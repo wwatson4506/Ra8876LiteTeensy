@@ -226,13 +226,13 @@ void setup() {
 //  analogWrite(BACKLITE, 40);
 
   bool result = tft.begin(12);
-
-/*
+  delay(100);
+  
   if (!result) {
     Serial.println("TFT initialization failed!");
     Serial.println("Is it plugged in properly?");
   }
-*/
+
   tft.fillScreen(DARKBLUE);
   tft.setFontSize(1, false);
   tft.setCursor(0,0);
