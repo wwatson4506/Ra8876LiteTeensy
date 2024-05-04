@@ -1154,7 +1154,6 @@ void RA8876_t3::check2dBusy(void)
 {  ru32 i; 
    for(i=0;i<100000;i++)   //Please according to your usage to modify i value.
    { 
-   delayMicroseconds(1);
     if( (lcdStatusRead()&0x08)==0x00 )
     {return;}
    }
