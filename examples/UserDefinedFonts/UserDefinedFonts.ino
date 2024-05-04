@@ -65,9 +65,8 @@ void setup() {
 //  pinMode(BACKLITE, OUTPUT);
 //  digitalWrite(BACKLITE, HIGH);
       
-//	tft.begin();
-	tft.begin(12);
-	//initVT100();
+	tft.begin(20);
+    delay(100);
 	tft.fontLoadMEM((char *)font8x16);
 	tft.setFontSize(1,false);
 	tft.setCursor(0,0);
