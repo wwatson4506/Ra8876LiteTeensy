@@ -70,6 +70,7 @@ Version   : v1.0
 
 #include "Arduino.h"
 #include "RA8876Registers.h"
+#include "DMAChannel.h"
 
 #ifndef _RA8876_T3
 #define _RA8876_T3
