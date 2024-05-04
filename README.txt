@@ -2,14 +2,19 @@ MAJOR UPDATE 04-20-24
 This version of Ra8876LiteTeensy adds the ability to communicate with the RA8876 in 8080 parallel mode.
 It can use either a 8-bit or 16-bit parallel data bus. This version is compatible with SDRAM DEV Board V4.0.
 
-        DEV board pinouts:
+*** CONNECTING THE TEENSY TO THE ER-TFTM101-1 ***
+
+40 pin dual inline connector pinouts can be found here.
+https://www.buydisplay.com/download/interfacing/ER-TFTM101-1_RTP_Interfacing.pdf
+
+         DEV board pinouts:
 DEV Board                ER-TFTM101-1 (40 PIN CONNECTOR)
 ---------------------------------------------------------
 Pin 14 -----------------> Pin 07  /CS
 Pin 27 -----------------> Pin 11  /RST
 Pin 17 -----------------> Pin 08  /RS (/DC)
-Pin B0_01 -----------------> Pin 05  /RD
 Pin B0_00 -----------------> Pin 06  /WR
+Pin B0_01 -----------------> Pin 05  /RD
 Pin B0_04 -----------------> Pin 15   D0
 Pin B0_05 -----------------> Pin 16   D1
 Pin B0_06 -----------------> Pin 17   D2
@@ -30,6 +35,20 @@ Pin B1_03 -----------------> Pin 30   D15
 
 Any SDRAM Dev Board pin for BL_CONTROl Pin xx or 3.3v
 Any SDRAM Dev Board pin for WINT Pin 16 Optional wait interrupt pin (XnWAIT)
+
+*** Touch Screen was only tested on the T36 with the TallDog breakout board.    ***
+*** Resistive touch panel uses XPT2046. Used a modified version of XPT2046.cpp  ***
+ 
+                       TOUCH SCREEN
+-------------------------------------------------------------
+Pin 31 /CS1  --------------------------------> Pin 32 TP_/CS
+Pin 32 SCK2  --------------------------------> Pin 35 TP_SLCK
+Pin 0  MOSI1 --------------------------------> Pin 34 TP_DIN
+Pin 1  MISO1 --------------------------------> Pin 36 TP_DOUT
+Pin 24 TSINT <-------------------------------- Pin 33 TS_PEN
+--------------------------------------------------------------
+
+NOTE: The SDRAM Dev board V4.0 does not have a USB Host port available so the "graphicsCursor.ino" sketch will not work.
 
 as of 4/30/20
 Added frame buffering type support:
@@ -67,10 +86,6 @@ printStatusLine(uint16_t x0,uint16_t fgColor,uint16_t bgColor, const char *text)
 
 6. All examples have been updated to the new data calls and working with the updated library.
 
-
-
-
-
 ==========================================================================================
 Ra8876LiteTeeensy WIP
 
@@ -102,33 +117,6 @@ needs a 74HCT125 or similar chip if using more than one device on the same SPI p
 
 Check out Sumotoy's WEB page for a solution to this problem.
 https://github.com/sumotoy/RA8875/wiki/Fix-compatibility-with-other-SPI-devices
-
-*** CONNECTING THE TEENSY TO THE ER-TFTM101-1 ***
-
-40 pin dual inline connector pinouts can be found here.
-https://www.buydisplay.com/download/interfacing/ER-TFTM101-1_RTP_Interfacing.pdf
-
-TEENSY 36/40                                  ER-TFTM101-1
--------------------------------------------------------------
-Pin 10 /CS   --------------------------------> Pin 5  /SCS
-Pin 13 SCK   --------------------------------> Pin 8  SCLK
-Pin 11 MOSI  --------------------------------> Pin 7  SDI
-Pin 12 MISO  <-------------------------------- Pin 6  SDO
-Pin 21 RESET --------------------------------> Pin 11 /RESET
-Pin 20 BLITE --------------------------------> Pin 14 BL_CONTROL (VDD 3.3V)
--------------------------------------------------------------
-
-*** Touch Screen was only tested on the T36 with the TallDog breakout board.    ***
-*** Resistive touch panel uses XPT2046. Used a modified version of XPT2046.cpp  ***
- 
-                       TOUCH SCREEN
--------------------------------------------------------------
-Pin 31 /CS1  --------------------------------> Pin 32 TP_/CS
-Pin 32 SCK2  --------------------------------> Pin 35 TP_SLCK
-Pin 0  MOSI1 --------------------------------> Pin 34 TP_DIN
-Pin 1  MISO1 --------------------------------> Pin 36 TP_DOUT
-Pin 24 TSINT <-------------------------------- Pin 33 TS_PEN
---------------------------------------------------------------
 
 ER-TFTM101-1 Ground Pins are 1,2,13,31,39,40. These should all be connectd
 to Teensy Grounds.
