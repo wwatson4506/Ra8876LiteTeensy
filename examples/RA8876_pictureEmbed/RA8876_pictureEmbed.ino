@@ -78,8 +78,9 @@ void setup() {
   while (!Serial && millis() < 5000) ;
   Serial.begin(115200);
   Serial.printf("\n\nStart RA8876 picture embed test"); Serial.flush();
-  tft.begin(24);
-//  tft.begin(40000000);
+
+  tft.begin(20);
+
   tft.backlight(1);
   Serial.printf("Screen Width:%d Height: %d\n", tft.width(), tft.height());
   tft.fillScreen(BLACK);
