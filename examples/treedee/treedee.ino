@@ -94,15 +94,15 @@ void setup() {
   pinMode(BACKLITE, OUTPUT);
   digitalWrite(BACKLITE, HIGH);
     
-//  tft.begin(47000000);
   tft.begin(12);
-	//initVT100();
+  delay(100);
+  
 	tft.setCursor(0,0);
 	tft.fillScreen(myColors[11]);
 	tft.setFontSize(1,false);
 	tft.fillStatusLine(myColors[11]);
 	tft.printStatusLine(0,myColors[1],myColors[11],"Sumotoy's treedee sketch on the T4.");
-    tft.setMargins(0, 0, tft.width(), tft.height()); //so fillscreen doesn't erase the status bar
+    tft.setMargins(0, 0, tft.width(), tft.height()-24); //so fillscreen doesn't erase the status bar
 }
 
 
