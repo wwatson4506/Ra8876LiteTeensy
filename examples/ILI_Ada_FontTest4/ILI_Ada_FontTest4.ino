@@ -71,23 +71,17 @@ const ili_fonts_test_t font_test_list[] = {
 
 extern void displayStuff(const char *font_name);
 
-
-
 uint8_t test_screen_rotation = 0;
-
 
 void setup() {
   Serial.begin(38400);
   long unsigned debug_start = millis ();
   while (!Serial && ((millis () - debug_start) <= 5000)) ;
   Serial.println("Setup");
-//  tft.begin(30000000);
-  tft.begin(2);
-  tft.backlight(true);
-//  pinMode(BACKLITE, OUTPUT);
-//  digitalWrite(BACKLITE, HIGH);
 
-//  tft.setRotation(4);
+  tft.begin(20);
+
+  tft.backlight(true);
   tft.fillScreen(BLACK);
   tft.setTextColor(WHITE);
   tft.setFont(Arial_14);
