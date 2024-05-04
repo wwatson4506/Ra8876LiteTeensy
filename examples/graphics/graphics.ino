@@ -59,11 +59,9 @@ PROGMEM uint16_t myColors[] = {
 };
 
 int interations = 0;
-
 int w, h;
-
-
 int i = 0;
+
 void setup() {
   //I'm guessing most copies of this display are using external PWM
   //backlight control instead of the internal RA8876 PWM.
@@ -72,9 +70,7 @@ void setup() {
   pinMode(BACKLITE, OUTPUT);
   digitalWrite(BACKLITE, HIGH);
     
-//	tft.begin(20000000);
-
-  tft.begin(2); // 2 is working in 8bit and 16bit mode on T41
+  tft.begin(8); // 2 is working in 8bit and 16bit mode on T41
 
   tft.graphicMode(true);
   tft.setTextCursor(0,0);
