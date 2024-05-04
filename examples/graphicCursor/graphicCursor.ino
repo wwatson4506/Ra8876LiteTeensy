@@ -58,13 +58,13 @@ uint8_t cs = 11;
 uint8_t rst = 12;
 */
 
-RA8876_t3 tft = RA8876_t3(dc,cs,rst); //(dc, cs, rst)
-
 USBHost myusb;
 USBHub hub1(myusb);
 USBHub hub2(myusb);
 //USBHub hub3(myusb);
 //USBHub hub4(myusb);
+
+RA8876_t3 tft = RA8876_t3(dc,cs,rst); //(dc, cs, rst)
 
 //************************************************************
 // Even though the keyboard is not used we still need
@@ -210,9 +210,10 @@ uint8_t getSnglClick(void) {
 }
 
 void setup() {
-//  Serial.begin(9600);
-  while (!Serial && millis() < 1000) {} //wait for Serial Monitor
+  while (!Serial && millis() < 5000) {} //wait for Serial Monitor
   myusb.begin();
+  delay(500);
+  
   mouse_msg.scaledX = 512;
   mouse_msg.scaledY = 300;
 
@@ -222,17 +223,17 @@ void setup() {
   //backlight control instead of the internal RA8876 PWM.
   //Connect a Teensy pin to pin 14 on the display.
   //Can use analogWrite() but I suggest you increase the PWM frequency first so it doesn't sing.
-  pinMode(BACKLITE, OUTPUT);
+//  pinMode(BACKLITE, OUTPUT);
 //  analogWriteFrequency(BACKLITE, 1000000);
-  digitalWrite(BACKLITE, HIGH);
+//  digitalWrite(BACKLITE, HIGH);
 //  analogWrite(BACKLITE, 40);
 
-//  tft.begin(47000000);
-  bool result = tft.begin(4);
-
+  bool result = tft.begin(12);
+  delay(200);
   if (!result) {
     Serial.print("TFT initialization failed!");
     Serial.print("Is it plugged in properly?");
+while(1);
   }
   tft.fillScreen(DARKBLUE);
   tft.setFontSize(1, false);
