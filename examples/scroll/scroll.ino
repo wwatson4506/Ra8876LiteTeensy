@@ -68,8 +68,9 @@ void setup() {
   pinMode(BACKLITE, OUTPUT);
   digitalWrite(BACKLITE, HIGH);
   
-//  tft.begin();
-  bool result = tft.begin(8);
+  bool result = tft.begin(20);
+  delay(100);
+  
   tft.fontLoadMEM((char *)font8x16);
   tft.fillScreen(myColors[11]);
   tft.fillStatusLine(myColors[11]);
