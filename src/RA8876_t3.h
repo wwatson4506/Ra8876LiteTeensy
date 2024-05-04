@@ -80,6 +80,9 @@ Version   : v1.0
 
 #include "FlexIO_t4.h"
 
+#define WR_PIN 10
+#define RD_PIN 12
+
 #define BUS_WIDTH 8  /*Available options are 8 or 16 */
 #define SHIFTER_DMA_REQUEST 3 // only 0, 1, 2, 3 expected to work
 #define SHIFTNUM 8 // number of shifters used (up to 8)
@@ -172,7 +175,6 @@ public:
 	ru8 lcdRegDataRead(ru8 reg, bool finalize = true);
 	void lcdDataWrite16bbp(ru16 data, bool finalize = true); 
 	
-    uint16_t lcdDataRead16(bool finalize);
     void lcdDataWrite16(uint16_t data, bool finalize = true);
 
 	/*Status*/
@@ -710,6 +712,8 @@ private:
 	uint16_t	_TXTForeColor;
 	uint16_t	_TXTBackColor;
 
+    uint16_t _lastx1, _lastx2, _lasty1, _lasty2;
+	
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //    Font Parameters
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
