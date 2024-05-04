@@ -42,8 +42,7 @@ void setup() {
   while (!Serial && ((millis () - debug_start) <= 5000)) ;
   Serial.println("Setup");
 
-//  tft.begin(47000000);
-  bool result = tft.begin(12);
+  bool result = tft.begin(20);
 
   for (uint8_t reg = 0; reg < REG_DUMP_CNT; reg++) {
     reg_values[reg] = tft.lcdRegDataRead(reg);
