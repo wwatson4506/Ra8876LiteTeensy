@@ -727,7 +727,7 @@ FASTRUN void RA8876_t3::_onCompleteCB()
 // Return true on success.
 //**************************************************************//
 boolean RA8876_t3::ra8876Initialize() {
-	
+    RA8876_SW_Reset();
 	// Init PLL
 	if(!ra8876PllInitial()) {
 		return false;
