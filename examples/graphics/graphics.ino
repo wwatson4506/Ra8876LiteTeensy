@@ -59,20 +59,20 @@ PROGMEM uint16_t myColors[] = {
 };
 
 int interations = 0;
-
 int w, h;
-
-
 int i = 0;
+
 void setup() {
+  while (!Serial && millis() < 5000) {} //wait for Serial Monitor
+
   //I'm guessing most copies of this display are using external PWM
   //backlight control instead of the internal RA8876 PWM.
   //Connect a Teensy pin to pin 14 on the display.
   //Can use analogWrite() but I suggest you increase the PWM frequency first so it doesn't sing.
-  pinMode(BACKLITE, OUTPUT);
-  digitalWrite(BACKLITE, HIGH);
+//  pinMode(BACKLITE, OUTPUT);
+//  digitalWrite(BACKLITE, HIGH);
     
-  tft.begin(20); // 2 is working in 8bit and 16bit mode on T41
+  tft.begin(20); // 20 is working in 8bit and 16bit mode on T41
 
   tft.graphicMode(true);
   tft.setTextCursor(0,0);
