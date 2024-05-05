@@ -1,4 +1,5 @@
 //**************************************************************//
+// Teensy 4.1 8080 Parallel 8/16 bit with 8 bit ASYNC support.
 //**************************************************************//
 /*
  * Ra8876LiteTeensy.cpp
@@ -8,10 +9,13 @@
  *			Version   : v2.0  1.modify bte_DestinationMemoryStartAddr bug 
  *                 			  2.modify ra8876SdramInitial Auto_Refresh
  *                 			  3.modify ra8876PllInitial 
- * 	  	      : For Teensy 3.x and T4
+ ****************************************************************
+ * 	  	              : New 8080 Parallel version
+ *                    : For MicroMod
  *                    : By Warren Watson
- *                    : 06/07/2018 - 11/31/2019
- *                    : Copyright (c) 2017-2019 Warren Watson.
+ *                    : 06/07/2018 - 05/03/2024
+ *                    : Copyright (c) 2017-2024 Warren Watson.
+ *****************************************************************
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -301,14 +305,14 @@ FASTRUN void RA8876_t3::FlexIO_Init() {
     pinMode(27, OUTPUT); // FlexIO3:15 D15
 #endif
 
-    pinMode(36, OUTPUT);
-    digitalWriteFast(36, HIGH);
-    pinMode(37, OUTPUT);
-    digitalWriteFast(37, HIGH);
+    pinMode(RD_PIN, OUTPUT);
+    digitalWriteFast(RD_PIN, HIGH);
+    pinMode(WR_PIN, OUTPUT);
+    digitalWriteFast(WR_PIN, HIGH);
 
     /* High speed and drive strength configuration */
-    *(portControlRegister(36)) = 0xFF;
-    *(portControlRegister(37)) = 0xFF; 
+    *(portControlRegister(WR_PIN)) = 0xFF;
+//    *(portControlRegister(RD_PIN)) = 0xFF; 
 
     *(portControlRegister(19)) = 0xFF;
     *(portControlRegister(18)) = 0xFF;
@@ -334,8 +338,8 @@ FASTRUN void RA8876_t3::FlexIO_Init() {
     pFlex->setClockSettings(3, 1, 0); // (480 MHz source, 1+1, 1+0) >> 480/2/1 >> 240Mhz
 
     /* Set up pin mux */
-    pFlex->setIOPinToFlexMode(36);
-    pFlex->setIOPinToFlexMode(37);
+    pFlex->setIOPinToFlexMode(WR_PIN);
+//    pFlex->setIOPinToFlexMode(RD_PIN);
 
     pFlex->setIOPinToFlexMode(19);
     pFlex->setIOPinToFlexMode(18);
@@ -363,12 +367,11 @@ FASTRUN void RA8876_t3::FlexIO_Init() {
 }
 
 FASTRUN void RA8876_t3::FlexIO_Config_SnglBeat_Read() {
-    pFlex->setIOPinToFlexMode(37);
+//    pFlex->setIOPinToFlexMode(37);
 
     p->CTRL &= ~FLEXIO_CTRL_FLEXEN;
     p->CTRL |=  FLEXIO_CTRL_SWRST;
     p->CTRL &= ~FLEXIO_CTRL_SWRST;
-
     /* Configure the shifters */
     p->SHIFTCFG[3] = 
          FLEXIO_SHIFTCFG_SSTOP(0)                                              /* Shifter stop bit disabled */
@@ -400,7 +403,7 @@ FASTRUN void RA8876_t3::FlexIO_Config_SnglBeat_Read() {
     p->TIMCTL[0] = 
         FLEXIO_TIMCTL_TRGSEL((((3) << 2) | 1))                                 /* Timer trigger selected as shifter's status flag */
       | FLEXIO_TIMCTL_TRGPOL*(1)                                               /* Timer trigger polarity as active low */
-      | FLEXIO_TIMCTL_TRGSRC*(1)                                               /* Timer trigger source as internal */
+      | FLEXIO_TIMCTL_TRGSRC*(1) // 1                                              /* Timer trigger source as internal */
       | FLEXIO_TIMCTL_PINCFG(3)                                                /* Timer' pin configured as output */
       | FLEXIO_TIMCTL_PINSEL(19)                                               /* Timer' pin index: RD pin */
       | FLEXIO_TIMCTL_PINPOL*(1)                                               /* Timer' pin active low */
@@ -479,9 +482,8 @@ FASTRUN void RA8876_t3::FlexIO_Clear_Config_SnglBeat(){
 }
 
 FASTRUN void RA8876_t3::FlexIO_Config_MultiBeat() {
-    //uint32_t i;
     uint8_t beats = SHIFTNUM * BEATS_PER_SHIFTER;                                     //Number of beats = number of shifters * beats per shifter
-    pFlex->setIOPinToFlexMode(10);
+    pFlex->setIOPinToFlexMode(WR_PIN);
 
     /* Disable and reset FlexIO */
     p->CTRL &= ~FLEXIO_CTRL_FLEXEN;
@@ -516,7 +518,6 @@ FASTRUN void RA8876_t3::FlexIO_Config_MultiBeat() {
             | FLEXIO_SHIFTCTL_PINPOL * (0U)                                           /* Shifter's pin active high */
             | FLEXIO_SHIFTCTL_SMOD(2U);
     }
-
     /* Configure the timer for shift clock */
     p->TIMCMP[0] =
         ((beats * 2U - 1) << 8)                                                       /* TIMCMP[15:8] = number of beats x 2 – 1 */
@@ -559,7 +560,6 @@ FASTRUN void RA8876_t3::flexIRQ_Callback(){
             p->TIMIEN &= ~(1 << TIMER_IRQ); // disable timer interrupt
             asm("dsb");
             WR_IRQTransferDone = true;
-            microSecondDelay();
             CSHigh();
             _onCompleteCB();
             return;
@@ -576,13 +576,15 @@ FASTRUN void RA8876_t3::flexIRQ_Callback(){
             bytes_remaining = 0;
             for (int i = 0; i < SHIFTNUM; i++) {
                 uint32_t data = *readPtr++;
-                p->SHIFTBUFBYS[i] = ((data >> 16) & 0xFFFF) | ((data << 16) & 0xFFFF0000);
+                p->SHIFTBUFHWS[i] = ((data >> 16) & 0xFFFF) | ((data << 16) & 0xFFFF0000);
+				while(0 == (p->SHIFTSTAT & (1U << SHIFTER_IRQ))) {}
             }
         } else {
             bytes_remaining -= BYTES_PER_BURST;
             for (int i = 0; i < SHIFTNUM; i++) {
                 uint32_t data = *readPtr++;
-                p->SHIFTBUFBYS[i] = ((data >> 16) & 0xFFFF) | ((data << 16) & 0xFFFF0000);
+                p->SHIFTBUFHWS[i] = ((data >> 16) & 0xFFFF) | ((data << 16) & 0xFFFF0000);
+				while(0 == (p->SHIFTSTAT & (1U << SHIFTER_IRQ))) {}
         }
     }
   }
@@ -597,33 +599,15 @@ FASTRUN void RA8876_t3::ISR()
 
 RA8876_t3 * RA8876_t3::IRQcallback = nullptr;
 
-FASTRUN void RA8876_t3::MulBeatWR_nPrm_IRQ(uint32_t const cmd,  const void *value, uint32_t const length) 
-{
-  while(WR_IRQTransferDone == false)
-  {
-    //Wait for any IRQ transfers to complete
-  }
-    FlexIO_Config_SnglBeat();
-    CSLow();
-    DCLow();
-
-    /* Write command index */
-    p->SHIFTBUF[0] = cmd;
-
-    /*Wait for transfer to be completed */
-
-    while(0 == (p->TIMSTAT & (1 << 0)))
-            {  
-            }
-    microSecondDelay();
-    /* De-assert RS pin */
-    DCHigh();
-    microSecondDelay();
-
+FASTRUN void RA8876_t3::MulBeatWR_nPrm_IRQ(const void *value, uint32_t const length) {
+  while(WR_IRQTransferDone == false) {} //Wait for any IRQ transfers to complete
 
     FlexIO_Config_MultiBeat();
     WR_IRQTransferDone = false;
     uint32_t bytes = length*2U;
+
+    CSLow();
+    DCHigh();
 
     bursts_to_complete = bytes / BYTES_PER_BURST;
 
@@ -636,8 +620,8 @@ FASTRUN void RA8876_t3::MulBeatWR_nPrm_IRQ(uint32_t const cmd,  const void *valu
 
     bytes_remaining = bytes;
     readPtr = (uint32_t*)value;
-    //Serial.printf ("arg addr: %x, readPtr addr: %x \n", value, readPtr);
-    //Serial.printf("START::bursts_to_complete: %d bytes_remaining: %d \n", bursts_to_complete, bytes_remaining);
+//    Serial.printf ("arg addr: %x, readPtr addr: %x, contents: %x\n", value, readPtr, *readPtr);
+//    Serial.printf("START::bursts_to_complete: %d bytes_remaining: %d \n", bursts_to_complete, bytes_remaining);
   
     uint8_t beats = SHIFTNUM * BEATS_PER_SHIFTER;
     p->TIMCMP[0] = ((beats * 2U - 1) << 8) | (_baud_div / 2U - 1U);
@@ -649,7 +633,6 @@ FASTRUN void RA8876_t3::MulBeatWR_nPrm_IRQ(uint32_t const cmd,  const void *valu
     // enable interrupts to trigger bursts
     p->TIMIEN |= (1 << TIMER_IRQ);
     p->SHIFTSIEN |= (1 << SHIFTER_IRQ);
-    
 }
 
 FASTRUN void RA8876_t3::_onCompleteCB()
@@ -660,11 +643,24 @@ FASTRUN void RA8876_t3::_onCompleteCB()
       return;
 }
 
+FASTRUN void RA8876_t3::pushPixels16bitAsync(const uint16_t * pcolors, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2){
+  while(WR_IRQTransferDone == false) {}    //Wait for any DMA transfers to complete
+  uint32_t area = (x2)*(y2);
+  graphicMode(true);
+  activeWindowXY(x1,y1);
+  activeWindowWH(x2,y2);
+  setPixelCursor(x1,y1);
+  ramAccessPrepare();
+  MulBeatWR_nPrm_IRQ(pcolors, area);
+}
+
 //**************************************************************//
 // Initialize RA8876 to default settings.
 // Return true on success.
 //**************************************************************//
 boolean RA8876_t3::ra8876Initialize() {
+
+    RA8876_SW_Reset();
 	
 	// Init PLL
 	if(!ra8876PllInitial()) {
@@ -934,21 +930,25 @@ ru8 RA8876_t3::lcdDataRead(bool finalize) {
   uint16_t data = 0;
 
   while(WR_IRQTransferDone == false) {} //Wait for any IRQ transfers to complete
-//  while(digitalReadFast(WINT) == 0);  // If monitoring XnWAIT signal from RA8876.
-
-  CSLow();  // Must to go low after config and delay above.
-  DCHigh(); // Should already be HIGH
 
   FlexIO_Config_SnglBeat_Read();
+
+  CSLow();  // Must to go low after config above.
+  DCHigh(); // Set HIGH for data read
+  
+  digitalWriteFast(RD_PIN,LOW); // Set RD pin low manually
 
   while (0 == (p->SHIFTSTAT & (1 << 3))) {}
   dummy = p->SHIFTBUFBYS[3];
   while (0 == (p->SHIFTSTAT & (1 << 3))) {}
   data = p->SHIFTBUFBYS[3];
+  
+  digitalWriteFast(RD_PIN,HIGH); // Set RD pin high manually
+
   CSHigh();
 
-//  Serial.printf("lcdDataread(): Dummy 0x%4.4x, data 0x%4.4x\n", dummy, data);
-
+  //Serial.printf("lcdDataread(): Dummy 0x%4.4x, data 0x%4.4x\n", dummy, data);
+  
   //Set FlexIO back to Write mode
   FlexIO_Config_SnglBeat(); // Not sure if this is needed.
    if(BUS_WIDTH == 8)
@@ -965,11 +965,13 @@ ru8 RA8876_t3::lcdDataRead(bool finalize) {
 ru8 RA8876_t3::lcdStatusRead(bool finalize) 
 {
   while(WR_IRQTransferDone == false) {} //Wait for any IRQ transfers to complete
-//  while(digitalReadFast(WINT) == 0);  // If monitoring XnWAIT signal from RA8876.
+
   FlexIO_Config_SnglBeat_Read();
 
   CSLow();
   DCLow();
+  
+  digitalWriteFast(RD_PIN,LOW); // Set RD pin low manually
 
   uint16_t data = 0;
   while (0 == (p->SHIFTSTAT & (1 << 3))) {}
@@ -977,7 +979,8 @@ ru8 RA8876_t3::lcdStatusRead(bool finalize)
 
   DCHigh();
   CSHigh();
-//Serial.printf("Dummy 0x%4.4x, data 0x%4.4x\n", dummy, data);
+
+  digitalWriteFast(RD_PIN,HIGH); // Set RD pin high manually
 
   //Set FlexIO back to Write mode
   FlexIO_Config_SnglBeat();
@@ -1022,39 +1025,6 @@ void RA8876_t3::lcdDataWrite16bbp(ru16 data, bool finalize)
   }
 }
 
-//**************************************************************//
-// 16 bit read RA8876 Data. 8/16 bit bus mode.
-//**************************************************************//
-uint16_t RA8876_t3::lcdDataRead16(bool finalize) 
-{
-  uint16_t dummy = 0;
-  uint16_t data = 0;
-
-  while(WR_IRQTransferDone == false) {} //Wait for any IRQ transfers to complete
-//  while(digitalReadFast(WINT) == 0);  // If monitoring XnWAIT signal from RA8876.
-
-  CSLow();  // Must to go low after config and delay above.
-  DCHigh(); // Should already be HIGH
-
-  FlexIO_Config_SnglBeat_Read();
-
-  while (0 == (p->SHIFTSTAT & (1 << 3))) {}
-  dummy = p->SHIFTBUFBYS[3];
-
-  while (0 == (p->SHIFTSTAT & (1 << 3))) {}
-  data = p->SHIFTBUFBYS[3];
-  CSHigh();
-
-//  Serial.printf("lcdDataread16(): Dummy 0x%4.4x, data 0x%4.4x\n", dummy, data);
-
-  //Set FlexIO back to Write mode
-  FlexIO_Config_SnglBeat(); // Not sure if this is needed.
-  if(BUS_WIDTH == 8)
-    return (dummy << 8) | (data & 0xff); // High byte to low byte and mask.
-  else
-    return (data >> 8) | (data << 8);
-}
-
 //*********************************************************
 // Write RA8876 data to display memory, 8/16 bit buss mode.
 //*********************************************************
@@ -1081,6 +1051,7 @@ void RA8876_t3::lcdDataWrite16(uint16_t data, bool finalize)
   }
   /* De-assert /CS pin */
   CSHigh();
+  DCLow();
 }
 
 //**************************************************************//
@@ -1149,11 +1120,9 @@ A large filled rectangle might take 3300 microseconds
 *****************************************************************/
 void RA8876_t3::check2dBusy(void)  
 {  ru32 i; 
-   for(i=0;i<100000;i++)   //Please according to your usage to modify i value.
-   { 
-   delayMicroseconds(1);
-    if( (lcdStatusRead()&0x08)==0x00 )
-    {return;}
+   for(i=0;i<100000;i++) {  //Please according to your usage to modify i value.
+     delayMicroseconds(1);
+     if( (lcdStatusRead()&0x08)==0x00 ) {return;}
    }
    Serial.println("2D ready failed...");
 }  
@@ -1724,7 +1693,6 @@ void RA8876_t3::vmemWriteData(ru32 addr, ru8 vmemData) {
 //**************************************************************//
 ru16 RA8876_t3::vmemReadData16(ru32 addr) {
 	ru16 vmemData = 0;
-  
 	vmemData = (vmemReadData(addr) & 0xff); // lo byte
 	vmemData |= vmemReadData(addr+1) << 8; // hi byte
 	return vmemData;
@@ -1926,13 +1894,14 @@ void RA8876_t3::graphicMode(boolean on) {
 //**************************************************************//
 ru16 RA8876_t3::getPixel(ru16 x,ru16 y) {
 	ru16 rdata = 0;
+    ru16 dummy = 0;
+    
 	graphicMode(true);
 	setPixelCursor(x, y);		// set memory address
 	ramAccessPrepare();			// Setup SDRAM Access
-	rdata = (lcdDataRead() & 0xff);		// read low byte
-	rdata |= lcdDataRead() << 8;	// add high byte 
-//	rdata = lcdDataRead16(false);	//
-//	rdata = lcdDataRead16(false);	//
+    dummy = lcdDataRead();
+    rdata = (lcdDataRead() & 0xff);		// read low byte
+    rdata |= lcdDataRead() << 8;	// add high byte 
  	return rdata;
 }
 
@@ -3440,9 +3409,6 @@ ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned char *d
 //MulBeatWR_nPrm_DMA(data,(width)*(height));
   ru16 i,j;
   while(WR_IRQTransferDone == false) {} //Wait for any IRQ transfers to complete
-
-//  while(digitalReadFast(WINT) == 0);  // If monitoring XnWAIT signal from RA8876.
-
   FlexIO_Config_SnglBeat();
   CSLow();
   DCHigh();
@@ -3476,14 +3442,13 @@ ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned short *
   bteMpuWriteWithROP(s1_addr, s1_image_width, s1_x, s1_y, des_addr, des_image_width, des_x, des_y, width, height, rop_code);
 
   while(WR_IRQTransferDone == false) {} //Wait for any IRQ transfers to complete
-//  while(digitalReadFast(WINT) == 0);  // If monitoring XnWAIT signal from RA8876.
 
   FlexIO_Config_SnglBeat();
   CSLow();
   DCHigh();
   for(j=0;j<height;j++) {
 	for(i=0;i<width;i++) {
-      delayNanoseconds(1);   // Initially setup for the T4.1 board
+//delayNanoseconds(15);   // Initially setup for the T4.1 board
       if(_rotation & 1) delayNanoseconds(70);
       p->SHIFTBUF[0] = *data++;
       /*Wait for transfer to be completed */
@@ -3532,7 +3497,7 @@ void RA8876_t3::bteMpuWriteWithChromaKeyData8(ru32 des_addr,ru16 des_image_width
   DCHigh();
   for(j=0;j<height;j++) {
 	for(i=0;i<width;i++) {
-	  delayNanoseconds(350);  // Initially setup for the dev board v4.0
+// delayNanoseconds(70);  // Initially setup for the dev board v4.0
       if(_rotation & 1) delayNanoseconds(20);
       p->SHIFTBUF[0] = *data++;
       // Wait for transfer to be completed
@@ -3556,14 +3521,12 @@ void RA8876_t3::bteMpuWriteWithChromaKeyData16(ru32 des_addr,ru16 des_image_widt
   bteMpuWriteWithChromaKey(des_addr, des_image_width, des_x, des_y, width, height, chromakey_color);
 
   while(WR_IRQTransferDone == false) {} //Wait for any IRQ transfers to complete
-//  while(digitalReadFast(WINT) == 0);  // If monitoring XnWAIT signal from RA8876.
-
   FlexIO_Config_SnglBeat();
   CSLow();
   DCHigh();
   for(j=0;j<height;j++) {
 	for(i=0;i<width;i++) {
-      delayNanoseconds(350);   // Initially setup for the dev board v4.0 
+      delayNanoseconds(20);   // Initially setup for the dev board v4.0 
       if(_rotation & 1) delayNanoseconds(70);
       p->SHIFTBUF[0] = *data++;
       /*Wait for transfer to be completed */
@@ -5255,10 +5218,17 @@ void RA8876_t3::putPicture(ru16 x, ru16 y, ru16 w, ru16 h, const unsigned char *
 	//Ra8876_Lite::putPicture_16bppData8(x, y, w, h, data);
 
 	//Using the BTE function is faster and will use DMA if available
+  if(BUS_WIDTH == 16) {
+    bteMpuWriteWithROPData16(currentPage, width(), x, y,  //Source 1 is ignored for ROP 12
+                              currentPage, width(), x, y, w, h,     //destination address, pagewidth, x/y, width/height
+                              RA8876_BTE_ROP_CODE_12,
+                              (uint16_t *)data);
+  } else {
     bteMpuWriteWithROPData8(currentPage, width(), x, y,  //Source 1 is ignored for ROP 12
                               currentPage, width(), x, y, w, h,     //destination address, pagewidth, x/y, width/height
                               RA8876_BTE_ROP_CODE_12,
                               data);
+  }
 }
 
 

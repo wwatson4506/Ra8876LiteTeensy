@@ -1,17 +1,21 @@
 //**************************************************************//
+// Teensy 4.1 8080 Parallel 8/16 bit with 8 bit ASYNC support.
+//**************************************************************//
 /*
-File Name : Ra8876_Lite.h                                   
-Author    : RAiO Application Team                             
-Edit Date : 12/29/2015
-Version   : v1.0
-*
-* Modified Version of: File Name : Ra8876_Lite.h                                   
+ * Ra8876LiteTeensy.cpp
+ * Modified Version of: File Name : RA8876_t3.cpp                                   
  *			Author    : RAiO Application Team                             
- *			Edit Date : 09/13/2024
- * 	  	     : For Teensy 3.x and T4
- *                   : By Warren Watson
- *                   : 06/07/2018 - 11/31/2024
- *                   : Copyright (c) 2017-2024 Warren Watson.
+ *			Edit Date : 09/13/2017
+ *			Version   : v2.0  1.modify bte_DestinationMemoryStartAddr bug 
+ *                 			  2.modify ra8876SdramInitial Auto_Refresh
+ *                 			  3.modify ra8876PllInitial 
+ ****************************************************************
+ * 	  	              : New 8080 Parallel version
+ *                    : For MicroMod
+ *                    : By Warren Watson
+ *                    : 06/07/2018 - 05/03/2024
+ *                    : Copyright (c) 2017-2024 Warren Watson.
+ *****************************************************************
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -75,10 +79,12 @@ Version   : v1.0
 #define _RA8876_T3
 
 //#define WINT 33       // RA8876 xnWAIT pin (Dev Board)
-
 //#define USE_FT5206_TOUCH
 
 #include "FlexIO_t4.h"
+
+#define WR_PIN 36
+#define RD_PIN 37
 
 #define BUS_WIDTH 8  /*Available options are 8 or 16 */
 #define SHIFTNUM 8 // number of shifters used (up to 8)
@@ -165,13 +171,11 @@ public:
 	void lcdRegWrite(ru8 reg, bool finalize = true);
 	void lcdDataWrite(ru8 data, bool finalize = true);
 	ru8 lcdDataRead(bool finalize = true);
-	ru16 lcdDataRead16bpp(bool finalize = true);
 	ru8 lcdStatusRead(bool finalize = true);
 	void lcdRegDataWrite(ru8 reg,ru8 data, bool finalize = true);
 	ru8 lcdRegDataRead(ru8 reg, bool finalize = true);
 	void lcdDataWrite16bbp(ru16 data, bool finalize = true); 
 	
-    uint16_t lcdDataRead16(bool finalize);
     void lcdDataWrite16(uint16_t data, bool finalize = true);
 
 	/*Status*/
@@ -628,7 +632,8 @@ public:
   void onCompleteCB(CBF callback);
 
   void FlexIO_Clear_Config_SnglBeat();
-  void MulBeatWR_nPrm_IRQ(uint32_t const cmd,  const void *value, uint32_t const length);
+  void MulBeatWR_nPrm_IRQ(const void *value, uint32_t const length);
+  void pushPixels16bitAsync(const uint16_t * pcolors, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2);
   void lcdRegDataWrite16(ru8 reg, ru16 data, bool finalize);
 
   FlexIOHandler *pFlex;
@@ -706,6 +711,8 @@ private:
 	uint16_t	_TXTForeColor;
 	uint16_t	_TXTBackColor;
 
+    uint16_t _lastx1, _lastx2, _lasty1, _lasty2;
+	
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 //    Font Parameters
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
