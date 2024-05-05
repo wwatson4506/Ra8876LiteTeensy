@@ -72,7 +72,7 @@ extern void displayStuff(const char *font_name);
 uint8_t test_screen_rotation = 0;
 
 void setup() {
-  Serial.begin(38400);
+
   long unsigned debug_start = millis ();
   while (!Serial && ((millis () - debug_start) <= 5000)) ;
   Serial.println("Setup");
