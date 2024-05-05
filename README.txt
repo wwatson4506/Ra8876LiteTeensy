@@ -2,6 +2,10 @@ MAJOR UPDATE
 This version of Ra8876LiteTeensy adds the ability to communicate with the RA8876 in 8080 parallel mode.
 It can use either a 8-bit or 16-bit parallel data bus. It is compatible with the Teensy 4.1 and MicroMod boards.
 
+*** CONNECTING THE TEENSY TO THE ER-TFTM101-1 ***
+40 pin dual inline connector pinouts can be found here.
+https://www.buydisplay.com/download/interfacing/ER-TFTM101-1_RTP_Interfacing.pdf
+
         T4.1 pinouts:
 T4.1                      ER-TFTM101-1 (40 PIN CONNECTOR)
 ---------------------------------------------------------
@@ -30,6 +34,11 @@ Pin 27 -----------------> Pin 30   D15
 
 Any T41 pin for BL_CONTROl Pin 14 or 3.3v
 Any T41 pin for WINT Pin 33 Optional wait interrupt pin (XnWAIT)
+ER-TFTM101-1 Ground Pins are 1,2,13,31,39,40. These should all be connectd
+to Teensy Grounds.
+
+ER-TFTM101-1 Power Pins (VDD is 5V or 3.3v depending on how it was configured
+when ordered) are 3,4,37,38 and all should be connected together.
 
 
 as of 4/30/20
@@ -68,10 +77,6 @@ printStatusLine(uint16_t x0,uint16_t fgColor,uint16_t bgColor, const char *text)
 
 6. All examples have been updated to the new data calls and working with the updated library.
 
-
-
-
-
 ==========================================================================================
 Ra8876LiteTeeensy WIP
 
@@ -94,47 +99,6 @@ The TFT panel I have was ordered setup with:
  - 10.1" Resistive Touch Controller
  - SD Card Pin interface
  - ER3304-1 Font Chip
- 
-The current Price is about $74.00 not including shipping.
-
-Teensy connections are through a 4 wire SPI port. Other interface options are available.
-The RA8876 TFT controller has the same MISO tri-state problem as the RA8875 has. It
-needs a 74HCT125 or similar chip if using more than one device on the same SPI port.
-
-Check out Sumotoy's WEB page for a solution to this problem.
-https://github.com/sumotoy/RA8875/wiki/Fix-compatibility-with-other-SPI-devices
-
-*** CONNECTING THE TEENSY TO THE ER-TFTM101-1 ***
-
-40 pin dual inline connector pinouts can be found here.
-https://www.buydisplay.com/download/interfacing/ER-TFTM101-1_RTP_Interfacing.pdf
-
-TEENSY 36/40                                  ER-TFTM101-1
--------------------------------------------------------------
-Pin 10 /CS   --------------------------------> Pin 5  /SCS
-Pin 13 SCK   --------------------------------> Pin 8  SCLK
-Pin 11 MOSI  --------------------------------> Pin 7  SDI
-Pin 12 MISO  <-------------------------------- Pin 6  SDO
-Pin 21 RESET --------------------------------> Pin 11 /RESET
-Pin 20 BLITE --------------------------------> Pin 14 BL_CONTROL (VDD 3.3V)
--------------------------------------------------------------
-
-*** Touch Screen was only tested on the T36 with the TallDog breakout board.    ***
-*** Resistive touch panel uses XPT2046. Used a modified version of XPT2046.cpp  ***
- 
-                       TOUCH SCREEN
--------------------------------------------------------------
-Pin 31 /CS1  --------------------------------> Pin 32 TP_/CS
-Pin 32 SCK2  --------------------------------> Pin 35 TP_SLCK
-Pin 0  MOSI1 --------------------------------> Pin 34 TP_DIN
-Pin 1  MISO1 --------------------------------> Pin 36 TP_DOUT
-Pin 24 TSINT <-------------------------------- Pin 33 TS_PEN
---------------------------------------------------------------
-
-ER-TFTM101-1 Ground Pins are 1,2,13,31,39,40. These should all be connectd
-to Teensy Grounds.
-ER-TFTM101-1 Power Pins (VDD is 5V or 3.3v depending on how it was configured
-when ordered) are 3,4,37,38 and all should be connected together.
 
 *** EXAMPLES ***
 
@@ -165,16 +129,15 @@ mirroring, working with transparency  etc...
 
 The RA8876.pdf manual is a little hard to use but seems complete.
 
-Mountain Hung the Senior Engineer at RAIO is very helpfull and respond quickly to emails.
+Mountain Hung the Senior Engineer at RAIO is very helpfull and responds quickly to emails.
 His Email Address:
 mountain@raio.com.tw
 
 Check out the source files for more info:
-- Ra8876LiteTeensy.cpp A heavily modified version of the original Ra8876Lite.cpp file.
-- tft.cpp Is basically wrapper functions for Ra8876LiteTeensy.cpp.
+- Ra8876_t3.cpp A heavily modified version of the original Ra8876Lite.cpp file.
 - vt100.c Is a modified version of a VT100 terminal program by Geoff Graham, April 2014.
 
 Again, this is WIP and is probably just a starting point for those who have better programming
-than mine:)
+skills than mine:)
 
 
