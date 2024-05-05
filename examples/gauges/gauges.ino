@@ -5,10 +5,7 @@
  * from his RA8875 driver. Modified to work with the RA8876 TFT controller.
  ***************************************************************/
 #include "Arduino.h"
-//#include "Ra8876_Lite.h"
 #include "RA8876_t3.h"
-
-//#include "vt100.h"
 #include <math.h>
 
 
@@ -86,9 +83,7 @@ void setup() {
   //Can use analogWrite() but I suggest you increase the PWM frequency first so it doesn't sing.
 //  pinMode(BACKLITE, OUTPUT);
 //  digitalWrite(BACKLITE, HIGH);
-
-  Serial.begin(115200);
-  while (!Serial);
+  while (!Serial && millis() < 5000) {} //wait for Serial Monitor
 
   tft.begin(20);
   delay(100);
