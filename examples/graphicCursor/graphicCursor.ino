@@ -1,5 +1,4 @@
 // graphicsCursor.ino
-
 /*
 * This sketch uses a USB mouse and USBhost_t36 to control the RA8876 graphics
 * cursor. It initializes the graphis cursor memory with four different
@@ -209,8 +208,7 @@ uint8_t getSnglClick(void) {
 }
 
 void setup() {
-//  Serial.begin(9600);
-  while (!Serial && millis() < 1000) {} //wait for Serial Monitor
+  while (!Serial && millis() < 5000) {} //wait for Serial Monitor
   myusb.begin();
   mouse_msg.scaledX = 512;
   mouse_msg.scaledY = 300;
@@ -221,12 +219,12 @@ void setup() {
   //backlight control instead of the internal RA8876 PWM.
   //Connect a Teensy pin to pin 14 on the display.
   //Can use analogWrite() but I suggest you increase the PWM frequency first so it doesn't sing.
-  pinMode(BACKLITE, OUTPUT);
+//  pinMode(BACKLITE, OUTPUT);
 //  analogWriteFrequency(BACKLITE, 1000000);
-  digitalWrite(BACKLITE, HIGH);
+//  digitalWrite(BACKLITE, HIGH);
 //  analogWrite(BACKLITE, 40);
 
-  bool result = tft.begin(20);  // 8080 mode T4.1
+  bool result = tft.begin(40);  // 8080 mode T4.1
 
   if (!result) {
     Serial.print("TFT initialization failed!");
