@@ -1,4 +1,3 @@
-#include <SPI.h>
 #include "RA8876_t3.h"
 
 #define PINK        0xFC18
@@ -35,7 +34,7 @@ uint8_t rst = 12;
 RA8876_t3 tft = RA8876_t3(dc,cs,rst); //(dc, cs, rst)
 
 void setup() {
-  while (!Serial && millis() < 1000) {} //wait for Serial Monitor
+  while (!Serial && millis() < 5000) {} //wait for Serial Monitor
 
   long unsigned debug_start = millis ();
   while (!Serial && ((millis () - debug_start) <= 5000)) ;
