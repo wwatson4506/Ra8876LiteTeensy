@@ -45,7 +45,6 @@
   You can send more instructions to the LCD immediately and they will wait for the DMA to finish.
 */
 #include "Cube_172.h"
-
 #include <RA8876_t3.h>
 
 //#define RA8876_CS 10
@@ -114,10 +113,17 @@ void writeImage16(int x, int y, int w, int h, const unsigned char *image) {
 
 void writeImageChromakey(int x, int y, int w, int h, ru16 chromakeyColor, const unsigned char *image) {
   //copy from the PROGMEM array to the screen, at the specified x/y location with one color transparent
+  if(BUS_WIDTH == 16) {
+    tft.bteMpuWriteWithChromaKeyData16(//no source 1 for this operation
+      tft.currentPage, tft.width(), x, y, w, h,     //destination address, x/y, width/height
+      chromakeyColor,
+      (uint16_t *)image);
+  } else {
     tft.bteMpuWriteWithChromaKeyData8(//no source 1 for this operation
       tft.currentPage, tft.width(), x, y, w, h,     //destination address, x/y, width/height
       chromakeyColor,
       image);
+  }
 }
 
 void copyImageROP(int x, int y, int w, int h, uint8_t rop, const unsigned char *image) {
@@ -237,20 +243,20 @@ void setup() {
   Serial.print((float)(end2Time - endTime) / 1000.0, 3);
   Serial.println("ms because data transfer was still underway");
 
-  startTime = micros();
-  writeImage(20, 5, IMG_WIDTH, IMG_HEIGHT, image_565);  //Duplicate of basic send
-  endTime = micros();
-  Serial.print("Copy from PROGMEM to display took ");
-  Serial.print((float)(endTime - startTime) / 1000.0, 3);
-  Serial.println("ms to begin the transfer (data is on its way while you read this.)");
-
   if(BUS_WIDTH == 16) {
-    startTime = micros();
+    startTime = millis();
     writeImage16(20, 5, IMG_WIDTH, IMG_HEIGHT, image_565);  //basic send, using 16-bit byte-swapped data
-    endTime = micros();
+    endTime = millis();
     Serial.print("16-bit copy from PROGMEM to display took ");
     Serial.print((float)(end2Time - startTime) / 1000.0, 3);
-    Serial.println("ms");
+    Serial.println("ms to begin the transfer (data is on its way while you read this.)");
+  } else {
+    startTime = millis();
+    writeImage(20, 5, IMG_WIDTH, IMG_HEIGHT, image_565);  //Duplicate of basic send
+    endTime = millis();
+    Serial.print("8-bit Copy from PROGMEM to display took ");
+    Serial.print((float)(endTime - startTime) / 1000.0, 3);
+    Serial.println("ms to begin the transfer (data is on its way while you read this.)");
   }
 
   //Chromakey can also be done as 16-bit or 8-bit but the time taken is identical to the normal write
@@ -370,4 +376,11 @@ void loop() {
     increment = 1;
     delay(800);
   }
+}
+
+void waitforInput()
+{
+  Serial.println("Press anykey to continue");
+  while (Serial.read() == -1) ;
+  while (Serial.read() != -1) ;
 }
