@@ -3,7 +3,7 @@
 	"frameworks": "Arduino",
 	"platforms": "Teensy SDRAM Board V4.0",
 	"keywords": "Ra8876_Lite",
-	"description": "wwatson Ra8876LiteTeensy Library",
+	"description": "wwatson Ra8876Lite-SDRAM-V4.0 Library",
 	"version": "1.0.0",
 	"authors":
 	{	"name": "Warren Watson",
