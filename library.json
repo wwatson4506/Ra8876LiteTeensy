@@ -1,9 +1,9 @@
 {
-	"name": "Ra8876LiteTeensy",
+	"name": "Ra8876Lite-8080-MicroMod",
 	"frameworks": "Arduino",
-	"platforms": "Teensy 3.6 - T4",
+	"platforms": "Teensy MicroMod",
 	"keywords": "Ra8876_Lite",
-	"description": "wwatson Ra8876LiteTeensy Library",
+	"description": "wwatson Ra8876Lite-8080-MicroMod Library",
 	"version": "1.0.0",
 	"authors":
 	{	"name": "Warren Watson",
