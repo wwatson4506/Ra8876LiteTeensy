@@ -1,5 +1,7 @@
 # MAJOR UPDATE
-## This version of Ra8876LiteTeensy added the ablitiy to communicate with the RA8876 in 8080 parallel mode.
+
+********************* THIS BRANCH IS OUTDATED!!!! PLEASE USE ONE OF THE OTHER BRANCHES *******************************
+
 as of 4/30/20
 Added frame buffering type support:
 1. useCanvas()
