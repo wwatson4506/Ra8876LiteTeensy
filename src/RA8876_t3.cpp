@@ -2277,13 +2277,11 @@ void RA8876_t3::update_tft(uint8_t data) {
 	textMode(true);
 	setTextCursor(_cursorX,_cursorY);
 	ramAccessPrepare();
-	checkWriteFifoNotFull();  
 	if(!UDFont) {
 		lcdDataWrite(data);
 	}
 	if(UDFont) {
 		lcdDataWrite(data>>8);
-		checkWriteFifoNotFull();  
 		lcdDataWrite(data);
 	}
 	check2dBusy();
