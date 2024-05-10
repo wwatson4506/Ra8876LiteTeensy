@@ -180,8 +180,6 @@ RA8876_t3::RA8876_t3(const uint8_t DCp, const uint8_t CSp, const uint8_t RSTp)
 	_cs = CSp;
 	_rst = RSTp;
     _dc = DCp;
-Serial.print("_cs = ");
-Serial.println(_cs,DEC);
 }
 
 FLASHMEM boolean RA8876_t3::begin(uint8_t baud_div) 
