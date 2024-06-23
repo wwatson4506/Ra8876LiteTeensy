@@ -781,8 +781,9 @@ boolean RA8876_t3::ra8876Initialize() {
 	// Setup graphic cursor
 	Set_Graphic_Cursor_Color_1(0xff); // Foreground color
 	Set_Graphic_Cursor_Color_2(0x00); // Outline color
+        Disable_Graphic_Cursor(); // Turn off Graphic Cusor
 	Graphic_cursor_initial();  // Initialize Graphic Cursor
-    Select_Graphic_Cursor_2(); // Select Arrow Graphic Cursor
+        Select_Graphic_Cursor_2(); // Select Arrow Graphic Cursor
 	// Set default foreground and background colors
 	setTextColor(_TXTForeColor, _TXTBackColor);	
 	// Position text cursor to default
