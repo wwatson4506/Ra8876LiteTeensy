@@ -111,7 +111,6 @@ void drawImage(uint16_t image_width, uint16_t image_height, uint16_t *image, uin
     }
   }
   else tft.writeRect(start_x, start_y, image_width, image_height, image);
-Serial.printf("\n         drawImage()\n");
   uint32_t dt = em;
   tft.setCursor(10, 10);
   tft.print(dt, DEC);
