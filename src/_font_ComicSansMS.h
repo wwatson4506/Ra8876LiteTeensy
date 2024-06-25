@@ -1,7 +1,7 @@
 #ifndef _ILI9488_t3_font_ComicSansMS_
 #define _ILI9488_t3_font_ComicSansMS_
 
-#include "_fonts.h"
+#include "ILI9341_fonts.h"
 
 #ifdef __cplusplus
 extern "C" {
