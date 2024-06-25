@@ -1,3 +1,4 @@
+#include <Adafruit_GFX.h>
 #include "RA8876_t3.h"
 
 /*
@@ -25,7 +26,7 @@ RA8876_t3 tft = RA8876_t3(dc,cs,rst); //(dc, cs, rst)
 #define BACKLITE 5 // was 7 //External backlight control connected to this Arduino pin
 //RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
 
-#include "_fonts.h"
+#include "ILI9341_fonts.h"
 
 #include "font_Arial.h"
 #include "font_ArialBold.h"
@@ -37,8 +38,8 @@ RA8876_t3 tft = RA8876_t3(dc,cs,rst); //(dc, cs, rst)
 //#include "font_ChanceryItalic.h"
 
 // maybe a few GFX FOnts?
-//#include <Fonts/FreeMonoBoldOblique12pt7b.h>
-//#include <Fonts/FreeSerif12pt7b.h>
+#include <Fonts/FreeMonoBoldOblique12pt7b.h>
+#include <Fonts/FreeSerif12pt7b.h>
 
 typedef struct {
   const ILI9341_t3_font_t *ili_font;
@@ -52,7 +53,7 @@ const uint16_t  PINK       = 0xFCFF; // M.Sandercock
 const uint16_t  PURPLE       = 0x8017; // M.Sandercock
 
 const ili_fonts_test_t font_test_list[] = {
-  {nullptr, nullptr,  "Internal Font", RED, YELLOW},
+  //{nullptr, nullptr,  "Internal Font", RED, YELLOW},
   {&Arial_14, nullptr,  "Arial_14", WHITE, WHITE},
   {&Arial_14_Bold, nullptr,  "ArialBold 14", YELLOW, YELLOW},
   {&ComicSansMS_14, nullptr,  "ComicSansMS 14", GREEN, GREEN},
@@ -61,10 +62,11 @@ const ili_fonts_test_t font_test_list[] = {
 //  {&Crystal_24_Italic, nullptr,  "CRYSTAL_24", BLACK, YELLOW},
 //  {&Chancery_24_Italic, nullptr,  "Chancery_24_Italic", GREEN, GREEN},
   {&OpenSans24, nullptr,  "OpenSans 18", RED, YELLOW},
-//  {nullptr, &FreeMonoBoldOblique12pt7b,  "GFX FreeMonoBoldOblique12pt7b", WHITE, WHITE},
-//  {nullptr, &FreeMonoBoldOblique12pt7b,  "GFX FreeMonoBoldOblique12pt7b", RED, YELLOW},
-//  {nullptr, &FreeSerif12pt7b,  "GFX FreeSerif12pt7b", WHITE, WHITE},
-//  {nullptr, &FreeSerif12pt7b,  "GFX FreeSerif12pt7b", RED, YELLOW},
+  {nullptr, &FreeMonoBoldOblique12pt7b,  "GFX FreeMonoBoldOblique12pt7b", WHITE, WHITE},
+  {nullptr, &FreeMonoBoldOblique12pt7b,  "GFX FreeMonoBoldOblique12pt7b", RED, YELLOW},
+  {nullptr, &FreeSerif12pt7b,  "GFX FreeSerif12pt7b", WHITE, WHITE},
+  {nullptr, &FreeSerif12pt7b,  "GFX FreeSerif12pt7b", RED, YELLOW},
+  {&Arial_18, nullptr,  "Arial_18", WHITE, WHITE},
 
 } ;
 

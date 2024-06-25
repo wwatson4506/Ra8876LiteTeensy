@@ -96,7 +96,7 @@
 #define FLEXIO_ISR_PRIORITY 64 // interrupt is timing sensitive, so use relatively high priority (supersedes USB)
 
 /* Addins for ILI and GFX Fonts */
-#include "_fonts.h"
+#include "ILI9341_fonts.h"
 
 #if !defined(swapvals)
 	#if defined(ESP8266)
@@ -118,21 +118,21 @@
 
 /// Font data stored PER GLYPH
 typedef struct {
-	uint16_t bitmapOffset;     ///< Pointer into GFXfont->bitmap
-	uint8_t  width;            ///< Bitmap dimensions in pixels
-    uint8_t  height;           ///< Bitmap dimensions in pixels
-	uint8_t  xAdvance;         ///< Distance to advance cursor (x axis)
-	int8_t   xOffset;          ///< X dist from cursor pos to UL corner
-    int8_t   yOffset;          ///< Y dist from cursor pos to UL corner
+  uint16_t bitmapOffset; ///< Pointer into GFXfont->bitmap
+  uint8_t width;         ///< Bitmap dimensions in pixels
+  uint8_t height;        ///< Bitmap dimensions in pixels
+  uint8_t xAdvance;      ///< Distance to advance cursor (x axis)
+  int8_t xOffset;        ///< X dist from cursor pos to UL corner
+  int8_t yOffset;        ///< Y dist from cursor pos to UL corner
 } GFXglyph;
 
 /// Data stored for FONT AS A WHOLE
-typedef struct { 
-	uint8_t  *bitmap;      ///< Glyph bitmaps, concatenated
-	GFXglyph *glyph;       ///< Glyph array
-	uint8_t   first;       ///< ASCII extents (first char)
-    uint8_t   last;        ///< ASCII extents (last char)
-	uint8_t   yAdvance;    ///< Newline distance (y axis)
+typedef struct {
+  uint8_t *bitmap;  ///< Glyph bitmaps, concatenated
+  GFXglyph *glyph;  ///< Glyph array
+  uint16_t first;   ///< ASCII extents (first char)
+  uint16_t last;    ///< ASCII extents (last char)
+  uint8_t yAdvance; ///< Newline distance (y axis)
 } GFXfont;
 
 #endif // _GFXFONT_H_ 
@@ -266,18 +266,6 @@ public:
 	uint32_t boxPut(uint32_t vPageAddr, uint16_t x0, uint16_t y0,uint16_t x1, uint16_t y1, uint16_t dx0, uint16_t dy0);
 	uint32_t boxGet(uint32_t vPageAddr, uint16_t x0, uint16_t y0,uint16_t x1, uint16_t y1, uint16_t dx0, uint16_t dy0);
 
-	
-	/* Button Functions */
-	void initButton(struct Gbuttons *button, uint16_t x, uint16_t y, uint8_t w, uint8_t h,
-		uint16_t outline, uint16_t fill, uint16_t textcolor,
-		char *label, uint8_t textsize);
-	void drawButton(struct Gbuttons *buttons, bool inverted);
-	bool buttonContains(struct Gbuttons *buttons,uint16_t x, uint16_t y);
-	void buttonPress(struct Gbuttons *buttons, bool p);
-	bool buttonIsPressed(struct Gbuttons *buttons);
-	bool buttonJustPressed(struct Gbuttons *buttons);
-	bool buttonJustReleased(struct Gbuttons *buttons);
-	
 	
 	/*  Font Functions  */
 	//**[DBh]~[DEh]**//
@@ -899,6 +887,79 @@ protected:
 
     volatile bool WR_IRQTransferDone = true;
 
+};
+// To avoid conflict when also using Adafruit_GFX or any Adafruit library
+// which depends on Adafruit_GFX, #include the Adafruit library *BEFORE*
+// you #include ILI9341_t3.h.
+// Warning the implemention of class needs to be here, else the code
+// compiled in the c++ file will cause duplicate defines in the link phase. 
+//#ifndef _ADAFRUIT_GFX_H
+#ifdef Adafruit_GFX_Button
+#undef Adafruit_GFX_Button
+#endif
+#define Adafruit_GFX_Button RA8876_Button
+class RA8876_Button {
+public:
+	RA8876_Button(void) { _gfx = NULL; }
+	void initButton(RA8876_t3 *gfx, int16_t x, int16_t y,
+		uint8_t w, uint8_t h,
+		uint16_t outline, uint16_t fill, uint16_t textcolor,
+		const char *label, uint8_t textsize_x, uint8_t textsize_y) {
+		_x = x;
+		_y = y;
+		_w = w;
+		_h = h;
+		_outlinecolor = outline;
+		_fillcolor = fill;
+		_textcolor = textcolor;
+		_textsize_x = textsize_x;
+		_textsize_y = textsize_y;
+		_gfx = gfx;
+		strncpy(_label, label, 9);
+		_label[9] = 0;
+
+	}
+	void drawButton(bool inverted = false) {
+		uint16_t fill, outline, text;
+
+		if (! inverted) {
+			fill = _fillcolor;
+			outline = _outlinecolor;
+			text = _textcolor;
+		} else {
+			fill =  _textcolor;
+			outline = _outlinecolor;
+			text = _fillcolor;
+		}
+		_gfx->fillRoundRect(_x - (_w/2), _y - (_h/2), _w, _h, min(_w,_h)/4,  min(_w,_h)/4, fill);
+		_gfx->drawRoundRect(_x - (_w/2), _y - (_h/2), _w, _h, min(_w,_h)/4,  min(_w,_h)/4, outline);
+		_gfx->setCursor(_x - strlen(_label)*3*_textsize_x, _y-4*_textsize_y);
+		_gfx->setTextColor(text);
+		_gfx->setTextSize(_textsize_x, _textsize_y);
+		_gfx->print(_label);
+	}
+
+	bool contains(int16_t x, int16_t y) {
+		if ((x < (_x - _w/2)) || (x > (_x + _w/2))) return false;
+		if ((y < (_y - _h/2)) || (y > (_y + _h/2))) return false;
+		return true;
+	}
+
+	void press(boolean p) {
+		laststate = currstate;
+		currstate = p;
+	}
+	bool isPressed() { return currstate; }
+	bool justPressed() { return (currstate && !laststate); }
+	bool justReleased() { return (!currstate && laststate); }
+private:
+	RA8876_t3 *_gfx;
+	int16_t _x, _y;
+	uint16_t _w, _h;
+	uint8_t _textsize_x, _textsize_y;
+	uint16_t _outlinecolor, _fillcolor, _textcolor;
+	char _label[10];
+	boolean currstate, laststate;
 };
 
 #endif
