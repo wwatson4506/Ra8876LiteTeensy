@@ -3446,7 +3446,7 @@ ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned short *
   DCHigh();
   for(j=0;j<height;j++) {
 	for(i=0;i<width;i++) {
-//delayNanoseconds(15);   // Initially setup for the T4.1 board
+delayNanoseconds(10);   // Initially setup for the T4.1 board
       if(_rotation & 1) delayNanoseconds(70);
       p->SHIFTBUF[0] = *data++;
       /*Wait for transfer to be completed */
