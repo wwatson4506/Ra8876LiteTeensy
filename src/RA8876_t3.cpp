@@ -5014,7 +5014,7 @@ void RA8876_t3::_fontWrite(const uint8_t* buffer, uint16_t len)
 			} else if (c == '\r') {
 				// skip em
 			} else {
-				drawChar(_cursorX, _cursorY, c, textcolor, textbgcolor, textsize_x, textsize_y);
+				drawChar(_cursorX, _cursorY, c, _TXTForeColor, _TXTBackColor, textsize_x, textsize_y);
 				_cursorX += textsize_x*6;
 				if (wrap && (_cursorX > (_width - textsize_x*6))) {
 					_cursorY += textsize_y*6;
@@ -5039,9 +5039,9 @@ void RA8876_t3::drawChar(int16_t x, int16_t y, unsigned char c,
 	   ((x + 6 * size_x - 1) < 0) || // Clip left  TODO: is this correct?
 	   ((y + 8 * size_y - 1) < 0))   // Clip top   TODO: is this correct?
 		return;
-
-	//Serial.printf("drawchar %d %d %c %x %x %d %d\n", x, y, c, fgcolor, bgcolor, size_x, size_y);
-	if (_TXTForeColor == _TXTBackColor) {
+  // BUGBUG check to see if we are opaque or not.
+	//Serial.printf("drawchar %d %d %c %x %x %d %d %x\n", x, y, c, fgcolor, bgcolor, size_x, size_y, _backTransparent);
+	if (_backTransparent) {
 		// This transparent approach is only about 20% faster
 		if ((size_x == 1) && (size_y == 1)) {
 			uint8_t mask = 0x01;
@@ -5140,47 +5140,47 @@ void RA8876_t3::drawChar(int16_t x, int16_t y, unsigned char c,
 			 ((y + 8 * size_y - 1) < _displayclipy1))   // Clip top   TODO: this is not correct
 			return;
 
-		// need to build actual pixel rectangle we will output into.
-		int16_t y_char_top = y;	// remember the y
-		int16_t w =  6 * size_x;
-		int16_t h = 8 * size_y;
 
-		if(x < _displayclipx1) {	w -= (_displayclipx1-x); x = _displayclipx1; 	}
-		if((x + w - 1) >= _displayclipx2)  w = _displayclipx2  - x;
-		if(y < _displayclipy1) {	h -= (_displayclipy1 - y); y = _displayclipy1; 	}
-		if((y + h - 1) >= _displayclipy2) h = _displayclipy2 - y;
-
-		//Serial.printf("%d, %d, %d, %d\n", x, y, x + w -1, y + h - 1);
-		setActiveWindow(x, y, x + w -1, y + h - 1);
-		//_startSend();
-		y = y_char_top;	// restore the actual y.
-		//writeCommand(RA8875_MRWC);
-		for (yc=0; (yc < 8) && (y < _displayclipy2); yc++) {
-			for (yr=0; (yr < size_y) && (y < _displayclipy2); yr++) {
-				x = x_char_start; 		// get our first x position...
-				if (y >= _displayclipy1) {
-					for (xc=0; xc < 5; xc++) {
-						for (xr=0; xr < size_x; xr++) {
-							if ((x >= _displayclipx1) && (x < _displayclipx2)) {
-								//write16BitColor(fgcolor);
-								drawPixel(xr+x,yc+y,fgcolor);
-							}
-							x++;
-						}
-					}
-					for (xr=0; xr < size_x; xr++) {
-						if ((x >= _displayclipx1) && (x < _displayclipx2)) {
-							//write16BitColor(bgcolor);
-							drawPixel(xr+x,yc+y,bgcolor);
-						}
-						x++;
-					}
-				}
-				y++;
-			}
-			mask = mask << 1;
-		}
-		//writecommand_last(ILI9488_NOP);
+    int16_t w =  6 * size_x;
+    int16_t h = 8 * size_y;
+    int16_t y_char_top = y; // remember the y
+      uint16_t char_buffer[w * h];
+      uint16_t color;
+      uint16_t *pfbPixel_row = char_buffer;
+      for (yc = 0; (yc < 8) && (y < _displayclipy2); yc++) {
+        for (yr = 0; (yr < size_y) && (y < _displayclipy2); yr++) {
+          x = x_char_start; // get our first x position...
+          if (y >= _displayclipy1) {
+            uint16_t *pfbPixel = pfbPixel_row;
+            for (xc = 0; xc < 5; xc++) {
+              if (glcdfont[c * 5 + xc] & mask) {
+                color = fgcolor;
+              } else {
+                color = bgcolor;
+              }
+              for (xr = 0; xr < size_x; xr++) {
+                if ((x >= _displayclipx1) && (x < _displayclipx2)) {
+                  *pfbPixel = color;
+                }
+                pfbPixel++;
+                x++;
+              }
+            }
+            for (xr = 0; xr < size_x; xr++) {
+              if ((x >= _displayclipx1) && (x < _displayclipx2)) {
+                *pfbPixel = bgcolor;
+              }
+              pfbPixel++;
+              x++;
+            }
+          }
+          pfbPixel_row += w; // setup pointer to
+          y++;
+        }
+        mask = mask << 1;
+      }
+      writeRect(x_char_start,y_char_top, w, h, char_buffer);
+    //writecommand_last(ILI9488_NOP);
 		//_endSend();
 	}
 }

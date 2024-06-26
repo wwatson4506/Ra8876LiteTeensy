@@ -78,7 +78,7 @@ Version   : v1.0
 #define USE_FT5206_TOUCH
 
 /* Addins for ILI and GFX Fonts */
-#include "_fonts.h"
+#include "ILI9341_fonts.h"
 
 #if !defined(swapvals)
 	#if defined(ESP8266)
