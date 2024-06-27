@@ -310,7 +310,7 @@ public:
 	void clearStatusLine(uint16_t color); 
 	
 	/* Pseudo Frame Buffer Support */
-	void useCanvas();
+	void useCanvas(boolean on);
 	void updateScreen();
 	
 	 
@@ -328,6 +328,14 @@ public:
 	void drawCircleFill(ru16 x0,ru16 y0,ru16 r,ru16 color);
 	void drawEllipse(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color);
 	void drawEllipseFill(ru16 x0,ru16 y0,ru16 xr,ru16 yr,ru16 color);
+  
+  /* New Functions for 2024 */
+  void readRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t *pcolors);
+  uint16_t readPixel(int16_t x, int16_t y);
+  void fillRectHGradient(int16_t x, int16_t y, int16_t w, int16_t h,
+                                            uint16_t color1, uint16_t color2);
+  void fillRectVGradient(int16_t x, int16_t y, int16_t w, int16_t h,
+                                            uint16_t color1, uint16_t color2);
 	 
 	/*BTE function*/
 	void bte_Source0_MemoryStartAddr(ru32 addr);
@@ -502,6 +510,37 @@ public:
 	void putPicture(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const unsigned char *data);
 
 	void scrollUp(void);
+  
+  // Pass 8-bit (each) R,G,B, get back 16-bit packed color
+  static uint16_t color565(uint8_t r, uint8_t g, uint8_t b) {
+      return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+  }
+
+  // color565toRGB		- converts 565 format 16 bit color to RGB
+  static void color565toRGB(uint16_t color, uint8_t &r, uint8_t &g,
+                            uint8_t &b) {
+      r = (color >> 8) & 0x00F8;
+      g = (color >> 3) & 0x00FC;
+      b = (color << 3) & 0x00F8;
+  }
+
+  // color565toRGB14		- converts 16 bit 565 format color to 14 bit RGB (2
+  // bits clear for math and sign)
+  // returns 00rrrrr000000000,00gggggg00000000,00bbbbb000000000
+  // thus not overloading sign, and allowing up to double for additions for
+  // fixed point delta
+  static void color565toRGB14(uint16_t color, int16_t &r, int16_t &g,
+                              int16_t &b) {
+      r = (color >> 2) & 0x3E00;
+      g = (color << 3) & 0x3F00;
+      b = (color << 9) & 0x3E00;
+  }
+  
+  // RGB14tocolor565		- converts 14 bit RGB back to 16 bit 565 format
+  // color
+  static uint16_t RGB14tocolor565(int16_t r, int16_t g, int16_t b) {
+      return (((r & 0x3E00) << 2) | ((g & 0x3F00) >> 3) | ((b & 0x3E00) >> 9));
+  }
 	
 //Hack fonts - RA8875 additional functions
 	// setOrigin sets an offset in display pixels where drawing to (0,0) will appear

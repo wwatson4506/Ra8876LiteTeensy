@@ -1497,16 +1497,29 @@ void RA8876_t3::graphicMode(boolean on)
 //**************************************************************//
 /* Read a 16bpp pixel                                           */
 //**************************************************************//
-ru16 RA8876_t3::getPixel(ru16 x,ru16 y)
-{
-	ru16 rdata = 0;
-	graphicMode(true);
-	setPixelCursor(x, y);		// set memory address
-	ramAccessPrepare();			// Setup SDRAM Access
-	rdata = lcdDataRead();		// dummyread to alert SPI
-	rdata = lcdDataRead();		// read low byte
-	rdata |= lcdDataRead()<<8;	// add high byte 
-	return rdata;
+ru16 RA8876_t3::readPixel(int16_t x, int16_t y) {
+    return getPixel(x, y);
+}
+
+ru16 RA8876_t3::getPixel(ru16 x,ru16 y) {
+  ru16 rdata = 0;
+  ru16 dummy = 0;
+  selectScreen(currentPage);
+  graphicMode(true);
+  setPixelCursor(x, y);		          // set memory address
+  ramAccessPrepare();			          // Setup SDRAM Access
+  dummy = lcdDataRead();
+  rdata = (lcdDataRead() & 0xff);		// read low byte
+  rdata |= lcdDataRead() << 8;	    // add high byte 
+ 	return rdata;
+}
+
+void RA8876_t3::readRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t *pcolors) {
+  for(uint16_t j = y; j < (h + y); j++) {
+    for(uint16_t i = x; i < (w + x); i++) {
+      *pcolors++ = getPixel(i, j);
+    }
+  }
 }
 
 //**************************************************************//
@@ -4001,18 +4014,36 @@ void RA8876_t3::restoreTFTParams(tftSave_t *screenSave) {
 	 _TXTBackColor = screenSave->TXTBackColor;
 }
 
-void RA8876_t3::useCanvas()
-{
-	displayImageStartAddress(PAGE1_START_ADDR);
-	displayImageWidth(_width);
-	displayWindowStartXY(0,0);
-	
-	canvasImageStartAddress(PAGE2_START_ADDR);
-	canvasImageWidth(_width);
-	activeWindowXY(0, 0);
-	activeWindowWH(_width, _height);
-	check2dBusy();
-	ramAccessPrepare();
+void RA8876_t3::useCanvas(boolean on) {
+  if(on) {
+    displayImageStartAddress(PAGE1_START_ADDR);
+    displayImageWidth(_width);
+    displayWindowStartXY(0,0);
+    
+    canvasImageStartAddress(PAGE2_START_ADDR);
+    canvasImageWidth(_width);
+    activeWindowXY(0, 0);
+    activeWindowWH(_width, _height);
+    currentPage = PAGE2_START_ADDR;
+    pageOffset = PAGE2_START_ADDR;
+    check2dBusy();
+    ramAccessPrepare();
+    
+  } else {
+    displayImageStartAddress(PAGE1_START_ADDR);
+    displayImageWidth(_width);
+    displayWindowStartXY(0,0);
+    
+    canvasImageStartAddress(PAGE1_START_ADDR);
+    canvasImageWidth(_width);
+    activeWindowXY(0, 0);
+    activeWindowWH(_width, _height);
+    currentPage = PAGE1_START_ADDR;
+    pageOffset = PAGE1_START_ADDR;
+    check2dBusy();
+    ramAccessPrepare();
+    
+  }
 }
 
 void RA8876_t3::updateScreen() {
@@ -4510,8 +4541,107 @@ void RA8876_t3::fillRect(int16_t x, int16_t y, int16_t w, int16_t h,uint16_t col
 
 }
 
-void RA8876_t3::writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors)
-{
+// fillRectHGradient	- fills area with horizontal gradient
+void RA8876_t3::fillRectHGradient(int16_t x, int16_t y, int16_t w, int16_t h,
+                                            uint16_t color1, uint16_t color2) {
+  x += _originx;
+  y += _originy;
+
+  // Rectangular clipping
+  if ((x >= _displayclipx2) || (y >= _displayclipy2))
+      return;
+  if (x < _displayclipx1) {
+      w -= (_displayclipx1 - x);
+      x = _displayclipx1;
+  }
+  if (y < _displayclipy1) {
+      h -= (_displayclipy1 - y);
+      y = _displayclipy1;
+  }
+  if ((x + w - 1) >= _displayclipx2)
+      w = _displayclipx2 - x;
+  if ((y + h - 1) >= _displayclipy2)
+      h = _displayclipy2 - y;
+
+  int16_t r1, g1, b1, r2, g2, b2, dr, dg, db, r, g, b;
+  uint16_t color;
+  color565toRGB14(color1, r1, g1, b1);
+  color565toRGB14(color2, r2, g2, b2);
+  dr = (r2 - r1) / w;
+  dg = (g2 - g1) / w;
+  db = (b2 - b1) / w;
+  r = r1;
+  g = g1;
+  b = b1;
+  
+  check2dBusy();
+  graphicMode(true);
+  for (uint16_t j = h; j > 0; j--) { //y
+      for (uint16_t i = w; i > 0; i--) { //x
+          color = RGB14tocolor565(r, g, b);
+          drawPixel(x + i, y + j, color);
+          r += dr;
+          g += dg;
+          b += db;
+      }
+      //color = RGB14tocolor565(r, g, b);
+      //drawPixel(x, y, color);
+      r = r1;
+      g = g1;
+      b = b1;
+  }
+}
+    
+
+void RA8876_t3::fillRectVGradient(int16_t x, int16_t y, int16_t w, int16_t h,
+                                            uint16_t color1, uint16_t color2) {
+    x += _originx;
+    y += _originy;
+
+    // Rectangular clipping
+    if ((x >= _displayclipx2) || (y >= _displayclipy2))
+        return;
+    if (x < _displayclipx1) {
+        w -= (_displayclipx1 - x);
+        x = _displayclipx1;
+    }
+    if (y < _displayclipy1) {
+        h -= (_displayclipy1 - y);
+        y = _displayclipy1;
+    }
+    if ((x + w - 1) >= _displayclipx2)
+        w = _displayclipx2 - x;
+    if ((y + h - 1) >= _displayclipy2)
+        h = _displayclipy2 - y;
+
+    int16_t r1, g1, b1, r2, g2, b2, dr, dg, db, r, g, b;
+    color565toRGB14(color1, r1, g1, b1);
+    color565toRGB14(color2, r2, g2, b2);
+    dr = (r2 - r1) / h;
+    dg = (g2 - g1) / h;
+    db = (b2 - b1) / h;
+    r = r1;
+    g = g1;
+    b = b1;
+    
+    check2dBusy();
+    graphicMode(true);
+    
+    for (uint16_t j = h; j > 0; j--) {
+        uint16_t color = RGB14tocolor565(r, g, b);
+        for (uint16_t i = w; i > 0; i--) {
+          drawPixel(x + i , y + j, color);
+        }
+        //drawPixel(x + i , y + j, color);
+        r += dr;
+        g += dg;
+        b += db;
+    }
+
+}
+
+
+void RA8876_t3::writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors) {
 	uint16_t start_x = (x != CENTER) ? x : (_width - w) / 2;
 	uint16_t start_y = (y != CENTER) ? y : (_height - h) / 2;
 
@@ -4552,7 +4682,7 @@ void RA8876_t3::writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint
 				while (h) {
 					for (int i = 0; i < w; i++) rotated_buffer[w-i-1] = *pcolors++;
 				    bteMpuWriteWithROPData8(currentPage, width(), start_x, start_y,  //Source 1 is ignored for ROP 12
-                              currentPage, width(), start_x, start_y, w, 1,     //destination address, pagewidth, x/y, width/height
+                              currentPage, width(), start_x , start_y, w, 1,     //destination address, pagewidth, x/y, width/height
                               RA8876_BTE_ROP_CODE_12,
                               ( const unsigned char *)rotated_buffer);
 				    start_y++;
@@ -4571,7 +4701,7 @@ void RA8876_t3::writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint
 				while (h) {
 					//Serial.printf("DP %x, %d, %d %d\n", rotated_row, h, start_x, y);
 				    bteMpuWriteWithROPData8(currentPage, height(), start_y, start_x,  //Source 1 is ignored for ROP 12
-	                              currentPage, height(),  start_y, start_x, 1, w,     //destination address, pagewidth, x/y, width/height
+	                              currentPage, height(), height() - start_y, start_x, 1, w,     //destination address, pagewidth, x/y, width/height
 	                              RA8876_BTE_ROP_CODE_12,
 	                              ( const unsigned char *)pcolors);
 				    start_y--;
