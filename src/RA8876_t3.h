@@ -471,6 +471,48 @@ public:
 	// draw in current/specified orientation. 
 	uint16_t *rotateImageRect(int16_t w, int16_t h, const uint16_t *pcolors, int16_t rotation=-1);
 	void writeRotatedRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors);
+    // writeRect8BPP - 	write 8 bit per pixel paletted bitmap
+    //					bitmap data in array at pixels, one byte per
+    // pixel
+    //					color palette data in array at palette
+    void writeRect8BPP(int16_t x, int16_t y, int16_t w, int16_t h,
+                       const uint8_t *pixels, const uint16_t *palette);
+
+    // writeRect4BPP - 	write 4 bit per pixel paletted bitmap
+    //					bitmap data in array at pixels, 4 bits per
+    // pixel
+    //					color palette data in array at palette
+    //					width must be at least 2 pixels
+    void writeRect4BPP(int16_t x, int16_t y, int16_t w, int16_t h,
+                       const uint8_t *pixels, const uint16_t *palette);
+
+    // writeRect2BPP - 	write 2 bit per pixel paletted bitmap
+    //					bitmap data in array at pixels, 4 bits per
+    // pixel
+    //					color palette data in array at palette
+    //					width must be at least 4 pixels
+    void writeRect2BPP(int16_t x, int16_t y, int16_t w, int16_t h,
+                       const uint8_t *pixels, const uint16_t *palette);
+
+    // writeRect1BPP - 	write 1 bit per pixel paletted bitmap
+    //					bitmap data in array at pixels, 4 bits per
+    // pixel
+    //					color palette data in array at palette
+    //					width must be at least 8 pixels
+    void writeRect1BPP(int16_t x, int16_t y, int16_t w, int16_t h,
+                       const uint8_t *pixels, const uint16_t *palette);
+
+    // writeRectNBPP - 	write N(1, 2, 4, 8) bit per pixel paletted bitmap
+    //					bitmap data in array at pixels
+    //  Currently writeRect1BPP, writeRect2BPP, writeRect4BPP use this to do all
+    //  of the work.
+    //
+    void writeRectNBPP(int16_t x, int16_t y, int16_t w, int16_t h,
+                       uint8_t bits_per_pixel, const uint8_t *pixels,
+                       const uint16_t *palette);
+
+
+
 	void drawRoundRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t xr, uint16_t yr, uint16_t color);
 	void fillRoundRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t xr, uint16_t yr, uint16_t color);
 	void fillCircle(int16_t x0, int16_t y0, int16_t r, uint16_t color);
