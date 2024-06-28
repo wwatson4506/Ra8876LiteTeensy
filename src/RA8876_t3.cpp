@@ -4672,7 +4672,7 @@ void RA8876_t3::writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint
 			break;
 		case 2:
 			{
-				uint16_t *rotated_buffer_alloc = (uint16_t*)malloc(w * h * 2 + 32);
+				uint16_t *rotated_buffer_alloc = (uint16_t*)malloc(w * 2 + 32);
 				if (!rotated_buffer_alloc) return; // failed to allocate. 
 			    uint16_t *rotated_buffer = (uint16_t *)(((uintptr_t)rotated_buffer_alloc + 32) & ~((uintptr_t)(31)));
 				// unrolled to bte call
@@ -4682,7 +4682,7 @@ void RA8876_t3::writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint
 				while (h) {
 					for (int i = 0; i < w; i++) rotated_buffer[w-i-1] = *pcolors++;
 				    bteMpuWriteWithROPData8(currentPage, width(), start_x, start_y,  //Source 1 is ignored for ROP 12
-                              currentPage, width(), start_x , start_y, w, 1,     //destination address, pagewidth, x/y, width/height
+                              currentPage, width(), (width()- w) - start_x , start_y, w, 1,     //destination address, pagewidth, x/y, width/height
                               RA8876_BTE_ROP_CODE_12,
                               ( const unsigned char *)rotated_buffer);
 				    start_y++;
@@ -4701,7 +4701,7 @@ void RA8876_t3::writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint
 				while (h) {
 					//Serial.printf("DP %x, %d, %d %d\n", rotated_row, h, start_x, y);
 				    bteMpuWriteWithROPData8(currentPage, height(), start_y, start_x,  //Source 1 is ignored for ROP 12
-	                              currentPage, height(), height() - start_y, start_x, 1, w,     //destination address, pagewidth, x/y, width/height
+                           currentPage, height(), height() - start_y, start_x, 1, w,     //destination address, pagewidth, x/y, width/height
 	                              RA8876_BTE_ROP_CODE_12,
 	                              ( const unsigned char *)pcolors);
 				    start_y--;
