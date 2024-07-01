@@ -188,174 +188,85 @@ FLASHMEM boolean RA8876_t3::begin(uint32_t spi_clock) {
 //**************************************************************//
 // Write to a RA8876 register
 //**************************************************************//
-void RA8876_t3::lcdRegWrite(ru8 reg, bool finalize) 
-{
-  ru16 _data = (RA8876_SPI_CMDWRITE16 | reg);
-  
-  startSend();
-  _pspi->transfer16(_data);
-  endSend(finalize);
+void RA8876_t3::lcdRegWrite(ru8 reg, bool finalize) {
+    ru16 _data = (RA8876_SPI_CMDWRITE16 | reg);
+
+    startSend();
+    _pspi->transfer16(_data);
+    endSend(finalize);
 }
 
-void RA8876_t3::LCD_CmdWrite(unsigned char cmd)
-{	
-  startSend();
-  _pspi->transfer16(0x00);
-  _pspi->transfer(cmd);
-  endSend(true);
+void RA8876_t3::LCD_CmdWrite(unsigned char cmd) {
+    startSend();
+    _pspi->transfer16(0x00);
+    _pspi->transfer(cmd);
+    endSend(true);
 }
 
 //**************************************************************//
 // Write RA8876 Data
 //**************************************************************//
-void RA8876_t3::lcdDataWrite(ru8 data, bool finalize) 
-{
-  ru16 _data = (RA8876_SPI_DATAWRITE16 | data);
-  startSend();
-  _pspi->transfer16(_data);
-  endSend(finalize);
+void RA8876_t3::lcdDataWrite(ru8 data, bool finalize) {
+    ru16 _data = (RA8876_SPI_DATAWRITE16 | data);
+    startSend();
+    _pspi->transfer16(_data);
+    endSend(finalize);
 }
 
 //**************************************************************//
 // Read RA8876 Data
 //**************************************************************//
-ru8 RA8876_t3::lcdDataRead(bool finalize) 
-{
-  ru16 _data = (RA8876_SPI_DATAREAD16 | 0x00);
-  
-  startSend();
-  ru8 data = _pspi->transfer16(_data);
-  endSend(finalize);
-  return data;
+ru8 RA8876_t3::lcdDataRead(bool finalize) {
+    ru16 _data = (RA8876_SPI_DATAREAD16 | 0x00);
+
+    startSend();
+    ru8 data = _pspi->transfer16(_data);
+    endSend(finalize);
+    return data;
 }
 
 //**************************************************************//
 // Read RA8876 status register
 //**************************************************************//
-ru8 RA8876_t3::lcdStatusRead(bool finalize) 
-{
-  startSend();
-  ru8 data = _pspi->transfer16(RA8876_SPI_STATUSREAD16);
-  endSend(finalize);
-  return data;
+ru8 RA8876_t3::lcdStatusRead(bool finalize) {
+    startSend();
+    ru8 data = _pspi->transfer16(RA8876_SPI_STATUSREAD16);
+    endSend(finalize);
+    return data;
 }
 
 //**************************************************************//
 // Write Data to a RA8876 register
 //**************************************************************//
-void RA8876_t3::lcdRegDataWrite(ru8 reg, ru8 data, bool finalize)
-{
-  //write the register we wish to write to, then send the data
-  //don't need to release _CS between the two transfers
-  //ru16 _reg = (RA8876_SPI_CMDWRITE16 | reg);
-  //ru16 _data = (RA8876_SPI_DATAWRITE16 | data);
-  uint8_t buf[4] = {RA8876_SPI_CMDWRITE, reg, RA8876_SPI_DATAWRITE, data };
-  startSend();
-  //_pspi->transfer16(_reg);
-  //_pspi->transfer16(_data);
-  _pspi->transfer(buf, nullptr, 4);
-  endSend(finalize);
+void RA8876_t3::lcdRegDataWrite(ru8 reg, ru8 data, bool finalize) {
+    // write the register we wish to write to, then send the data
+    // don't need to release _CS between the two transfers
+    // ru16 _reg = (RA8876_SPI_CMDWRITE16 | reg);
+    // ru16 _data = (RA8876_SPI_DATAWRITE16 | data);
+    uint8_t buf[4] = {RA8876_SPI_CMDWRITE, reg, RA8876_SPI_DATAWRITE, data};
+    startSend();
+    //_pspi->transfer16(_reg);
+    //_pspi->transfer16(_data);
+    _pspi->transfer(buf, nullptr, 4);
+    endSend(finalize);
 }
 
 //**************************************************************//
 // Read a RA8876 register Data
 //**************************************************************//
-ru8 RA8876_t3::lcdRegDataRead(ru8 reg, bool finalize)
-{
-  lcdRegWrite(reg, finalize);
-  return lcdDataRead();
+ru8 RA8876_t3::lcdRegDataRead(ru8 reg, bool finalize) {
+    lcdRegWrite(reg, finalize);
+    return lcdDataRead();
 }
 
 //**************************************************************//
 // support SPI interface to write 16bpp data after Regwrite 04h
 //**************************************************************//
-void RA8876_t3::lcdDataWrite16bbp(ru16 data, bool finalize) 
-{
-	startSend();
-	_pspi->transfer(RA8876_SPI_DATAWRITE);
-	_pspi->transfer16(data);
-	endSend(finalize);
-}
-
-//**************************************************************//
-/* Write a 16bpp pixel                                          */
-//**************************************************************//
-void RA8876_t3::drawPixel(ru16 x, ru16 y, ru16 color) {
-    graphicMode(true);
-    setPixelCursor(x, y);
-    ramAccessPrepare();
-    lcdDataWrite(color);
-    lcdDataWrite(color >> 8);
-    //lcdDataWrite16bbp(color);
-}
-
-void RA8876_t3::writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors) {
-    uint16_t start_x = (x != CENTER) ? x : (_width - w) / 2;
-    uint16_t start_y = (y != CENTER) ? y : (_height - h) / 2;
-
-    switch (_rotation) {
-    case 0:                                                                   // we will just hand off for now to
-                                                                              // unrolled to bte call
-                                                                              // Using the BTE function is faster and will use DMA if available
-        bteMpuWriteWithROPData8(currentPage, width(), start_x, start_y,       // Source 1 is ignored for ROP 12
-                                currentPage, width(), start_x, start_y, w, h, // destination address, pagewidth, x/y, width/height
-                                RA8876_BTE_ROP_CODE_12,
-                                (const unsigned char *)pcolors);
-        break;
-    case 1: {
-        while (h) {
-            // Serial.printf("DP %x, %d, %d %d\n", rotated_row, h, start_x, y);
-            bteMpuWriteWithROPData8(currentPage, height(), start_y, start_x,       // Source 1 is ignored for ROP 12
-                                    currentPage, height(), start_y, start_x, 1, w, // destination address, pagewidth, x/y, width/height
-                                    RA8876_BTE_ROP_CODE_12,
-                                    (const unsigned char *)pcolors);
-            start_y++;
-            h--;
-            pcolors += w;
-        }
-    }
-
-    break;
-    case 2: {
-        uint16_t *rotated_buffer_alloc = (uint16_t *)malloc(w * 2 + 32);
-        if (!rotated_buffer_alloc)
-            return; // failed to allocate.
-        uint16_t *rotated_buffer = (uint16_t *)(((uintptr_t)rotated_buffer_alloc + 32) & ~((uintptr_t)(31)));
-        // unrolled to bte call
-        // Using the BTE function is faster and will use DMA if available
-        // We reverse the colors in the row...
-        // lets reverse data per row...
-        while (h) {
-            for (int i = 0; i < w; i++)
-                rotated_buffer[w - i - 1] = *pcolors++;
-            bteMpuWriteWithROPData8(currentPage, width(), start_x, start_y,                       // Source 1 is ignored for ROP 12
-                                    currentPage, width(), (width() - w) - start_x, start_y, w, 1, // destination address, pagewidth, x/y, width/height
-                                    RA8876_BTE_ROP_CODE_12,
-                                    (const unsigned char *)rotated_buffer);
-            start_y++;
-            h--;
-        }
-#ifdef SPI_HAS_TRANSFER_ASYNC
-        while (activeDMA) {
-        }; // wait forever while DMA is finishing- can't start a new transfer
-#endif
-        free((void *)rotated_buffer_alloc);
-        endSend(true);
-    } break;
-    case 3: {
-        start_y += h;
-        while (h) {
-            // Serial.printf("DP %x, %d, %d %d\n", rotated_row, h, start_x, y);
-            bteMpuWriteWithROPData8(currentPage, height(), start_y, start_x,                  // Source 1 is ignored for ROP 12
-                                    currentPage, height(), height() - start_y, start_x, 1, w, // destination address, pagewidth, x/y, width/height
-                                    RA8876_BTE_ROP_CODE_12,
-                                    (const unsigned char *)pcolors);
-            start_y--;
-            h--;
-            pcolors += w;
-        }
-    }    break;
-  }
+void RA8876_t3::lcdDataWrite16bbp(ru16 data, bool finalize) {
+    startSend();
+    _pspi->transfer(RA8876_SPI_DATAWRITE);
+    _pspi->transfer16(data);
+    endSend(finalize);
 }
 
 //**************************************************************//
@@ -389,22 +300,20 @@ void RA8876_t3::bteMpuWriteWithROPData8(ru32 s1_addr, ru16 s1_image_width, ru16 
 //**************************************************************//
 void RA8876_t3::bteMpuWriteWithROPData16(ru32 s1_addr, ru16 s1_image_width, ru16 s1_x, ru16 s1_y, ru32 des_addr, ru16 des_image_width,
                                          ru16 des_x, ru16 des_y, ru16 width, ru16 height, ru8 rop_code, const unsigned short *data) {
-  ru16 i,j;
-  bteMpuWriteWithROP(s1_addr, s1_image_width, s1_x, s1_y, des_addr, des_image_width, des_x, des_y, width, height, rop_code);
+    ru16 i, j;
+    bteMpuWriteWithROP(s1_addr, s1_image_width, s1_x, s1_y, des_addr, des_image_width, des_x, des_y, width, height, rop_code);
 
-  startSend();
-  _pspi->transfer(RA8876_SPI_DATAWRITE);
-  
-  for(j=0;j<height;j++)
-  {
-    for(i=0;i<width;i++)
-    {
-	  _pspi->transfer16(*data);	  
-      data++;
+    startSend();
+    _pspi->transfer(RA8876_SPI_DATAWRITE);
+
+    for (j = 0; j < height; j++) {
+        for (i = 0; i < width; i++) {
+            _pspi->transfer16(*data);
+            data++;
+        }
     }
-  } 
-  
-  endSend(true);
+
+    endSend(true);
 }
 
 //==========================================================================================

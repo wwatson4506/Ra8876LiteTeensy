@@ -154,10 +154,6 @@ class RA8876_common : public Print {
     virtual void lcdDataWrite16bbp(ru16 data, bool finalize = true) {};
     virtual void lcdDataWrite16(uint16_t data, bool finalize = true) {};
     virtual void endSend(bool finalize) {};
-    
-    /* DRAW FUNCTIONS */
-    virtual void drawPixel(ru16 x, ru16 y, ru16 color){};
-    virtual void writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors) {};
 
     /*BTE function*/
     virtual void bteMpuWriteWithROPData8(ru32 s1_addr, ru16 s1_image_width, ru16 s1_x, ru16 s1_y, ru32 des_addr, ru16 des_image_width,
@@ -167,14 +163,13 @@ class RA8876_common : public Print {
     virtual void bteMpuWriteWithROP(ru32 s1_addr, ru16 s1_image_width, ru16 s1_x, ru16 s1_y, ru32 des_addr, ru16 des_image_width,
                                     ru16 des_x, ru16 des_y, ru16 width, ru16 height, ru8 rop_code) {};
 
-
-
     virtual void beginWrite16BitColors() {};
     virtual void write16BitColor(uint16_t color) {};
     virtual void endWrite16BitColors() {};
 
     /*****************************************************/
     void RA8876_GFX(uint16_t buswidth);
+    void setBusWidth(uint16_t buswidth);
 
     /*  Picture Functions */
     void putPicture_16bpp(ru16 x, ru16 y, ru16 width, ru16 height) {};                                   // not recommended: use BTE instead
@@ -250,7 +245,7 @@ class RA8876_common : public Print {
     /*graphic function*/
     void graphicMode(boolean on);
     void setPixelCursor(ru16 x, ru16 y);
-    //void drawPixel(ru16 x, ru16 y, ru16 color);
+    void drawPixel(ru16 x, ru16 y, ru16 color);
     ru16 getPixel(ru16 x, ru16 y);
     void foreGroundColor16bpp(ru16 color, bool finalize = true);
     void backGroundColor16bpp(ru16 color, bool finalize = true);
@@ -318,7 +313,6 @@ class RA8876_common : public Print {
     void fillRectVGradient(int16_t x, int16_t y, int16_t w, int16_t h,
                            uint16_t color1, uint16_t color2);
 
-
     // writeRect8BPP - 	write 8 bit per pixel paletted bitmap
     //					bitmap data in array at pixels, one byte per
     // pixel
@@ -348,7 +342,7 @@ class RA8876_common : public Print {
     //					width must be at least 8 pixels
     void writeRect1BPP(int16_t x, int16_t y, int16_t w, int16_t h,
                        const uint8_t *pixels, const uint16_t *palette);
-                       
+
     // writeRectNBPP - 	write N(1, 2, 4, 8) bit per pixel paletted bitmap
     //					bitmap data in array at pixels
     //  Currently writeRect1BPP, writeRect2BPP, writeRect4BPP use this to do all
@@ -509,7 +503,7 @@ class RA8876_common : public Print {
     void drawRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
     void fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
 
-    //void writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors);
+    void writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors);
     // Experiment to see if we get significant speed ups for images if they are already pre processed to
     // draw in current/specified orientation.
     uint16_t *rotateImageRect(int16_t w, int16_t h, const uint16_t *pcolors, int16_t rotation = -1);

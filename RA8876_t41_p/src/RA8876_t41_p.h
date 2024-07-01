@@ -94,6 +94,7 @@
 #define SHIFTER_IRQ (SHIFTNUM - 1)
 #define TIMER_IRQ 0
 #define FLEXIO_ISR_PRIORITY 64 // interrupt is timing sensitive, so use relatively high priority (supersedes USB)
+#define use_lcdDataWrite16bbp
 
 class RA8876_t41_p : public RA8876_common {
   public:
@@ -101,10 +102,6 @@ class RA8876_t41_p : public RA8876_common {
 
     /* Initialize RA8876 */
     boolean begin(uint8_t baud_div);
-    
-    /* DRAW FUNCTIONS */
-    void drawPixel(ru16 x, ru16 y, ru16 color);
-    void writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors);
 
     /*access*/
     void lcdRegWrite(ru8 reg, bool finalize = true);
@@ -141,10 +138,9 @@ class RA8876_t41_p : public RA8876_common {
     void write16BitColor(uint16_t color);
     void endWrite16BitColors();
 
-	inline __attribute__((always_inline)) 
-	void endSend(bool finalize){
-      //dummy function
-	} 
+    inline __attribute__((always_inline)) void endSend(bool finalize) {
+        // dummy function
+    }
 
     typedef void (*CBF)();
     CBF _callback;

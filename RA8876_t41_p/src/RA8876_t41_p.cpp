@@ -686,82 +686,6 @@ void RA8876_t41_p::lcdDataWrite16bbp(ru16 data, bool finalize) {
     }
 }
 
-//**************************************************************//
-/* Write a 16bpp pixel                                          */
-//**************************************************************//
-void RA8876_t41_p::drawPixel(ru16 x, ru16 y, ru16 color) {
-    graphicMode(true);
-    setPixelCursor(x, y);
-    ramAccessPrepare();
-    lcdDataWrite(color);
-    lcdDataWrite(color >> 8);
-    lcdDataWrite16bbp(color);
-}
-
-void RA8876_t41_p::writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors) {
-    uint16_t start_x = (x != CENTER) ? x : (_width - w) / 2;
-    uint16_t start_y = (y != CENTER) ? y : (_height - h) / 2;
-
-    switch (_rotation) {
-    case 0:                                                                   // we will just hand off for now to
-                                                                              // unrolled to bte call
-                                                                              // Using the BTE function is faster and will use DMA if available
-        bteMpuWriteWithROPData8(currentPage, width(), start_x, start_y,       // Source 1 is ignored for ROP 12
-                                currentPage, width(), start_x, start_y, w, h, // destination address, pagewidth, x/y, width/height
-                                RA8876_BTE_ROP_CODE_12,
-                                (const unsigned char *)pcolors);
-        break;
-    case 1: {
-        while (h) {
-            // Serial.printf("DP %x, %d, %d %d\n", rotated_row, h, start_x, y);
-            bteMpuWriteWithROPData8(currentPage, height(), start_y, start_x,       // Source 1 is ignored for ROP 12
-                                    currentPage, height(), start_y, start_x, 1, w, // destination address, pagewidth, x/y, width/height
-                                    RA8876_BTE_ROP_CODE_12,
-                                    (const unsigned char *)pcolors);
-            start_y++;
-            h--;
-            pcolors += w;
-        }
-    }
-
-    break;
-    case 2: {
-        uint16_t *rotated_buffer_alloc = (uint16_t *)malloc(w * 2 + 32);
-        if (!rotated_buffer_alloc)
-            return; // failed to allocate.
-        uint16_t *rotated_buffer = (uint16_t *)(((uintptr_t)rotated_buffer_alloc + 32) & ~((uintptr_t)(31)));
-        // unrolled to bte call
-        // Using the BTE function is faster and will use DMA if available
-        // We reverse the colors in the row...
-        // lets reverse data per row...
-        while (h) {
-            for (int i = 0; i < w; i++)
-                rotated_buffer[w - i - 1] = *pcolors++;
-            bteMpuWriteWithROPData8(currentPage, width(), start_x, start_y,                       // Source 1 is ignored for ROP 12
-                                    currentPage, width(), (width() - w) - start_x, start_y, w, 1, // destination address, pagewidth, x/y, width/height
-                                    RA8876_BTE_ROP_CODE_12,
-                                    (const unsigned char *)rotated_buffer);
-            start_y++;
-            h--;
-        }
-        free((void *)rotated_buffer_alloc);
-    } break;
-    case 3: {
-        start_y += h;
-        while (h) {
-            // Serial.printf("DP %x, %d, %d %d\n", rotated_row, h, start_x, y);
-            bteMpuWriteWithROPData8(currentPage, height(), start_y, start_x,                  // Source 1 is ignored for ROP 12
-                                    currentPage, height(), height() - start_y, start_x, 1, w, // destination address, pagewidth, x/y, width/height
-                                    RA8876_BTE_ROP_CODE_12,
-                                    (const unsigned char *)pcolors);
-            start_y--;
-            h--;
-            pcolors += w;
-        }
-    } break;
-    }
-}
-
 //*********************************************************
 // Write RA8876 data to display memory, 8/16 bit buss mode.
 //*********************************************************
@@ -795,7 +719,6 @@ void RA8876_t41_p::lcdDataWrite16(uint16_t data, bool finalize) {
     CSHigh();
     DCLow();
 }
-
 
 //**************************************************************//
 /* Write 16bpp(RGB565) picture data for user operation          */
@@ -1075,4 +998,3 @@ void RA8876_t41_p::endWrite16BitColors() {
     delayNanoseconds(10); // Initially setup for the T4.1 board
     CSHigh();
 }
-

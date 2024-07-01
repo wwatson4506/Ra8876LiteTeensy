@@ -1095,6 +1095,15 @@ void RA8876_common::RA8876_GFX(uint16_t buswidth) {
     BUS_WIDTH = buswidth;
 }
 
+void RA8876_common::setBusWidth(uint16_t buswidth) {
+    if (buswidth == 8 || buswidth == 16) {
+        BUS_WIDTH = buswidth;
+    } else {
+        BUS_WIDTH = 8; // defaults to 8
+        Serial.println("BUSWIDTH NOT SUPPORTED!!!! Defaut used");
+    }
+}
+
 //**************************************************************//
 // Initialize RA8876 to default settings.
 // Return true on success.
@@ -2126,6 +2135,20 @@ ru16 RA8876_common::getPixel(ru16 x, ru16 y) {
     rdata = (lcdDataRead() & 0xff); // read low byte
     rdata |= lcdDataRead() << 8;    // add high byte
     return rdata;
+}
+
+//**************************************************************//
+/* Write a 16bpp pixel                                          */
+//**************************************************************//
+void RA8876_common::drawPixel(ru16 x, ru16 y, ru16 color) {
+    graphicMode(true);
+    setPixelCursor(x, y);
+    ramAccessPrepare();
+    lcdDataWrite(color);
+    lcdDataWrite(color >> 8);
+#if defined(use_lcdDataWrite16bbp)
+    lcdDataWrite16bbp(color);
+#endif
 }
 
 void RA8876_common::readRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t *pcolors) {
@@ -5181,6 +5204,75 @@ void RA8876_common::fillRectVGradient(int16_t x, int16_t y, int16_t w, int16_t h
         r += dr;
         g += dg;
         b += db;
+    }
+}
+
+void RA8876_common::writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors) {
+    uint16_t start_x = (x != CENTER) ? x : (_width - w) / 2;
+    uint16_t start_y = (y != CENTER) ? y : (_height - h) / 2;
+
+    switch (_rotation) {
+    case 0:                                                                   // we will just hand off for now to
+                                                                              // unrolled to bte call
+                                                                              // Using the BTE function is faster and will use DMA if available
+        bteMpuWriteWithROPData8(currentPage, width(), start_x, start_y,       // Source 1 is ignored for ROP 12
+                                currentPage, width(), start_x, start_y, w, h, // destination address, pagewidth, x/y, width/height
+                                RA8876_BTE_ROP_CODE_12,
+                                (const unsigned char *)pcolors);
+        break;
+    case 1: {
+        while (h) {
+            // Serial.printf("DP %x, %d, %d %d\n", rotated_row, h, start_x, y);
+            bteMpuWriteWithROPData8(currentPage, height(), start_y, start_x,       // Source 1 is ignored for ROP 12
+                                    currentPage, height(), start_y, start_x, 1, w, // destination address, pagewidth, x/y, width/height
+                                    RA8876_BTE_ROP_CODE_12,
+                                    (const unsigned char *)pcolors);
+            start_y++;
+            h--;
+            pcolors += w;
+        }
+    }
+
+    break;
+    case 2: {
+        uint16_t *rotated_buffer_alloc = (uint16_t *)malloc(w * 2 + 32);
+        if (!rotated_buffer_alloc)
+            return; // failed to allocate.
+        uint16_t *rotated_buffer = (uint16_t *)(((uintptr_t)rotated_buffer_alloc + 32) & ~((uintptr_t)(31)));
+        // unrolled to bte call
+        // Using the BTE function is faster and will use DMA if available
+        // We reverse the colors in the row...
+        // lets reverse data per row...
+        while (h) {
+            for (int i = 0; i < w; i++)
+                rotated_buffer[w - i - 1] = *pcolors++;
+            bteMpuWriteWithROPData8(currentPage, width(), start_x, start_y,                       // Source 1 is ignored for ROP 12
+                                    currentPage, width(), (width() - w) - start_x, start_y, w, 1, // destination address, pagewidth, x/y, width/height
+                                    RA8876_BTE_ROP_CODE_12,
+                                    (const unsigned char *)rotated_buffer);
+            start_y++;
+            h--;
+        }
+#ifdef SPI_HAS_TRANSFER_ASYNC
+        while (activeDMA) {
+        }; // wait forever while DMA is finishing- can't start a new transfer
+#endif
+        free((void *)rotated_buffer_alloc);
+        endSend(true);
+    } break;
+    case 3: {
+        start_y += h;
+        while (h) {
+            // Serial.printf("DP %x, %d, %d %d\n", rotated_row, h, start_x, y);
+            bteMpuWriteWithROPData8(currentPage, height(), start_y, start_x,                  // Source 1 is ignored for ROP 12
+                                    currentPage, height(), height() - start_y, start_x, 1, w, // destination address, pagewidth, x/y, width/height
+                                    RA8876_BTE_ROP_CODE_12,
+                                    (const unsigned char *)pcolors);
+            start_y--;
+            h--;
+            pcolors += w;
+        }
+    } break;
     }
 }
 

@@ -84,7 +84,6 @@
 const ru32 SPIspeed = 3000000;
 #define BUS_WIDTH 8
 
-
 class RA8876_t3 : public RA8876_common {
   public:
     RA8876_t3(const uint8_t CSp = 10, const uint8_t RSTp = 8, const uint8_t mosi_pin = 11, const uint8_t sclk_pin = 13, const uint8_t miso_pin = 12);
@@ -92,10 +91,6 @@ class RA8876_t3 : public RA8876_common {
     volatile bool activeDMA = false; // Unfortunately must be public so asyncEventResponder() can set it
 
     boolean begin(uint32_t spi_clock = SPIspeed);
-
-    /* DRAW FUNCTIONS */
-    void drawPixel(ru16 x, ru16 y, ru16 color);
-    void writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors);
 
     /*access*/
     void lcdRegWrite(ru8 reg, bool finalize = true);
@@ -153,21 +148,19 @@ class RA8876_t3 : public RA8876_common {
 #endif
     }
 
-	inline __attribute__((always_inline)) 
-	void endSend(bool finalize){
-		#if defined(__IMXRT1052__) || defined(__IMXRT1062__)  // Teensy 4.x 
-		DIRECT_WRITE_HIGH(_csport, _cspinmask);
-		#else
-		*_csport |= _cspinmask;
-		#endif
-		if(finalize) {
-			_pspi->endTransaction();
-			RA8876_BUSY = false;
-		}
-	} 
+    inline __attribute__((always_inline)) void endSend(bool finalize) {
+#if defined(__IMXRT1052__) || defined(__IMXRT1062__) // Teensy 4.x
+        DIRECT_WRITE_HIGH(_csport, _cspinmask);
+#else
+        *_csport |= _cspinmask;
+#endif
+        if (finalize) {
+            _pspi->endTransaction();
+            RA8876_BUSY = false;
+        }
+    }
 
     void LCD_CmdWrite(unsigned char cmd);
-    
 
   private:
     // int _xnscs, _xnreset;
