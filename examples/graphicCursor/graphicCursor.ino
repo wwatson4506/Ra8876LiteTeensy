@@ -32,27 +32,12 @@ The button presses automatically cleared on release.
 */
 
 #include "USBHost_t36.h"
-//#define use_spi
-#if defined(use_spi)
-#include <SPI.h>
-#include <RA8876_t3.h>
-#else
-#include <RA8876_t41_p.h>
-#endif
-#include <math.h>
+#include "RA8876_t3.h"
 
-#if defined(use_spi)
 #define RA8876_CS 10
 #define RA8876_RESET 9
-#define BACKLITE 7 //External backlight control connected to this Arduino pin
+#define BACKLITE 7 //My copy of the display is set for external backlight control
 RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
-#else
-uint8_t dc = 13;
-uint8_t cs = 11;
-uint8_t rst = 12;
-#define BACKLITE 7 //External backlight control connected to this Arduino pin
-RA8876_t41_p tft = RA8876_t41_p(dc,cs,rst); //(dc, cs, rst)
-#endif
 
 USBHost myusb;
 USBHub hub1(myusb);
@@ -213,12 +198,11 @@ void setup() {
   digitalWrite(BACKLITE, HIGH);
 //  analogWrite(BACKLITE, 40);
 
-#if defined(use_spi)
-  tft.begin(); 
-#else
-  tft.begin(20);// 20 is working in 8bit and 16bit mode on T41
-#endif
-
+  bool result = tft.begin();
+  if (!result) {
+    Serial.print("TFT initialization failed!");
+    Serial.print("Is it plugged in properly?");
+  }
   tft.fillScreen(DARKBLUE);
   tft.setFontSize(1, false);
   tft.setCursor(0,0);
