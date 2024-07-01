@@ -4,7 +4,7 @@
 
 #include "Arduino.h"
 
-#define use_spi
+//#define use_spi
 #if defined(use_spi)
 #include <SPI.h>
 #include <RA8876_t3.h>
@@ -18,11 +18,13 @@
 #if defined(use_spi)
 #define TFT_CS 10
 #define TFT_RST 9
+#define BACKLITE 7 //External backlight control connected to this Arduino pin
 RA8876_t3 tft = RA8876_t3(TFT_CS, TFT_RST);
 #else
 uint8_t dc = 13;
 uint8_t cs = 11;
 uint8_t rst = 12;
+#define BACKLITE 7 //External backlight control connected to this Arduino pin
 RA8876_t41_p tft = RA8876_t41_p(dc, cs, rst);  //(dc, cs, rst)
 #endif
 
