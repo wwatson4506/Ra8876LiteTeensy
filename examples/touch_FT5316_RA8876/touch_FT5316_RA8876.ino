@@ -7,14 +7,25 @@
 
   Also demonstrates use of the "graphic cursor" mouse cursor and a simple animated cursor.
 */
+#define use_spi
+#if defined(use_spi)
 #include <SPI.h>
 #include <RA8876_t3.h>
+#else
+#include <RA8876_t41_p.h>
+#endif
 
+#if defined(use_spi)
 #define RA8876_CS 10
 #define RA8876_RESET 9
-#define BACKLITE 7 //My copy of the display is set for external backlight control
+#define BACKLITE 7 //External backlight control connected to this Arduino pin
 RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
-
+#else
+uint8_t dc = 13;
+uint8_t cs = 11;
+uint8_t rst = 12;
+RA8876_t41_p tft = RA8876_t41_p(dc,cs,rst); //(dc, cs, rst)
+#endif
 
 #define CTP_INT           6    // Use an interrupt capable pin such as pin 2 (any pin on a Teensy)
 #define MAXTOUCHLIMIT 1
@@ -80,11 +91,17 @@ void setup()
   //backlight control instead of the internal RA8876 PWM.
   //Connect a Teensy pin to pin 14 on the display.
   //Can use analogWrite() but I suggest you increase the PWM frequency first so it doesn't sing.
+#if defined(use_spi)
   pinMode(BACKLITE, OUTPUT);
   digitalWrite(BACKLITE, HIGH);
-
-  tft.begin();
   tft.backlight(true);
+#endif
+
+#if defined(use_spi)
+  tft.begin(); 
+#else
+  tft.begin(20);// 20 is working in 8bit and 16bit mode on T41
+#endif
   tft.useCapINT(CTP_INT);//we use the capacitive chip Interrupt out!
   //the following set the max touches (max 5)
   //it can be placed inside loop but BEFORE touched()

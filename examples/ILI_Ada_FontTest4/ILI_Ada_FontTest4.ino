@@ -1,10 +1,26 @@
 #include <Adafruit_GFX.h>
 
+//#define use_spi
+#if defined(use_spi)
 #include <SPI.h>
-#include "RA8876_t3.h"
+#include <RA8876_t3.h>
+#else
+#include <RA8876_t41_p.h>
+#endif
+#include <math.h>
+
+#if defined(use_spi)
 #define RA8876_CS 10
 #define RA8876_RESET 9
 #define BACKLITE 7 //External backlight control connected to this Arduino pin
+RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
+#else
+uint8_t dc = 13;
+uint8_t cs = 11;
+uint8_t rst = 12;
+#define BACKLITE 7 //External backlight control connected to this Arduino pin
+RA8876_t41_p tft = RA8876_t41_p(dc,cs,rst); //(dc, cs, rst)
+#endif
 
 #include "font_Arial.h"
 #include "font_ArialBold.h"
@@ -31,7 +47,7 @@ const uint16_t  PINK       = 0xFCFF; // M.Sandercock
 const uint16_t  PURPLE       = 0x8017; // M.Sandercock
 
 const ili_fonts_test_t font_test_list[] = {
-  {nullptr, nullptr,  "Internal Font", RED, YELLOW},
+  //{nullptr, nullptr,  "Internal Font", RED, YELLOW},  //rotations do not work with internal font
   {&Arial_14, nullptr,  "Arial_14", WHITE, WHITE},
   {&Arial_14_Bold, nullptr,  "ArialBold 14", YELLOW, YELLOW},
   {&ComicSansMS_14, nullptr,  "ComicSansMS 14", GREEN, GREEN},
@@ -48,22 +64,25 @@ const ili_fonts_test_t font_test_list[] = {
 } ;
 
 extern void displayStuff(const char *font_name);
-
-
-RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
-
 uint8_t test_screen_rotation = 0;
-
 
 void setup() {
   Serial.begin(38400);
   long unsigned debug_start = millis ();
   while (!Serial && ((millis () - debug_start) <= 5000)) ;
   Serial.println("Setup");
+  
+#if defined(use_spi)
   tft.begin(30000000);
+#else
+  tft.begin(20);// 20 is working in 8bit and 16bit mode on T41
+#endif
+
+#if defined(BACKLITE)
   tft.backlight(true);
   pinMode(BACKLITE, OUTPUT);
   digitalWrite(BACKLITE, HIGH);
+#endif
 
 //  tft.setRotation(4);
   tft.fillScreen(BLACK);

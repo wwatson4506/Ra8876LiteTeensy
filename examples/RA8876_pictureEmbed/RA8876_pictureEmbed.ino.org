@@ -12,7 +12,12 @@
 #else
 #include <RA8876_t41_p.h>
 #endif
-#include <math.h>
+
+#include "font_ComicSansMS.h"
+
+//#define USE_SPI1
+#define USE_WRITERECT
+//#define USE_PUTPICTURE
 
 #if defined(use_spi)
 #define RA8876_CS 10
@@ -23,16 +28,8 @@ RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
 uint8_t dc = 13;
 uint8_t cs = 11;
 uint8_t rst = 12;
-#define BACKLITE 7 //External backlight control connected to this Arduino pin
 RA8876_t41_p tft = RA8876_t41_p(dc,cs,rst); //(dc, cs, rst)
 #endif
-#include "_font_ComicSansMS.h"
-
-//#define USE_SPI1
-#define USE_WRITERECT
-//#define USE_PUTPICTURE
-
-uint8_t rotation = 0;
 
 // Converted to code with:
 // http://www.rinkydinkelectronics.com/t_imageconverter565.php
@@ -66,18 +63,24 @@ uint8_t rotation = 0;
   See also https://forum.pjrc.com/threads/35575-Export-for-ILI9341_t3-with-GIMP
   */
 
+uint8_t rotation = 0;
 
 void setup() {
   while (!Serial && millis() < 5000) ;
+  Serial.begin(115200);
   Serial.printf("\n\nStart RA8876 picture embed test"); Serial.flush();
 
+#if defined(BACKLITE)
+  pinMode(BACKLITE, OUTPUT);
+  digitalWrite(BACKLITE, HIGH);
+#endif
+
 #if defined(use_spi)
-  tft.begin(); 
+  tft.begin(40000000); 
 #else
   tft.begin(20);// 20 is working in 8bit and 16bit mode on T41
 #endif
 
-  tft.backlight(1);
   Serial.printf("Screen Width:%d Height: %d\n", tft.width(), tft.height());
   tft.fillScreen(BLACK);
   delay(250);
@@ -97,11 +100,11 @@ void drawImage(uint16_t image_width, uint16_t image_height, uint16_t *image, uin
   // first lets fill in part of screen that our image does not cover
   int16_t start_x = (tft.width() - image_width) / 2;
   int16_t start_y = (tft.height() - image_height) / 2;
+
   tft.fillRect(0, 0, tft.width(), start_y, bgColor);  // top
   tft.fillRect(0, start_y, start_x, image_height, bgColor); // left
   tft.fillRect(start_x + image_width, start_y, tft.width() - (start_x + image_width), image_height, bgColor); // right
   tft.fillRect(0, start_y + image_height, tft.width(), tft.height() - (start_y + image_height), bgColor); // top;
-
   if (preRotatedImage) {
     if (image) tft.writeRotatedRect(start_x, start_y, image_width, image_height, image);
     else {

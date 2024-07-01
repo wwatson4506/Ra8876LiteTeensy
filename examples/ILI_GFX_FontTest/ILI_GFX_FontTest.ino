@@ -1,16 +1,28 @@
 #include <Adafruit_GFX.h>
-
-#include <SPI.h>
-
 #include <_font_ComicSansMS.h>
 #include "Fonts/FreeSansOblique12pt7b.h"
 
+//#define use_spi
 #include "Arduino.h"
-#include "RA8876_t3.h"
+#if defined(use_spi)
+#include <SPI.h>
+#include <RA8876_t3.h>
+#else
+#include <RA8876_t41_p.h>
+#endif
+
+#if defined(use_spi)
 #define RA8876_CS 10
 #define RA8876_RESET 9
 #define BACKLITE 7 //External backlight control connected to this Arduino pin
 RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
+#else
+uint8_t dc = 13;
+uint8_t cs = 11;
+uint8_t rst = 12;
+#define BACKLITE 7 //External backlight control connected to this Arduino pin
+RA8876_t41_p tft = RA8876_t41_p(dc,cs,rst); //(dc, cs, rst)
+#endif
 
 void setup() {
 #ifdef BACKLITE
@@ -21,7 +33,11 @@ void setup() {
   long unsigned debug_start = millis ();
   while (!Serial && ((millis () - debug_start) <= 5000)) ;
   Serial.println("Setup");
-  tft.begin();
+#if defined(use_spi)
+  tft.begin(); 
+#else
+  tft.begin(20);// 20 is working in 8bit and 16bit mode on T41
+#endif
 
 #ifndef BACKLITE
   tft.backlight(true);
