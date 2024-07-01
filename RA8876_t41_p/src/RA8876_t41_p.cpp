@@ -720,6 +720,27 @@ void RA8876_t41_p::lcdDataWrite16(uint16_t data, bool finalize) {
     DCLow();
 }
 
+// Put a picture on the screen using raw picture data
+// This is a simplified wrapper - more advanced uses (such as putting data onto a page other than current) 
+//   should use the underlying BTE functions.
+void RA8876_t41_p::putPicture(ru16 x, ru16 y, ru16 w, ru16 h, const unsigned char *data) {
+	//The putPicture_16bppData8 function in the base class is not ideal - it damages the activeWindow setting
+	//It also is harder to make it DMA.
+	//Ra8876_Lite::putPicture_16bppData8(x, y, w, h, data);
+	//Using the BTE function is faster and will use DMA if available
+  if(BUS_WIDTH == 16) {
+    bteMpuWriteWithROPData16(currentPage, width(), x, y,  //Source 1 is ignored for ROP 12
+                              currentPage, width(), x, y, w, h,     //destination address, pagewidth, x/y, width/height
+                              RA8876_BTE_ROP_CODE_12,
+                              (uint16_t *)data);
+  } else {
+    bteMpuWriteWithROPData8(currentPage, width(), x, y,  //Source 1 is ignored for ROP 12
+                              currentPage, width(), x, y, w, h,     //destination address, pagewidth, x/y, width/height
+                              RA8876_BTE_ROP_CODE_12,
+                              data);
+  }
+}
+
 //**************************************************************//
 /* Write 16bpp(RGB565) picture data for user operation          */
 /* Not recommended for future use - use BTE instead             */
@@ -818,7 +839,7 @@ void RA8876_t41_p::bteMpuWriteWithROPData8(ru32 s1_addr, ru16 s1_image_width, ru
     DCHigh();
     for (j = 0; j < height; j++) {
         for (i = 0; i < width; i++) {
-            delayNanoseconds(10); // Initially setup for the T4.1 board
+            delayNanoseconds(20); // Initially setup for the T4.1 board
             if (_rotation & 1)
                 delayNanoseconds(20);
             p->SHIFTBUF[0] = *data++;
@@ -845,6 +866,36 @@ void RA8876_t41_p::bteMpuWriteWithROPData8(ru32 s1_addr, ru16 s1_image_width, ru
 // as the bulk byte-reversing SPI transfer operation is not available
 // on all Teensys.
 //**************************************************************//
+void RA8876_t41_p::bteMpuWriteWithROPData16(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
+ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned short *data) {
+  ru16 i,j;
+  bteMpuWriteWithROP(s1_addr, s1_image_width, s1_x, s1_y, des_addr, des_image_width, des_x, des_y, width, height, rop_code);
+
+  while(WR_IRQTransferDone == false) {} //Wait for any IRQ transfers to complete
+
+  FlexIO_Config_SnglBeat();
+  CSLow();
+  DCHigh();
+  for(j=0;j<height;j++) {
+	for(i=0;i<width;i++) {
+delayNanoseconds(10);   // Initially setup for the T4.1 board
+      if(_rotation & 1) delayNanoseconds(70);
+      p->SHIFTBUF[0] = *data++;
+      /*Wait for transfer to be completed */
+      while(0 == (p->SHIFTSTAT & (1 << 0))) {}
+      while(0 == (p->TIMSTAT & (1 << 0))) {}
+    }
+  }
+  /* De-assert /CS pin */
+  CSHigh();
+}
+//**************************************************************//
+// For 16-bit byte-reversed data.
+// Note this is 4-5 milliseconds slower than the 8-bit version above
+// as the bulk byte-reversing SPI transfer operation is not available
+// on all Teensys.
+//**************************************************************//
+/*
 void RA8876_t41_p::bteMpuWriteWithROPData16(ru32 s1_addr, ru16 s1_image_width, ru16 s1_x, ru16 s1_y, ru32 des_addr, ru16 des_image_width,
                                             ru16 des_x, ru16 des_y, ru16 width, ru16 height, ru8 rop_code, const unsigned short *data) {
     ru16 i, j;
@@ -862,16 +913,17 @@ void RA8876_t41_p::bteMpuWriteWithROPData16(ru32 s1_addr, ru16 s1_image_width, r
             if (_rotation & 1)
                 delayNanoseconds(70);
             p->SHIFTBUF[0] = *data++;
-            /*Wait for transfer to be completed */
+            //Wait for transfer to be completed
             while (0 == (p->SHIFTSTAT & (1 << 0))) {
             }
             while (0 == (p->TIMSTAT & (1 << 0))) {
             }
         }
     }
-    /* De-assert /CS pin */
+    // De-assert /CS pin
     CSHigh();
 }
+*/
 
 //**************************************************************//
 // write data after setting, using lcdDataWrite() or lcdDataWrite16bbp()

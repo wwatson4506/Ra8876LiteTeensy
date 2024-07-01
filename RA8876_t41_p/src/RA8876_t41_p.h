@@ -129,6 +129,7 @@ class RA8876_t41_p : public RA8876_common {
                                         const unsigned short *data);
 
     /*  Picture Functions */
+	void putPicture(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const unsigned char *data);
     void putPicture_16bpp(ru16 x, ru16 y, ru16 width, ru16 height);                                   // not recommended: use BTE instead
     void putPicture_16bppData8(ru16 x, ru16 y, ru16 width, ru16 height, const unsigned char *data);   // not recommended: use BTE instead
     void putPicture_16bppData16(ru16 x, ru16 y, ru16 width, ru16 height, const unsigned short *data); // not recommended: use BTE instead
