@@ -1,0 +1,12 @@
+{
+	"name": "Ra8876Lite-8080-T41",
+	"frameworks": "Arduino",
+	"platforms": "Teensy T41",
+	"keywords": "Ra8876_Lite",
+	"description": "wwatson Ra8876Lite-8080-T41 Library",
+	"version": "1.0.0",
+	"authors":
+	{	"name": "Warren Watson",
+		"maintainer": true
+	}
+}
