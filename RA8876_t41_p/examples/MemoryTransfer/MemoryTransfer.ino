@@ -142,7 +142,7 @@ void drawBG(int x, int y, int w, int h) {
   if (toPrint) {
     Serial.print("fillRect operation takes ");
     Serial.print((float)(endTime - startTime) / 1000.0, 3);
-    Serial.println(" milliseconds to fill the image area.");
+    Serial.println(" microseconds to fill the image area.");
     toPrint = false;
   }
   tft.fillRect(x + 3, y + 3, w - 6, h / 3, WHITE);
@@ -229,24 +229,24 @@ void setup() {
   end2Time = micros();
   Serial.print("Put-picture from PROGMEM to display took ");
   Serial.print((float)(endTime - startTime) / 1000.0, 3);
-  Serial.print("ms to begin the operation.\n  But the next LCD operation was delayed by ");
+  Serial.print("us to begin the operation.\n  But the next LCD operation was delayed by ");
   Serial.print((float)(end2Time - endTime) / 1000.0, 3);
-  Serial.println("ms because data transfer was still underway");
+  Serial.println("us because data transfer was still underway");
 
   if(BUS_WIDTH == 16) {
-    startTime = millis();
+    startTime = micros();
     writeImage16(20, 5, IMG_WIDTH, IMG_HEIGHT, image_565);  //basic send, using 16-bit byte-swapped data
-    endTime = millis();
+    endTime = micros();
     Serial.print("16-bit copy from PROGMEM to display took ");
     Serial.print((float)(end2Time - startTime) / 1000.0, 3);
-    Serial.println("ms to begin the transfer (data is on its way while you read this.)");
+    Serial.println("us to begin the transfer (data is on its way while you read this.)");
   } else {
-    startTime = millis();
+    startTime = micros();
     writeImage(20, 5, IMG_WIDTH, IMG_HEIGHT, image_565);  //Duplicate of basic send
-    endTime = millis();
+    endTime = micros();
     Serial.print("8-bit Copy from PROGMEM to display took ");
     Serial.print((float)(endTime - startTime) / 1000.0, 3);
-    Serial.println("ms to begin the transfer (data is on its way while you read this.)");
+    Serial.println("us to begin the transfer (data is on its way while you read this.)");
   }
 
   //Chromakey can also be done as 16-bit or 8-bit but the time taken is identical to the normal write
@@ -259,7 +259,7 @@ void setup() {
   tft.print("Chromakey");
   Serial.print("Chromakey copy from PROGMEM to display took ");
   Serial.print((float)(end2Time - startTime) / 1000.0, 3);
-  Serial.println("ms to run to completion.");
+  Serial.println("us to run to completion.");
 
   //Now run through all the ROP options to see what they look like...
 
