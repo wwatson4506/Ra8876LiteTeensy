@@ -86,7 +86,7 @@
 #define WR_PIN 36
 #define RD_PIN 37
 
-#define BUS_WIDTH 8 /*Available options are 8 or 16 */
+#define BUS_WIDTH 16 /*Available options are 8 or 16 */
 #define SHIFTNUM 8  // number of shifters used (up to 8)
 #define BYTES_PER_BEAT (sizeof(uint8_t))
 #define BEATS_PER_SHIFTER (sizeof(uint32_t) / BYTES_PER_BEAT)

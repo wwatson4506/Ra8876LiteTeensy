@@ -830,10 +830,11 @@ void RA8876_t41_p::putPicture_16bppData16(ru16 x, ru16 y, ru16 width, ru16 heigh
 void RA8876_t41_p::bteMpuWriteWithROPData8(ru32 s1_addr, ru16 s1_image_width, ru16 s1_x, ru16 s1_y, ru32 des_addr, ru16 des_image_width,
                                            ru16 des_x, ru16 des_y, ru16 width, ru16 height, ru8 rop_code, const unsigned char *data) {
     bteMpuWriteWithROP(s1_addr, s1_image_width, s1_x, s1_y, des_addr, des_image_width, des_x, des_y, width, height, rop_code);
-    // MulBeatWR_nPrm_DMA(data,(width)*(height));
+
     ru16 i, j;
     while (WR_IRQTransferDone == false) {
     } // Wait for any IRQ transfers to complete
+
     FlexIO_Config_SnglBeat();
     CSLow();
     DCHigh();
@@ -866,40 +867,11 @@ void RA8876_t41_p::bteMpuWriteWithROPData8(ru32 s1_addr, ru16 s1_image_width, ru
 // as the bulk byte-reversing SPI transfer operation is not available
 // on all Teensys.
 //**************************************************************//
-void RA8876_t41_p::bteMpuWriteWithROPData16(ru32 s1_addr,ru16 s1_image_width,ru16 s1_x,ru16 s1_y,ru32 des_addr,ru16 des_image_width,
-ru16 des_x,ru16 des_y,ru16 width,ru16 height,ru8 rop_code,const unsigned short *data) {
-  ru16 i,j;
-  bteMpuWriteWithROP(s1_addr, s1_image_width, s1_x, s1_y, des_addr, des_image_width, des_x, des_y, width, height, rop_code);
 
-  while(WR_IRQTransferDone == false) {} //Wait for any IRQ transfers to complete
-
-  FlexIO_Config_SnglBeat();
-  CSLow();
-  DCHigh();
-  for(j=0;j<height;j++) {
-	for(i=0;i<width;i++) {
-delayNanoseconds(10);   // Initially setup for the T4.1 board
-      if(_rotation & 1) delayNanoseconds(70);
-      p->SHIFTBUF[0] = *data++;
-      /*Wait for transfer to be completed */
-      while(0 == (p->SHIFTSTAT & (1 << 0))) {}
-      while(0 == (p->TIMSTAT & (1 << 0))) {}
-    }
-  }
-  /* De-assert /CS pin */
-  CSHigh();
-}
-//**************************************************************//
-// For 16-bit byte-reversed data.
-// Note this is 4-5 milliseconds slower than the 8-bit version above
-// as the bulk byte-reversing SPI transfer operation is not available
-// on all Teensys.
-//**************************************************************//
-/*
 void RA8876_t41_p::bteMpuWriteWithROPData16(ru32 s1_addr, ru16 s1_image_width, ru16 s1_x, ru16 s1_y, ru32 des_addr, ru16 des_image_width,
                                             ru16 des_x, ru16 des_y, ru16 width, ru16 height, ru8 rop_code, const unsigned short *data) {
     ru16 i, j;
-    bteMpuWriteWithROP(s1_addr, s1_image_width, s1_x, s1_y, des_addr, des_image_width, des_x, des_y, width, height, rop_code);
+   bteMpuWriteWithROP(s1_addr, s1_image_width, s1_x, s1_y, des_addr, des_image_width, des_x, des_y, width, height, rop_code);
 
     while (WR_IRQTransferDone == false) {
     } // Wait for any IRQ transfers to complete
@@ -923,7 +895,7 @@ void RA8876_t41_p::bteMpuWriteWithROPData16(ru32 s1_addr, ru16 s1_image_width, r
     // De-assert /CS pin
     CSHigh();
 }
-*/
+
 
 //**************************************************************//
 // write data after setting, using lcdDataWrite() or lcdDataWrite16bbp()
