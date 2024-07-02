@@ -80,6 +80,9 @@
 
 #include "RA8876Registers.h"
 
+// Uncomment to use SPI interface instead of 8080 interface.
+//#define USE_SPI
+
 #define USE_FT5206_TOUCH
 
 /* Addins for ILI and GFX Fonts */
