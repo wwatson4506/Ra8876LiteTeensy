@@ -41,16 +41,23 @@
 
 #include "RA8876_t41_p.h"
 #include "Arduino.h"
+#include "RA8876_t41_p_default_pins.h"
 
 //**************************************************************//
 // RA8876_t41_p()
 //**************************************************************//
 // Create RA8876 driver instance 8080 IF
 //**************************************************************//
-RA8876_t41_p::RA8876_t41_p(const uint8_t DCp, const uint8_t CSp, const uint8_t RSTp) {
-    _cs = CSp;
-    _rst = RSTp;
-    _dc = DCp;
+RA8876_t41_p::RA8876_t41_p(const uint8_t DCp, const uint8_t CSp, const uint8_t RSTp) 
+    : _dc(DCp), _cs(CSp), _rst(RSTp),
+      _data_pins{DISPLAY_D0, DISPLAY_D1, DISPLAY_D2, DISPLAY_D3, DISPLAY_D4, DISPLAY_D5, DISPLAY_D6, DISPLAY_D7,
+#if defined(DISPLAY_D8)
+      DISPLAY_D8, DISPLAY_D9, DISPLAY_D10, DISPLAY_D11, DISPLAY_D12, DISPLAY_D13, DISPLAY_D14, DISPLAY_D15}, _bus_width(BUS_WIDTH),
+#else
+      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, _bus_width(8),
+#endif      
+      _wr_pin(DISPLAY_WR), _rd_pin(DISPLAY_RD) 
+{
     RA8876_GFX(BUS_WIDTH);
 }
 
@@ -152,104 +159,110 @@ FASTRUN void RA8876_t41_p::microSecondDelay() {
         __asm__("nop\n\t");
 }
 
+FASTRUN void RA8876_t41_p::gpioWrite() {
+    pFlex->setIOPinToFlexMode(_wr_pin);
+    pinMode(_rd_pin, OUTPUT);
+    digitalWriteFast(_rd_pin, HIGH);
+}
+
+FASTRUN void RA8876_t41_p::gpioRead() {
+    pFlex->setIOPinToFlexMode(_rd_pin);
+    pinMode(_wr_pin, OUTPUT);
+    digitalWriteFast(_wr_pin, HIGH);
+}
+
+
 FASTRUN void RA8876_t41_p::FlexIO_Init() {
     /* Get a FlexIO channel */
-    pFlex = FlexIOHandler::flexIOHandler_list[2]; // use FlexIO3
+    // lets assume D0 is the valid one...
+    Serial.printf("FlexIO_Init: D0:%u WR:%u RD:%u\n", _data_pins[0], _wr_pin, _rd_pin);
+
+    pFlex = FlexIOHandler::mapIOPinToFlexIOHandler(_data_pins[0], _flexio_D0);
+    if (pFlex == nullptr) {
+        Serial.printf("RA8876_t41_p::FlexIO_Init() d0:%u is not valid flexio pin\n", _data_pins[0]);
+        return;
+    }
+
+    // See if the WR and Read pins map...
+    _flexio_WR = pFlex->mapIOPinToFlexPin(_wr_pin);
+    if (_flexio_WR == 0xff) {
+        // WR pin not valid on pFlex, see if maybe 2 versus 3 issue...
+        pFlex = FlexIOHandler::mapIOPinToFlexIOHandler(_wr_pin, _flexio_WR);
+        if (pFlex == nullptr) {
+            Serial.printf("RA8876_t41_p::FlexIO_Init() wr:%u is not valid flexio pin\n", _wr_pin);
+            return;            
+        }
+        _flexio_D0 = pFlex->mapIOPinToFlexPin(_data_pins[0]);
+        if (_flexio_D0 == 0xff) {
+            Serial.printf("RA8876_t41_p::FlexIO_Init() D0:%u and RD:%u are not on same flexio object", _data_pins[0], _wr_pin);
+        }
+    }
+
+    // Looks like we may not use RD pin this way...
+    _flexio_RD = pFlex->mapIOPinToFlexPin(_rd_pin);
+
+    // lets dos some quick validation of the pins.
+    for (uint8_t i = 1; i < _bus_width; i++) {
+        uint8_t flexio_pin = pFlex->mapIOPinToFlexPin(_data_pins[i]);
+        if (flexio_pin != (_flexio_D0 + i)) {
+            Serial.printf("RA8876_t41_p::FlexIO_Ini - Flex IO Data pins pin issue D0(%u), D%u(%u)\n", _flexio_D0, i, flexio_pin);
+        }
+    }
+
+
     /* Pointer to the port structure in the FlexIO channel */
     p = &pFlex->port();
     /* Pointer to the hardware structure in the FlexIO channel */
     hw = &pFlex->hardware();
     /* Basic pin setup */
 
-    pinMode(19, OUTPUT); // FlexIO3:0 D0
-    pinMode(18, OUTPUT); // FlexIO3:1 |
-    pinMode(14, OUTPUT); // FlexIO3:2 |
-    pinMode(15, OUTPUT); // FlexIO3:3 |
-    pinMode(40, OUTPUT); // FlexIO3:4 |
-    pinMode(41, OUTPUT); // FlexIO3:5 |
-    pinMode(17, OUTPUT); // FlexIO3:6 |
-    pinMode(16, OUTPUT); // FlexIO3:7 D7
+    // First set all of the Data pins to OUTPUT
+    for (uint8_t i = 0; i < _bus_width; i++) {
+        pinMode(_data_pins[i], OUTPUT);
+    }
 
-#if (BUS_WIDTH == 16)
-    pinMode(22, OUTPUT); // FlexIO3:8 D8
-    pinMode(23, OUTPUT); // FlexIO3:9  |
-    pinMode(20, OUTPUT); // FlexIO3:10 |
-    pinMode(21, OUTPUT); // FlexIO3:11 |
-    pinMode(38, OUTPUT); // FlexIO3:12 |
-    pinMode(39, OUTPUT); // FlexIO3:13 |
-    pinMode(26, OUTPUT); // FlexIO3:14 |
-    pinMode(27, OUTPUT); // FlexIO3:15 D15
-#endif
-
-    pinMode(RD_PIN, OUTPUT);
-    digitalWriteFast(RD_PIN, HIGH);
-    pinMode(WR_PIN, OUTPUT);
-    digitalWriteFast(WR_PIN, HIGH);
+    pinMode(_rd_pin, OUTPUT);
+    digitalWriteFast(_rd_pin, HIGH);
+    pinMode(_wr_pin, OUTPUT);
+    digitalWriteFast(_wr_pin, HIGH);
 
     /* High speed and drive strength configuration */
-    *(portControlRegister(WR_PIN)) = 0xFF;
-    //    *(portControlRegister(RD_PIN)) = 0xFF;
+    *(portControlRegister(_wr_pin)) = 0xFF;
+    //    *(portControlRegister(_rd_pin)) = 0xFF;
 
-    *(portControlRegister(19)) = 0xFF;
-    *(portControlRegister(18)) = 0xFF;
-    *(portControlRegister(14)) = 0xFF;
-    *(portControlRegister(15)) = 0xFF;
-    *(portControlRegister(40)) = 0xFF;
-    *(portControlRegister(41)) = 0xFF;
-    *(portControlRegister(17)) = 0xFF;
-    *(portControlRegister(16)) = 0xFF;
-
-#if (BUS_WIDTH == 16)
-    *(portControlRegister(22)) = 0xFF;
-    *(portControlRegister(23)) = 0xFF;
-    *(portControlRegister(20)) = 0xFF;
-    *(portControlRegister(21)) = 0xFF;
-    *(portControlRegister(38)) = 0xFF;
-    *(portControlRegister(39)) = 0xFF;
-    *(portControlRegister(26)) = 0xFF;
-    *(portControlRegister(27)) = 0xFF;
-#endif
+    for (uint8_t i = 0; i < _bus_width; i++) {
+        *(portControlRegister(_data_pins[i])) = 0xFF;
+    }
 
     /* Set clock */
     pFlex->setClockSettings(3, 1, 0); // (480 MHz source, 1+1, 1+0) >> 480/2/1 >> 240Mhz
 
     /* Set up pin mux */
-    pFlex->setIOPinToFlexMode(WR_PIN);
+    pFlex->setIOPinToFlexMode(_wr_pin);
     //    pFlex->setIOPinToFlexMode(RD_PIN);
 
-    pFlex->setIOPinToFlexMode(19);
-    pFlex->setIOPinToFlexMode(18);
-    pFlex->setIOPinToFlexMode(14);
-    pFlex->setIOPinToFlexMode(15);
-    pFlex->setIOPinToFlexMode(40);
-    pFlex->setIOPinToFlexMode(41);
-    pFlex->setIOPinToFlexMode(17);
-    pFlex->setIOPinToFlexMode(16);
-
-#if (BUS_WIDTH == 16)
-    pFlex->setIOPinToFlexMode(22);
-    pFlex->setIOPinToFlexMode(23);
-    pFlex->setIOPinToFlexMode(20);
-    pFlex->setIOPinToFlexMode(21);
-    pFlex->setIOPinToFlexMode(38);
-    pFlex->setIOPinToFlexMode(39);
-    pFlex->setIOPinToFlexMode(26);
-    pFlex->setIOPinToFlexMode(27);
-#endif
+    for (uint8_t i = 0; i < _bus_width; i++) {
+        pFlex->setIOPinToFlexMode(_data_pins[i]);
+    }
 
     hw->clock_gate_register |= hw->clock_gate_mask;
     /* Enable the FlexIO with fast access */
     p->CTRL = FLEXIO_CTRL_FLEXEN;
+
+//    gpioWrite();
+
 }
 
 FASTRUN void RA8876_t41_p::FlexIO_Config_SnglBeat_Read() {
-    //    pFlex->setIOPinToFlexMode(37);
 
     p->CTRL &= ~FLEXIO_CTRL_FLEXEN;
     p->CTRL |= FLEXIO_CTRL_SWRST;
     p->CTRL &= ~FLEXIO_CTRL_SWRST;
-    /* Configure the shifters */
+
+    //gpioRead(); // write line high, pin 12(rst) as output
+
     p->SHIFTCFG[3] =
+    /* Configure the shifters */
         FLEXIO_SHIFTCFG_SSTOP(0)                 /* Shifter stop bit disabled */
         | FLEXIO_SHIFTCFG_SSTART(0)              /* Shifter start bit disabled and loading data on enabled */
         | FLEXIO_SHIFTCFG_PWIDTH(BUS_WIDTH - 1); /* Bus width */
@@ -258,7 +271,7 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_SnglBeat_Read() {
         FLEXIO_SHIFTCTL_TIMSEL(0)      /* Shifter's assigned timer index */
         | FLEXIO_SHIFTCTL_TIMPOL * (1) /* Shift on negative edge of shift clock */
         | FLEXIO_SHIFTCTL_PINCFG(1)    /* Shifter's pin configured as output */
-        | FLEXIO_SHIFTCTL_PINSEL(0)    /* Shifter's pin start index */
+        | FLEXIO_SHIFTCTL_PINSEL(_flexio_D0)    /* Shifter's pin start index */
         | FLEXIO_SHIFTCTL_PINPOL * (0) /* Shifter's pin active high */
         | FLEXIO_SHIFTCTL_SMOD(1);     /* Shifter mode as receive */
 
@@ -281,7 +294,7 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_SnglBeat_Read() {
         | FLEXIO_TIMCTL_TRGPOL * (1)           /* Timer trigger polarity as active low */
         | FLEXIO_TIMCTL_TRGSRC * (1)           // 1                                              /* Timer trigger source as internal */
         | FLEXIO_TIMCTL_PINCFG(3)              /* Timer' pin configured as output */
-        | FLEXIO_TIMCTL_PINSEL(19)             /* Timer' pin index: RD pin */
+        | FLEXIO_TIMCTL_PINSEL(_flexio_RD)             /* Timer' pin index: RD pin */
         | FLEXIO_TIMCTL_PINPOL * (1)           /* Timer' pin active low */
         | FLEXIO_TIMCTL_TIMOD(1);              /* Timer mode as dual 8-bit counters baud/bit */
 
@@ -296,6 +309,8 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_SnglBeat() {
     p->CTRL |= FLEXIO_CTRL_SWRST;
     p->CTRL &= ~FLEXIO_CTRL_SWRST;
 
+    //gpioWrite();
+
     /* Configure the shifters */
     p->SHIFTCFG[0] =
         FLEXIO_SHIFTCFG_INSRC * (1)              /* Shifter input */
@@ -307,7 +322,7 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_SnglBeat() {
         FLEXIO_SHIFTCTL_TIMSEL(0)      /* Shifter's assigned timer index */
         | FLEXIO_SHIFTCTL_TIMPOL * (0) /* Shift on posedge of shift clock */
         | FLEXIO_SHIFTCTL_PINCFG(3)    /* Shifter's pin configured as output */
-        | FLEXIO_SHIFTCTL_PINSEL(0)    /* Shifter's pin start index */
+        | FLEXIO_SHIFTCTL_PINSEL(_flexio_D0)    /* Shifter's pin start index */
         | FLEXIO_SHIFTCTL_PINPOL * (0) /* Shifter's pin active high */
         | FLEXIO_SHIFTCTL_SMOD(2);     /* Shifter mode as transmit */
 
@@ -330,7 +345,7 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_SnglBeat() {
         | FLEXIO_TIMCTL_TRGPOL * (1)           /* Timer trigger polarity as active low */
         | FLEXIO_TIMCTL_TRGSRC * (1)           /* Timer trigger source as internal */
         | FLEXIO_TIMCTL_PINCFG(3)              /* Timer' pin configured as output */
-        | FLEXIO_TIMCTL_PINSEL(18)             /* Timer' pin index: WR pin */
+        | FLEXIO_TIMCTL_PINSEL(_flexio_WR)             /* Timer' pin index: WR pin */
         | FLEXIO_TIMCTL_PINPOL * (1)           /* Timer' pin active low */
         | FLEXIO_TIMCTL_TIMOD(1);              /* Timer mode as dual 8-bit counters baud/bit */
 
@@ -364,6 +379,8 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_MultiBeat() {
     p->CTRL |= FLEXIO_CTRL_SWRST;
     p->CTRL &= ~FLEXIO_CTRL_SWRST;
 
+    //gpioWrite();
+
     /* Configure the shifters */
     for (int i = 0; i <= SHIFTNUM - 1; i++) {
         p->SHIFTCFG[i] =
@@ -377,7 +394,7 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_MultiBeat() {
         FLEXIO_SHIFTCTL_TIMSEL(0)       /* Shifter's assigned timer index */
         | FLEXIO_SHIFTCTL_TIMPOL * (0U) /* Shift on posedge of shift clock */
         | FLEXIO_SHIFTCTL_PINCFG(3U)    /* Shifter's pin configured as output */
-        | FLEXIO_SHIFTCTL_PINSEL(0)     /* Shifter's pin start index */
+        | FLEXIO_SHIFTCTL_PINSEL(_flexio_D0)     /* Shifter's pin start index */
         | FLEXIO_SHIFTCTL_PINPOL * (0U) /* Shifter's pin active high */
         | FLEXIO_SHIFTCTL_SMOD(2U);     /* shifter mode transmit */
 
@@ -386,7 +403,7 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_MultiBeat() {
             FLEXIO_SHIFTCTL_TIMSEL(0)       /* Shifter's assigned timer index */
             | FLEXIO_SHIFTCTL_TIMPOL * (0U) /* Shift on posedge of shift clock */
             | FLEXIO_SHIFTCTL_PINCFG(0U)    /* Shifter's pin configured as output disabled */
-            | FLEXIO_SHIFTCTL_PINSEL(0)     /* Shifter's pin start index */
+            | FLEXIO_SHIFTCTL_PINSEL(_flexio_D0)     /* Shifter's pin start index */
             | FLEXIO_SHIFTCTL_PINPOL * (0U) /* Shifter's pin active high */
             | FLEXIO_SHIFTCTL_SMOD(2U);
     }
@@ -408,7 +425,7 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_MultiBeat() {
         | FLEXIO_TIMCTL_TRGPOL * (1U)                    /* Timer trigger polarity as active low */
         | FLEXIO_TIMCTL_TRGSRC * (1U)                    /* Timer trigger source as internal */
         | FLEXIO_TIMCTL_PINCFG(3U)                       /* Timer' pin configured as output */
-        | FLEXIO_TIMCTL_PINSEL(18)                       /* Timer' pin index: WR pin */
+        | FLEXIO_TIMCTL_PINSEL(_flexio_WR)                       /* Timer' pin index: WR pin */
         | FLEXIO_TIMCTL_PINPOL * (1U)                    /* Timer' pin active low */
         | FLEXIO_TIMCTL_TIMOD(1U);                       /* Timer mode 8-bit baud counter */
                                                          /* Enable FlexIO */
@@ -514,6 +531,27 @@ FASTRUN void RA8876_t41_p::_onCompleteCB() {
         _callback();
     }
     return;
+}
+
+// Put a picture on the screen using raw picture data
+// This is a simplified wrapper - more advanced uses (such as putting data onto a page other than current) 
+//   should use the underlying BTE functions.
+void RA8876_t41_p::putPicture(ru16 x, ru16 y, ru16 w, ru16 h, const unsigned char *data) {
+	//The putPicture_16bppData8 function in the base class is not ideal - it damages the activeWindow setting
+	//It also is harder to make it DMA.
+	//Ra8876_Lite::putPicture_16bppData8(x, y, w, h, data);
+	//Using the BTE function is faster and will use DMA if available
+  if(BUS_WIDTH == 16) {
+    bteMpuWriteWithROPData16(currentPage, width(), x, y,  //Source 1 is ignored for ROP 12
+                              currentPage, width(), x, y, w, h,     //destination address, pagewidth, x/y, width/height
+                              RA8876_BTE_ROP_CODE_12,
+                              (uint16_t *)data);
+  } else {
+    bteMpuWriteWithROPData8(currentPage, width(), x, y,  //Source 1 is ignored for ROP 12
+                              currentPage, width(), x, y, w, h,     //destination address, pagewidth, x/y, width/height
+                              RA8876_BTE_ROP_CODE_12,
+                              data);
+  }
 }
 
 FASTRUN void RA8876_t41_p::pushPixels16bitAsync(const uint16_t *pcolors, uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2) {
@@ -720,27 +758,6 @@ void RA8876_t41_p::lcdDataWrite16(uint16_t data, bool finalize) {
     DCLow();
 }
 
-// Put a picture on the screen using raw picture data
-// This is a simplified wrapper - more advanced uses (such as putting data onto a page other than current) 
-//   should use the underlying BTE functions.
-void RA8876_t41_p::putPicture(ru16 x, ru16 y, ru16 w, ru16 h, const unsigned char *data) {
-	//The putPicture_16bppData8 function in the base class is not ideal - it damages the activeWindow setting
-	//It also is harder to make it DMA.
-	//Ra8876_Lite::putPicture_16bppData8(x, y, w, h, data);
-	//Using the BTE function is faster and will use DMA if available
-  if(BUS_WIDTH == 16) {
-    bteMpuWriteWithROPData16(currentPage, width(), x, y,  //Source 1 is ignored for ROP 12
-                              currentPage, width(), x, y, w, h,     //destination address, pagewidth, x/y, width/height
-                              RA8876_BTE_ROP_CODE_12,
-                              (uint16_t *)data);
-  } else {
-    bteMpuWriteWithROPData8(currentPage, width(), x, y,  //Source 1 is ignored for ROP 12
-                              currentPage, width(), x, y, w, h,     //destination address, pagewidth, x/y, width/height
-                              RA8876_BTE_ROP_CODE_12,
-                              data);
-  }
-}
-
 //**************************************************************//
 /* Write 16bpp(RGB565) picture data for user operation          */
 /* Not recommended for future use - use BTE instead             */
@@ -830,17 +847,16 @@ void RA8876_t41_p::putPicture_16bppData16(ru16 x, ru16 y, ru16 width, ru16 heigh
 void RA8876_t41_p::bteMpuWriteWithROPData8(ru32 s1_addr, ru16 s1_image_width, ru16 s1_x, ru16 s1_y, ru32 des_addr, ru16 des_image_width,
                                            ru16 des_x, ru16 des_y, ru16 width, ru16 height, ru8 rop_code, const unsigned char *data) {
     bteMpuWriteWithROP(s1_addr, s1_image_width, s1_x, s1_y, des_addr, des_image_width, des_x, des_y, width, height, rop_code);
-
+    // MulBeatWR_nPrm_DMA(data,(width)*(height));
     ru16 i, j;
     while (WR_IRQTransferDone == false) {
     } // Wait for any IRQ transfers to complete
-
     FlexIO_Config_SnglBeat();
     CSLow();
     DCHigh();
     for (j = 0; j < height; j++) {
         for (i = 0; i < width; i++) {
-            delayNanoseconds(20); // Initially setup for the T4.1 board
+            delayNanoseconds(10); // Initially setup for the T4.1 board
             if (_rotation & 1)
                 delayNanoseconds(20);
             p->SHIFTBUF[0] = *data++;
@@ -867,11 +883,10 @@ void RA8876_t41_p::bteMpuWriteWithROPData8(ru32 s1_addr, ru16 s1_image_width, ru
 // as the bulk byte-reversing SPI transfer operation is not available
 // on all Teensys.
 //**************************************************************//
-
 void RA8876_t41_p::bteMpuWriteWithROPData16(ru32 s1_addr, ru16 s1_image_width, ru16 s1_x, ru16 s1_y, ru32 des_addr, ru16 des_image_width,
                                             ru16 des_x, ru16 des_y, ru16 width, ru16 height, ru8 rop_code, const unsigned short *data) {
     ru16 i, j;
-   bteMpuWriteWithROP(s1_addr, s1_image_width, s1_x, s1_y, des_addr, des_image_width, des_x, des_y, width, height, rop_code);
+    bteMpuWriteWithROP(s1_addr, s1_image_width, s1_x, s1_y, des_addr, des_image_width, des_x, des_y, width, height, rop_code);
 
     while (WR_IRQTransferDone == false) {
     } // Wait for any IRQ transfers to complete
@@ -885,17 +900,16 @@ void RA8876_t41_p::bteMpuWriteWithROPData16(ru32 s1_addr, ru16 s1_image_width, r
             if (_rotation & 1)
                 delayNanoseconds(70);
             p->SHIFTBUF[0] = *data++;
-            //Wait for transfer to be completed
+            /*Wait for transfer to be completed */
             while (0 == (p->SHIFTSTAT & (1 << 0))) {
             }
             while (0 == (p->TIMSTAT & (1 << 0))) {
             }
         }
     }
-    // De-assert /CS pin
+    /* De-assert /CS pin */
     CSHigh();
 }
-
 
 //**************************************************************//
 // write data after setting, using lcdDataWrite() or lcdDataWrite16bbp()
