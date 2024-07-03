@@ -1,4 +1,6 @@
 #include "Arduino.h"
+
+//#define use_spi
 #if defined(use_spi)
 #include <RA8876_t3.h>
 #else
