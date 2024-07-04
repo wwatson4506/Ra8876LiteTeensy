@@ -43,6 +43,21 @@
 #include "Arduino.h"
 #include "RA8876_t41_p_default_pins.h"
 
+#define READS_USE_DIGITAL_WRITE
+
+inline void RA8876_t41_p::RDHigh() {
+#ifdef READS_USE_DIGITAL_WRITE
+   digitalWriteFast(_rd_pin, HIGH);
+#endif
+}
+
+inline void RA8876_t41_p::RDLow() {
+#ifdef READS_USE_DIGITAL_WRITE
+   digitalWriteFast(_rd_pin, LOW);
+#endif
+}
+
+
 //**************************************************************//
 // RA8876_t41_p()
 //**************************************************************//
@@ -160,15 +175,19 @@ FASTRUN void RA8876_t41_p::microSecondDelay() {
 }
 
 FASTRUN void RA8876_t41_p::gpioWrite() {
+#ifndef READS_USE_DIGITAL_WRITE
     pFlex->setIOPinToFlexMode(_wr_pin);
     pinMode(_rd_pin, OUTPUT);
     digitalWriteFast(_rd_pin, HIGH);
+#endif    
 }
 
 FASTRUN void RA8876_t41_p::gpioRead() {
+#ifndef READS_USE_DIGITAL_WRITE
     pFlex->setIOPinToFlexMode(_rd_pin);
     pinMode(_wr_pin, OUTPUT);
     digitalWriteFast(_wr_pin, HIGH);
+#endif    
 }
 
 
@@ -249,7 +268,7 @@ FASTRUN void RA8876_t41_p::FlexIO_Init() {
     /* Enable the FlexIO with fast access */
     p->CTRL = FLEXIO_CTRL_FLEXEN;
 
-//    gpioWrite();
+    gpioWrite();
 
 }
 
@@ -259,7 +278,7 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_SnglBeat_Read() {
     p->CTRL |= FLEXIO_CTRL_SWRST;
     p->CTRL &= ~FLEXIO_CTRL_SWRST;
 
-    //gpioRead(); // write line high, pin 12(rst) as output
+    gpioRead(); // write line high, pin 12(rst) as output
 
     p->SHIFTCFG[3] =
     /* Configure the shifters */
@@ -276,9 +295,12 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_SnglBeat_Read() {
         | FLEXIO_SHIFTCTL_SMOD(1);     /* Shifter mode as receive */
 
     /* Configure the timer for shift clock */
+#ifndef RA8876_CLOCK_READ
+#define RA8876_CLOCK_READ
+#endif    
     p->TIMCMP[0] =
         (((1 * 2) - 1) << 8) /* TIMCMP[15:8] = number of beats x 2 – 1 */
-        | ((60 / 2) - 1);    /* TIMCMP[7:0] = baud rate divider / 2 – 1 */
+        | ((RA8876_CLOCK_READ / 2) - 1);    /* TIMCMP[7:0] = baud rate divider / 2 – 1 */
 
     p->TIMCFG[0] =
         FLEXIO_TIMCFG_TIMOUT(0)       /* Timer output logic one when enabled and not affected by reset */
@@ -298,6 +320,10 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_SnglBeat_Read() {
         | FLEXIO_TIMCTL_PINPOL * (1)           /* Timer' pin active low */
         | FLEXIO_TIMCTL_TIMOD(1);              /* Timer mode as dual 8-bit counters baud/bit */
 
+    // Clear the shifter status 
+    p->SHIFTSTAT = 1 << 3;
+    p->SHIFTERR = 1 << 3;
+
     /* Enable FlexIO */
     p->CTRL |= FLEXIO_CTRL_FLEXEN;
 }
@@ -309,7 +335,7 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_SnglBeat() {
     p->CTRL |= FLEXIO_CTRL_SWRST;
     p->CTRL &= ~FLEXIO_CTRL_SWRST;
 
-    //gpioWrite();
+    gpioWrite();
 
     /* Configure the shifters */
     p->SHIFTCFG[0] =
@@ -379,7 +405,7 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_MultiBeat() {
     p->CTRL |= FLEXIO_CTRL_SWRST;
     p->CTRL &= ~FLEXIO_CTRL_SWRST;
 
-    //gpioWrite();
+    gpioWrite();
 
     /* Configure the shifters */
     for (int i = 0; i <= SHIFTNUM - 1; i++) {
@@ -635,7 +661,7 @@ ru8 RA8876_t41_p::lcdDataRead(bool finalize) {
     CSLow();  // Must to go low after config above.
     DCHigh(); // Set HIGH for data read
 
-    digitalWriteFast(RD_PIN, LOW); // Set RD pin low manually
+    RDLow(); // Set RD pin low manually
 
     while (0 == (p->SHIFTSTAT & (1 << 3))) {
     }
@@ -644,7 +670,7 @@ ru8 RA8876_t41_p::lcdDataRead(bool finalize) {
     }
     data = p->SHIFTBUFBYS[3];
 
-    digitalWriteFast(RD_PIN, HIGH); // Set RD pin high manually
+    RDHigh(); // Set RD pin high manually
 
     CSHigh();
 
@@ -672,7 +698,7 @@ ru8 RA8876_t41_p::lcdStatusRead(bool finalize) {
     CSLow();
     DCLow();
 
-    digitalWriteFast(RD_PIN, LOW); // Set RD pin low manually
+    RDLow(); // Set RD pin low manually
 
     uint16_t data = 0;
     while (0 == (p->SHIFTSTAT & (1 << 3))) {
@@ -682,7 +708,7 @@ ru8 RA8876_t41_p::lcdStatusRead(bool finalize) {
     DCHigh();
     CSHigh();
 
-    digitalWriteFast(RD_PIN, HIGH); // Set RD pin high manually
+    RDHigh(); // Set RD pin high manually
 
     // Set FlexIO back to Write mode
     FlexIO_Config_SnglBeat();
