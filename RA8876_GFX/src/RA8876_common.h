@@ -506,6 +506,7 @@ class RA8876_common : public Print {
     void drawRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
     void fillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color);
 
+    void writeRectImpl(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors);
     void writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors);
     // Experiment to see if we get significant speed ups for images if they are already pre processed to
     // draw in current/specified orientation.
