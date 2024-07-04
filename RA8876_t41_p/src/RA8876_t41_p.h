@@ -151,7 +151,7 @@ class RA8876_t41_p : public RA8876_common {
 
     typedef void (*CBF)();
     CBF _callback;
-    void onCompleteCB(CBF callback);
+    void onCompleteCB(CBF callback) {_callback = callback; }
 
     void FlexIO_Clear_Config_SnglBeat();
     void MulBeatWR_nPrm_IRQ(const void *value, uint32_t const length);
