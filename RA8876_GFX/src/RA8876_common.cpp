@@ -2135,6 +2135,9 @@ ru16 RA8876_common::readPixel(int16_t x, int16_t y) {
 ru16 RA8876_common::getPixel(ru16 x, ru16 y) {
     ru16 rdata = 0;
     ru16 dummy __attribute__((unused)) = 0;
+    
+    x += _originx;
+    y += _originy;
 
     selectScreen(currentPage);
     graphicMode(true);
@@ -2161,6 +2164,7 @@ void RA8876_common::drawPixel(ru16 x, ru16 y, ru16 color) {
 }
 
 void RA8876_common::readRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t *pcolors) {
+  
     for (uint16_t j = y; j < (h + y); j++) {
         for (uint16_t i = x; i < (w + x); i++) {
             *pcolors++ = getPixel(i, j);
@@ -5217,6 +5221,14 @@ void RA8876_common::fillRectVGradient(int16_t x, int16_t y, int16_t w, int16_t h
 }
 
 void RA8876_common::writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors) {
+    x += _originx;
+    y += _originy;
+    
+    writeRectImpl(x, y, w, h, pcolors);
+  
+}
+
+void RA8876_common::writeRectImpl(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors) {
 	uint16_t start_x = (x != CENTER) ? x : (_width - w) / 2;
 	uint16_t start_y = (y != CENTER) ? y : (_height - h) / 2;
 
@@ -5568,7 +5580,7 @@ void RA8876_common::writeRect8BPP(int16_t x, int16_t y, int16_t w, int16_t h,
             *pb++ = palette[*pixels++];
         }
 
-        writeRect(x, y, w, 1, buffer);
+        writeRectImpl(x, y, w, 1, buffer);
         y++;
         pixels_row_start += w_pixels;
     }
@@ -5688,7 +5700,7 @@ void RA8876_common::writeRectNBPP(int16_t x, int16_t y, int16_t w, int16_t h,
                 pixel_shift -= bits_per_pixel;
             }
         }
-        writeRect(x, y, w, 1, buffer);
+        writeRectImpl(x, y, w, 1, buffer);
         y++;
         pixels_row_start += count_of_bytes_per_row;
     }
@@ -6123,7 +6135,7 @@ void RA8876_common::drawChar(int16_t x, int16_t y, unsigned char c,
             }
             mask = mask << 1;
         }
-        writeRect(x_char_start, y_char_top, w, h, char_buffer);
+        writeRectImpl(x_char_start, y_char_top, w, h, char_buffer);
         // writecommand_last(ILI9488_NOP);
     }
 }
@@ -7155,6 +7167,14 @@ uint32_t RA8876_common::fetchpixel(const uint8_t *p, uint32_t index, uint32_t x)
 */
 /**************************************************************************/
 void RA8876_common::drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t color) {
+	x+=_originx;
+	y+=_originy;
+
+	// Rectangular clipping
+	if((x < _displayclipx1) || (x >= _displayclipx2) || (y >= _displayclipy2)) return;
+	if(y < _displayclipy1) { h = h - (_displayclipy1 - y); y = _displayclipy1;}
+	if((y+h-1) >= _displayclipy2) h = _displayclipy2-y;
+    
     if (h < 1)
         h = 1;
     h < 2 ? drawPixel(x, y, color) : drawLine(x, y, x, (y + h) - 1, color);
@@ -7172,9 +7192,17 @@ void RA8876_common::drawFastVLine(int16_t x, int16_t y, int16_t h, uint16_t colo
 */
 /**************************************************************************/
 void RA8876_common::drawFastHLine(int16_t x, int16_t y, int16_t w, uint16_t color) {
-    if (w < 1)
-        w = 1;
-    w < 2 ? drawPixel(x, y, color) : drawLine(x, y, (w + x) - 1, y, color);
+	x+=_originx;
+	y+=_originy;
+
+	// Rectangular clipping
+	if((y < _displayclipy1) || (x >= _displayclipx2) || (y >= _displayclipy2)) return;
+	if(x<_displayclipx1) { w = w - (_displayclipx1 - x); x = _displayclipx1; }
+	if((x+w-1) >= _displayclipx2)  w = _displayclipx2-x;
+  
+  if (w < 1)
+      w = 1;
+  w < 2 ? drawPixel(x, y, color) : drawLine(x, y, (w + x) - 1, y, color);
 }
 
 /**************************************************************************/
