@@ -5878,7 +5878,9 @@ void RA8876_common::drawGFXFontChar(unsigned int c) {
         // We need to offset by the origin.
 
         // We are going direct so do some offsets and clipping
-        int16_t x_offset_cursor = _cursorX + _originx; // This is where the offseted cursor is.
+        //Offsets are being done in writeRect so not needed here
+        //int16_t x_offset_cursor = _cursorX + _originx; // This is where the offseted cursor is.
+        int16_t x_offset_cursor = _cursorX;
         int16_t x_start = x_offset_cursor;             // I am assuming no negative x offsets.
         int16_t x_end = x_offset_cursor + (glyph->xAdvance * textsize_x);
         if (glyph->xAdvance < (xo + w))
@@ -5892,7 +5894,8 @@ void RA8876_common::drawGFXFontChar(unsigned int c) {
             x_left_fill = 0; // Don't need to fill anything here...
         }
 
-        int16_t y_start = _cursorY + _originy + (_gfxFont_min_yOffset * textsize_y) + gfxFont->yAdvance * textsize_y / 2; // UP to most negative value.
+        //int16_t y_start = _cursorY + _originy + (_gfxFont_min_yOffset * textsize_y) + gfxFont->yAdvance * textsize_y / 2; // UP to most negative value.
+        int16_t y_start = _cursorY + (_gfxFont_min_yOffset * textsize_y) + gfxFont->yAdvance * textsize_y / 2; // UP to most negative value.
         int16_t y_end = y_start + gfxFont->yAdvance * textsize_y;                                                         // how far we will update
         int16_t y = y_start;
         // int8_t y_top_fill = (yo - _gfxFont_min_yOffset) * textsize_y;  // both negative like -10 - -16 = 6...
@@ -5906,9 +5909,9 @@ void RA8876_common::drawGFXFontChar(unsigned int c) {
         {
             // But remember to first update the cursor position
             _cursorX += glyph->xAdvance * (int16_t)textsize_x;
-            Serial.printf("CLIPPED RETURN XY(%d %d %d %d) CLIP(%d %d %d %d)\n",
-                          x_start, x_end, y_start, y_end,
-                          _displayclipx1, _displayclipx2, _displayclipy1, _displayclipy2);
+            //Serial.printf("CLIPPED RETURN XY(%d %d %d %d) CLIP(%d %d %d %d)\n",
+            //              x_start, x_end, y_start, y_end,
+            //              _displayclipx1, _displayclipx2, _displayclipy1, _displayclipy2);
             return;
         }
 
