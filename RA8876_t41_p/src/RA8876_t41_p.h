@@ -86,7 +86,7 @@
 #define WR_PIN 36
 #define RD_PIN 37
 
-#define BUS_WIDTH 16 /*Available options are 8 or 16 */
+#define BUS_WIDTH 8 /*Available options are 8 or 16 */
 #define SHIFTNUM 8  // number of shifters used (up to 8)
 #define BYTES_PER_BEAT (sizeof(uint8_t))
 #define BEATS_PER_SHIFTER (sizeof(uint32_t) / BYTES_PER_BEAT)
@@ -176,6 +176,9 @@ class RA8876_t41_p : public RA8876_common {
     void CSHigh();
     void DCLow();
     void DCHigh();
+    void gpioWrite();
+    void gpioRead();
+
     void FlexIO_Init();
     void FlexIO_Config_SnglBeat();
     void FlexIO_Config_MultiBeat();
@@ -189,6 +192,11 @@ class RA8876_t41_p : public RA8876_common {
   private:
     int _cs;
     int _rst;
+
+    // The Teensy IO pins used for data and Read and Write 
+    uint8_t _data_pins[16], _bus_width, _wr_pin, _rd_pin;  
+
+    uint8_t _flexio_D0, _flexio_WR, _flexio_RD; // which flexio pins do they map to
 
   protected:
     static void ISR();

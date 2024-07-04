@@ -59,9 +59,9 @@ uint8_t use_fb = 0;
 
 
 #if defined(use_spi)
-#define TFT_CS 10
-#define TFT_RST 9
-//#define TFT_BL 29
+#define TFT_CS 30
+#define TFT_RST 28
+#define TFT_BL 29
 RA8876_t3 tft = RA8876_t3(TFT_CS, TFT_RST);
 #else
 uint8_t dc = 13;
@@ -108,7 +108,7 @@ void setup() {
     tft.begin(20);
 #endif
     //  tft.setFrameBuffer(tft_frame_buffer);
-    //tft.backlight(true);
+    tft.backlight(true);
 
     tft.setRotation(ROTATION);
     tft.fillScreen(BLACK);

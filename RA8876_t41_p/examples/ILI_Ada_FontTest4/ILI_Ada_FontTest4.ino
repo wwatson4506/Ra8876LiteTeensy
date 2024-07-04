@@ -1,6 +1,8 @@
 #include <Adafruit_GFX.h>
 
+#include <SPI.h>
 //#define use_spi
+
 #if defined(use_spi)
 #include <SPI.h>
 #include <RA8876_t3.h>
@@ -9,18 +11,6 @@
 #endif
 #include <math.h>
 
-#if defined(use_spi)
-#define RA8876_CS 10
-#define RA8876_RESET 9
-#define BACKLITE 7 //External backlight control connected to this Arduino pin
-RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
-#else
-uint8_t dc = 13;
-uint8_t cs = 11;
-uint8_t rst = 12;
-#define BACKLITE 7 //External backlight control connected to this Arduino pin
-RA8876_t41_p tft = RA8876_t41_p(dc,cs,rst); //(dc, cs, rst)
-#endif
 
 #include "font_Arial.h"
 #include "font_ArialBold.h"
@@ -44,7 +34,7 @@ typedef struct {
 } ili_fonts_test_t;
 
 const uint16_t  PINK       = 0xFCFF; // M.Sandercock
-const uint16_t  PURPLE     = 0x8017; // M.Sandercock
+const uint16_t  PURPLE       = 0x8017; // M.Sandercock
 
 const ili_fonts_test_t font_test_list[] = {
   //{nullptr, nullptr,  "Internal Font", RED, YELLOW},  //rotations do not work with internal font
@@ -64,7 +54,21 @@ const ili_fonts_test_t font_test_list[] = {
 } ;
 
 extern void displayStuff(const char *font_name);
+
+#if defined(use_spi)
+#define RA8876_CS 10
+#define RA8876_RESET 9
+#define BACKLITE 7 //External backlight control connected to this Arduino pin
+RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
+#else
+uint8_t dc = 13;
+uint8_t cs = 11;
+uint8_t rst = 12;
+RA8876_t41_p tft = RA8876_t41_p(dc,cs,rst); //(dc, cs, rst)
+#endif
+
 uint8_t test_screen_rotation = 0;
+
 
 void setup() {
   Serial.begin(38400);
@@ -119,9 +123,9 @@ void setup() {
   displayStuff("Chancery_24_Italic");
 
   //anti-alias font OpenSans
-  tft.setTextColor(RED, YELLOW);  
-  tft.setFont(OpenSans24);   // \_____> not working 16bit mode!!!
-  displayStuff("OpenSans24");// /
+  tft.setTextColor(RED, YELLOW);
+  tft.setFont(OpenSans24);
+  displayStuff("OpenSans24");
 
   Serial.println("Basic Font Display Complete");
   Serial.println("Loop test for alt colors + font");
@@ -156,7 +160,6 @@ void loop()
     if (font_test_list[font_index].ili_font) tft.setFont(*font_test_list[font_index].ili_font);
     else if (font_test_list[font_index].gfx_font)  tft.setFont(font_test_list[font_index].gfx_font);
     else tft.setFontDef();
-Serial.printf("%s\n",font_test_list[font_index].font_name);
     tft.println(font_test_list[font_index].font_name);
     displayStuff1();
   }

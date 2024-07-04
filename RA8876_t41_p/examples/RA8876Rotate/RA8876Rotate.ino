@@ -26,8 +26,6 @@ RA8876_t41_p tft = RA8876_t41_p(dc,cs,rst); //(dc, cs, rst)
 
 uint8_t reg_values[REG_DUMP_CNT];
 
-
-
 void setup() {
   Serial.begin(38400);
   long unsigned debug_start = millis ();

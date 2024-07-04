@@ -32,6 +32,7 @@ The button presses automatically cleared on release.
 */
 
 #include "USBHost_t36.h"
+
 //#define use_spi
 #if defined(use_spi)
 #include <SPI.h>
@@ -39,7 +40,6 @@ The button presses automatically cleared on release.
 #else
 #include <RA8876_t41_p.h>
 #endif
-#include <math.h>
 
 #if defined(use_spi)
 #define RA8876_CS 10

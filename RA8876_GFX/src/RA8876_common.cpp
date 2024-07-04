@@ -1132,6 +1132,7 @@ boolean RA8876_common::ra8876Initialize() {
 		|RA8876_I2C_MASTER_DISABLE<<2|RA8876_SERIAL_IF_ENABLE<<1|RA8876_HOST_DATA_BUS_8BIT);
 	}
 #endif
+
     lcdRegWrite(RA8876_MACR); // 02h
     lcdDataWrite(RA8876_DIRECT_WRITE << 6 | RA8876_READ_MEMORY_LRTB << 4 | RA8876_WRITE_MEMORY_LRTB << 1);
 
@@ -5330,77 +5331,6 @@ void RA8876_common::writeRectImpl(int16_t x, int16_t y, int16_t w, int16_t h, co
 			break;
 	}
 }
-
-/*
-void RA8876_common::writeRect(int16_t x, int16_t y, int16_t w, int16_t h, const uint16_t *pcolors) {
-    uint16_t start_x = (x != CENTER) ? x : (_width - w) / 2;
-    uint16_t start_y = (y != CENTER) ? y : (_height - h) / 2;
-
-    switch (_rotation) {
-    case 0:                                                                   // we will just hand off for now to
-                                                                              // unrolled to bte call
-                                                                              // Using the BTE function is faster and will use DMA if available
-        bteMpuWriteWithROPData8(currentPage, width(), start_x, start_y,       // Source 1 is ignored for ROP 12
-                                currentPage, width(), start_x, start_y, w, h, // destination address, pagewidth, x/y, width/height
-                                RA8876_BTE_ROP_CODE_12,
-                                (const unsigned char *)pcolors);
-        break;
-    case 1: {
-        while (h) {
-            // Serial.printf("DP %x, %d, %d %d\n", rotated_row, h, start_x, y);
-            bteMpuWriteWithROPData8(currentPage, height(), start_y, start_x,       // Source 1 is ignored for ROP 12
-                                    currentPage, height(), start_y, start_x, 1, w, // destination address, pagewidth, x/y, width/height
-                                    RA8876_BTE_ROP_CODE_12,
-                                    (const unsigned char *)pcolors);
-            start_y++;
-            h--;
-            pcolors += w;
-        }
-    }
-
-    break;
-    case 2: {
-        uint16_t *rotated_buffer_alloc = (uint16_t *)malloc(w * 2 + 32);
-        if (!rotated_buffer_alloc)
-            return; // failed to allocate.
-        uint16_t *rotated_buffer = (uint16_t *)(((uintptr_t)rotated_buffer_alloc + 32) & ~((uintptr_t)(31)));
-        // unrolled to bte call
-        // Using the BTE function is faster and will use DMA if available
-        // We reverse the colors in the row...
-        // lets reverse data per row...
-        while (h) {
-            for (int i = 0; i < w; i++)
-                rotated_buffer[w - i - 1] = *pcolors++;
-            bteMpuWriteWithROPData8(currentPage, width(), start_x, start_y,                       // Source 1 is ignored for ROP 12
-                                    currentPage, width(), (width() - w) - start_x, start_y, w, 1, // destination address, pagewidth, x/y, width/height
-                                    RA8876_BTE_ROP_CODE_12,
-                                    (const unsigned char *)rotated_buffer);
-            start_y++;
-            h--;
-        }
-#ifdef SPI_HAS_TRANSFER_ASYNC
-        while (activeDMA) {
-        }; // wait forever while DMA is finishing- can't start a new transfer
-#endif
-        free((void *)rotated_buffer_alloc);
-        endSend(true);
-    } break;
-    case 3: {
-        start_y += h;
-        while (h) {
-            // Serial.printf("DP %x, %d, %d %d\n", rotated_row, h, start_x, y);
-            bteMpuWriteWithROPData8(currentPage, height(), start_y, start_x,                  // Source 1 is ignored for ROP 12
-                                    currentPage, height(), height() - start_y, start_x, 1, w, // destination address, pagewidth, x/y, width/height
-                                    RA8876_BTE_ROP_CODE_12,
-                                    (const unsigned char *)pcolors);
-            start_y--;
-            h--;
-            pcolors += w;
-        }
-    } break;
-    }
-}
-*/
 
 uint16_t *RA8876_common::rotateImageRect(int16_t w, int16_t h, const uint16_t *pcolors, int16_t rotation) {
     uint16_t *rotated_colors_alloc = (uint16_t *)malloc(w * h * 2 + 32);
