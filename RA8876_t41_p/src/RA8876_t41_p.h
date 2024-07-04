@@ -86,6 +86,12 @@
 #define WR_PIN 36
 #define RD_PIN 37
 
+// #define RA8876_CLOCK_READ 30   //equates to 8mhz
+#define RA8876_CLOCK_READ 60 // equates to 4mhz
+//#define RA8876_CLOCK_READ 120   //equates to 2mhz
+
+
+
 #define BUS_WIDTH 8 /*Available options are 8 or 16 */
 #define SHIFTNUM 8  // number of shifters used (up to 8)
 #define BYTES_PER_BEAT (sizeof(uint8_t))
@@ -145,7 +151,7 @@ class RA8876_t41_p : public RA8876_common {
 
     typedef void (*CBF)();
     CBF _callback;
-    void onCompleteCB(CBF callback);
+    void onCompleteCB(CBF callback) {_callback = callback; }
 
     void FlexIO_Clear_Config_SnglBeat();
     void MulBeatWR_nPrm_IRQ(const void *value, uint32_t const length);
@@ -178,6 +184,8 @@ class RA8876_t41_p : public RA8876_common {
     void DCHigh();
     void gpioWrite();
     void gpioRead();
+    inline void RDHigh();
+    inline void RDLow();
 
     void FlexIO_Init();
     void FlexIO_Config_SnglBeat();
