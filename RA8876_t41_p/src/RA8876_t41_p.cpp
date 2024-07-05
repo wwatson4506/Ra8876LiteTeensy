@@ -57,6 +57,26 @@ inline void RA8876_t41_p::RDLow() {
 #endif
 }
 
+//#define DEBUG
+//#define DEBUG_VERBOSE
+//#define DEBUG_FLEXIO
+
+#ifndef DEBUG
+#undef DEBUG_VERBOSE
+void inline DBGPrintf(...){};
+void inline DBGWrite(uint8_t ch) {};
+void inline DBGFlush(){};
+#else
+#define DBGPrintf Serial.printf
+#define DBGFlush Serial.flush
+#define DBGWrite Serial.write
+#endif
+
+#ifndef DEBUG_VERBOSE
+void inline VDBGPrintf(...){};
+#else
+#define VDBGPrintf Serial.printf
+#endif
 
 //**************************************************************//
 // RA8876_t41_p()
@@ -272,11 +292,51 @@ FASTRUN void RA8876_t41_p::FlexIO_Init() {
 
 }
 
+void print_flexio_debug_data(FlexIOHandler *pFlex, const char *szCaller) {
+#if defined(DEBUG_FLEXIO)
+    IMXRT_FLEXIO_t *p = &pFlex->port();
+    Serial.println("\n**********************************");
+    Serial.printf("FlexIO(%p) Index: %u - %s\n", pFlex, pFlex->FlexIOIndex(), szCaller);
+    Serial.printf("CCM_CDCDR: %x\n", CCM_CDCDR);
+    Serial.printf("CCM FlexIO1: %x FlexIO2: %x FlexIO3: %x\n", CCM_CCGR5 & CCM_CCGR5_FLEXIO1(CCM_CCGR_ON),
+                  CCM_CCGR3 & CCM_CCGR3_FLEXIO2(CCM_CCGR_ON), CCM_CCGR7 & CCM_CCGR7_FLEXIO3(CCM_CCGR_ON));
+    Serial.printf("VERID:%x PARAM:%x CTRL:%x PIN: %x\n", p->VERID, p->PARAM, p->CTRL, p->PIN);
+    Serial.printf("SHIFTSTAT:%x SHIFTERR=%x TIMSTAT=%x\n", p->SHIFTSTAT, p->SHIFTERR, p->TIMSTAT);
+    Serial.printf("SHIFTSIEN:%x SHIFTEIEN=%x TIMIEN=%x\n", p->SHIFTSIEN, p->SHIFTEIEN, p->TIMIEN);
+    Serial.printf("SHIFTSDEN:%x SHIFTSTATE=%x\n", p->SHIFTSDEN, p->SHIFTSTATE);
+    Serial.print("SHIFTCTL:");
+    for (int i = 0; i < 8; i++) {
+        Serial.printf(" %08x", p->SHIFTCTL[i]);
+    }
+    Serial.print("\nSHIFTCFG:");
+    for (int i = 0; i < 8; i++) {
+        Serial.printf(" %08x", p->SHIFTCFG[i]);
+    }
+
+    Serial.printf("\nTIMCTL:%x %x %x %x\n", p->TIMCTL[0], p->TIMCTL[1], p->TIMCTL[2], p->TIMCTL[3]);
+    Serial.printf("TIMCFG:%x %x %x %x\n", p->TIMCFG[0], p->TIMCFG[1], p->TIMCFG[2], p->TIMCFG[3]);
+    Serial.printf("TIMCMP:%x %x %x %x\n", p->TIMCMP[0], p->TIMCMP[1], p->TIMCMP[2], p->TIMCMP[3]);
+#endif    
+}
+
+
+
 FASTRUN void RA8876_t41_p::FlexIO_Config_SnglBeat_Read() {
 
+    if (flex_config == CONFIG_SNGLREAD)
+        return;
+    flex_config = CONFIG_SNGLREAD;
+    DBGPrintf("RA8876_t41_p::FlexIO_Config_SnglBeat_Read - Enter\n");
+
     p->CTRL &= ~FLEXIO_CTRL_FLEXEN;
-    p->CTRL |= FLEXIO_CTRL_SWRST;
+    //p->CTRL |= FLEXIO_CTRL_SWRST;
     p->CTRL &= ~FLEXIO_CTRL_SWRST;
+
+    // Clear out Write mode 
+    p->SHIFTCFG[0] = 0;
+    p->SHIFTCTL[0] = 0;
+    p->SHIFTSTAT = (1 << 0);
+    p->SHIFTERR = (1 << 0);
 
     gpioRead(); // write line high, pin 12(rst) as output
 
@@ -324,17 +384,36 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_SnglBeat_Read() {
     p->SHIFTSTAT = 1 << 3;
     p->SHIFTERR = 1 << 3;
 
+#if defined(DEBUG_FLEXIO)
+    static uint8_t DEBUG_COUNT = 2;
+    if (DEBUG_COUNT) {
+        DEBUG_COUNT--;
+        print_flexio_debug_data(pFlex, "FlexIO_Config_SnglBeat_Read");
+    }
+#endif
     /* Enable FlexIO */
     p->CTRL |= FLEXIO_CTRL_FLEXEN;
+    DBGPrintf("RA8876_t41_p::FlexIO_Config_SnglBeat_Read - Exit\n");
 }
 
 FASTRUN void RA8876_t41_p::FlexIO_Config_SnglBeat() {
-    pFlex->setIOPinToFlexMode(36);
+
+    if (flex_config == CONFIG_SNGLBEAT)
+        return;
+    flex_config = CONFIG_SNGLBEAT;
+    DBGPrintf("RA8876_t41_p::FlexIO_Config_SnglBeat - Enter\n");
+
+    // Clear out Read mode 
+    p->SHIFTCFG[3] = 0;
+    p->SHIFTCTL[3] = 0;
+    p->SHIFTSTAT = (1 << 3);
+    p->SHIFTERR = (1 << 3);
 
     p->CTRL &= ~FLEXIO_CTRL_FLEXEN;
-    p->CTRL |= FLEXIO_CTRL_SWRST;
+    //p->CTRL |= FLEXIO_CTRL_SWRST;
     p->CTRL &= ~FLEXIO_CTRL_SWRST;
 
+    pFlex->setIOPinToFlexMode(_wr_pin);
     gpioWrite();
 
     /* Configure the shifters */
@@ -375,13 +454,26 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_SnglBeat() {
         | FLEXIO_TIMCTL_PINPOL * (1)           /* Timer' pin active low */
         | FLEXIO_TIMCTL_TIMOD(1);              /* Timer mode as dual 8-bit counters baud/bit */
 
+#if defined(DEBUG_FLEXIO)
+    static uint8_t DEBUG_COUNT = 2;
+    if (DEBUG_COUNT) {
+        DEBUG_COUNT--;
+        print_flexio_debug_data(pFlex, "FlexIO_Config_SnglBeat" );
+    }
+#endif
     /* Enable FlexIO */
     p->CTRL |= FLEXIO_CTRL_FLEXEN;
+    DBGPrintf("RA8876_t41_p::FlexIO_Config_SnglBeat - Exit\n");
 }
 
 FASTRUN void RA8876_t41_p::FlexIO_Clear_Config_SnglBeat() {
+    if (flex_config == CONFIG_CLEAR)
+        return;
+    flex_config = CONFIG_CLEAR;
+    DBGPrintf("RA8876_t41_p::FlexIO_Clear_Config_SnglBeat() - Enter\n");
+
     p->CTRL &= ~FLEXIO_CTRL_FLEXEN;
-    p->CTRL |= FLEXIO_CTRL_SWRST;
+    //p->CTRL |= FLEXIO_CTRL_SWRST;
     p->CTRL &= ~FLEXIO_CTRL_SWRST;
 
     p->SHIFTCFG[0] = 0;
@@ -392,19 +484,26 @@ FASTRUN void RA8876_t41_p::FlexIO_Clear_Config_SnglBeat() {
     p->TIMSTAT = (1U << 0); /* Timer start bit disabled */
     p->TIMCTL[0] = 0;
 
+
     /* Enable FlexIO */
     p->CTRL |= FLEXIO_CTRL_FLEXEN;
+    DBGPrintf("RA8876_t41_p::FlexIO_Clear_Config_SnglBeat() - Exit\n");
 }
 
 FASTRUN void RA8876_t41_p::FlexIO_Config_MultiBeat() {
+    if (flex_config == CONFIG_MULTIBEAT)
+        return;
+    flex_config = CONFIG_MULTIBEAT;
+    DBGPrintf("RA8876_t41_p::FlexIO_Config_MultiBeat() - Enter\n");
+
     uint8_t beats = SHIFTNUM * BEATS_PER_SHIFTER; // Number of beats = number of shifters * beats per shifter
-    pFlex->setIOPinToFlexMode(WR_PIN);
 
     /* Disable and reset FlexIO */
     p->CTRL &= ~FLEXIO_CTRL_FLEXEN;
-    p->CTRL |= FLEXIO_CTRL_SWRST;
+    //p->CTRL |= FLEXIO_CTRL_SWRST;
     p->CTRL &= ~FLEXIO_CTRL_SWRST;
 
+    pFlex->setIOPinToFlexMode(_wr_pin);
     gpioWrite();
 
     /* Configure the shifters */
@@ -432,6 +531,7 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_MultiBeat() {
             | FLEXIO_SHIFTCTL_PINSEL(_flexio_D0)     /* Shifter's pin start index */
             | FLEXIO_SHIFTCTL_PINPOL * (0U) /* Shifter's pin active high */
             | FLEXIO_SHIFTCTL_SMOD(2U);
+        p->SHIFTERR = 1 << (i); // clear out any previous state
     }
     /* Configure the timer for shift clock */
     p->TIMCMP[0] =
@@ -465,6 +565,7 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_MultiBeat() {
     // disable interrupts until later
     p->SHIFTSIEN &= ~(1 << SHIFTER_IRQ);
     p->TIMIEN &= ~(1 << TIMER_IRQ);
+    DBGPrintf("RA8876_t41_p::FlexIO_Config_MultiBeat() - Exit\n");
 }
 
 FASTRUN void RA8876_t41_p::flexIRQ_Callback() {
@@ -656,6 +757,7 @@ ru8 RA8876_t41_p::lcdDataRead(bool finalize) {
     while (WR_IRQTransferDone == false) {
     } // Wait for any IRQ transfers to complete
 
+//    FlexIO_Clear_Config_SnglBeat();
     FlexIO_Config_SnglBeat_Read();
 
     CSLow();  // Must to go low after config above.
@@ -693,6 +795,7 @@ ru8 RA8876_t41_p::lcdStatusRead(bool finalize) {
     while (WR_IRQTransferDone == false) {
     } // Wait for any IRQ transfers to complete
 
+    //FlexIO_Clear_Config_SnglBeat();
     FlexIO_Config_SnglBeat_Read();
 
     CSLow();
