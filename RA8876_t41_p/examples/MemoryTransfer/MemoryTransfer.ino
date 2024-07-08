@@ -46,7 +46,7 @@
 */
 #include "Cube_172.h"
 
-//#define use_spi
+#define use_spi
 #if defined(use_spi)
 #include <SPI.h>
 #include <RA8876_t3.h>
@@ -199,6 +199,7 @@ void setup() {
 //  analogWrite(BACKLITE, 256);
 
 #if defined(use_spi)
+  tft.setBusWidth(8);
   tft.begin(); 
 #else
   tft.begin(20);// 20 is working in 8bit and 16bit mode on T41

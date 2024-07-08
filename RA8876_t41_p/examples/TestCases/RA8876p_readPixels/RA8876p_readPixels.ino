@@ -1,6 +1,6 @@
 #include "Arduino.h"
 
-//#define use_spi
+#define use_spi
 #if defined(use_spi)
 #include <RA8876_t3.h>
 #else
@@ -48,7 +48,8 @@ void setup() {
 //  pinMode(BACKLITE, OUTPUT);
 //  digitalWrite(BACKLITE, HIGH);
     
-#if(use_spi)
+#if defined(use_spi)
+    tft.setBusWidth(8);
     tft.begin();
 #else
     tft.begin(20);

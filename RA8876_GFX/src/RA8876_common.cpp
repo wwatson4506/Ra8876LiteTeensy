@@ -2719,6 +2719,28 @@ uint32_t RA8876_common::boxGet(uint32_t vPageAddr, uint16_t x0, uint16_t y0,
     return vPageAddr;
 }
 
+/*Picture Functions*/
+// Put a picture on the screen using raw picture data
+// This is a simplified wrapper - more advanced uses (such as putting data onto a page other than current) 
+//   should use the underlying BTE functions.
+void RA8876_common::putPicture(ru16 x, ru16 y, ru16 w, ru16 h, const unsigned char *data) {
+	//The putPicture_16bppData8 function in the base class is not ideal - it damages the activeWindow setting
+	//It also is harder to make it DMA.
+	//Ra8876_Lite::putPicture_16bppData8(x, y, w, h, data);
+	//Using the BTE function is faster and will use DMA if available
+  if(BUS_WIDTH == 16) {
+    bteMpuWriteWithROPData16(currentPage, width(), x, y,  //Source 1 is ignored for ROP 12
+                              currentPage, width(), x, y, w, h,     //destination address, pagewidth, x/y, width/height
+                              RA8876_BTE_ROP_CODE_12,
+                              (uint16_t *)data);
+  } else {
+    bteMpuWriteWithROPData8(currentPage, width(), x, y,  //Source 1 is ignored for ROP 12
+                              currentPage, width(), x, y, w, h,     //destination address, pagewidth, x/y, width/height
+                              RA8876_BTE_ROP_CODE_12,
+                              data);
+  }
+}
+
 /*BTE function*/
 //**************************************************************//
 // Copy from place to place in memory (eg. from a non-displayed page to the current page)

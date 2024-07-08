@@ -48,7 +48,7 @@
 
 #include <RA8876_t3.h>
 #define RA8876_CS 10
-#define RA8876_RESET 8
+#define RA8876_RESET 9
 #define BACKLITE 7 //My copy of the display is set for external backlight control
 RA8876_t3 tft = RA8876_t3(RA8876_CS, RA8876_RESET); //Using standard SPI pins
 
@@ -166,6 +166,7 @@ void setup() {
 //  analogWriteFrequency(BACKLITE, 1000000);
   digitalWrite(BACKLITE, HIGH);
 //  analogWrite(BACKLITE, 256);
+    tft.setBusWidth(8);
 
   bool result = tft.begin();
 
