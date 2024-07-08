@@ -329,7 +329,7 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_SnglBeat_Read() {
     DBGPrintf("RA8876_t41_p::FlexIO_Config_SnglBeat_Read - Enter\n");
 
     p->CTRL &= ~FLEXIO_CTRL_FLEXEN;
-    //p->CTRL |= FLEXIO_CTRL_SWRST;
+    p->CTRL |= FLEXIO_CTRL_SWRST;
     p->CTRL &= ~FLEXIO_CTRL_SWRST;
 
     // Clear out Write mode 
@@ -410,7 +410,7 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_SnglBeat() {
     p->SHIFTERR = (1 << 3);
 
     p->CTRL &= ~FLEXIO_CTRL_FLEXEN;
-    //p->CTRL |= FLEXIO_CTRL_SWRST;
+    p->CTRL |= FLEXIO_CTRL_SWRST;
     p->CTRL &= ~FLEXIO_CTRL_SWRST;
 
     pFlex->setIOPinToFlexMode(_wr_pin);
@@ -473,7 +473,7 @@ FASTRUN void RA8876_t41_p::FlexIO_Clear_Config_SnglBeat() {
     DBGPrintf("RA8876_t41_p::FlexIO_Clear_Config_SnglBeat() - Enter\n");
 
     p->CTRL &= ~FLEXIO_CTRL_FLEXEN;
-    //p->CTRL |= FLEXIO_CTRL_SWRST;
+    p->CTRL |= FLEXIO_CTRL_SWRST;
     p->CTRL &= ~FLEXIO_CTRL_SWRST;
 
     p->SHIFTCFG[0] = 0;
