@@ -290,7 +290,7 @@ class RA8876_common : public Print {
     void clearStatusLine(uint16_t color);
 
     /* Pseudo Frame Buffer Support */
-    void useCanvas(boolean on);
+    void useCanvas(boolean on = true);
     void updateScreen();
 
     /*draw function*/
