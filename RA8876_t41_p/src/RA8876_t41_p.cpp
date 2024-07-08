@@ -500,7 +500,7 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_MultiBeat() {
 
     /* Disable and reset FlexIO */
     p->CTRL &= ~FLEXIO_CTRL_FLEXEN;
-    //p->CTRL |= FLEXIO_CTRL_SWRST;
+    p->CTRL |= FLEXIO_CTRL_SWRST;
     p->CTRL &= ~FLEXIO_CTRL_SWRST;
 
     pFlex->setIOPinToFlexMode(_wr_pin);
