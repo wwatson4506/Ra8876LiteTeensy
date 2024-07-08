@@ -88,7 +88,8 @@ class RA8876_t3 : public RA8876_common {
     RA8876_t3(const uint8_t CSp = 10, const uint8_t RSTp = 8, const uint8_t mosi_pin = 11, const uint8_t sclk_pin = 13, const uint8_t miso_pin = 12);
 
     volatile bool activeDMA = false; // Unfortunately must be public so asyncEventResponder() can set it
-
+    bool DMAFinished() {return !activeDMA;}
+    
     boolean begin(uint32_t spi_clock = SPIspeed);
 
     /*access*/
