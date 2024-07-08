@@ -191,6 +191,13 @@ class RA8876_t41_p : public RA8876_common {
     void FlexIO_Config_SnglBeat();
     void FlexIO_Config_MultiBeat();
     void FlexIO_Config_SnglBeat_Read();
+    typedef enum { CONFIG_CLEAR = 0,
+                   CONFIG_SNGLBEAT,
+                   CONFIG_MULTIBEAT,
+                   CONFIG_SNGLREAD } Flexio_config_state_t;
+    Flexio_config_state_t flex_config = CONFIG_CLEAR;
+
+    
 
     void microSecondDelay();
 
