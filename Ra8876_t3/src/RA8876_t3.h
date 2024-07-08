@@ -82,7 +82,6 @@
 // Default to a relatively slow speed for breadboard testing.
 // const ru32 SPIspeed = 47000000;
 const ru32 SPIspeed = 3000000;
-//#define BUS_WIDTH 8
 
 class RA8876_t3 : public RA8876_common {
   public:
