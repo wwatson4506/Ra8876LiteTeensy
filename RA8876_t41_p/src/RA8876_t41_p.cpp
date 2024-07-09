@@ -198,19 +198,19 @@ FASTRUN void RA8876_t41_p::microSecondDelay() {
 }
 
 FASTRUN void RA8876_t41_p::gpioWrite() {
-#ifndef READS_USE_DIGITAL_WRITE
     pFlex->setIOPinToFlexMode(_wr_pin);
+#ifndef READS_USE_DIGITAL_WRITE
     pinMode(_rd_pin, OUTPUT);
-    digitalWriteFast(_rd_pin, HIGH);
 #endif    
+    digitalWriteFast(_rd_pin, HIGH);
 }
 
 FASTRUN void RA8876_t41_p::gpioRead() {
 #ifndef READS_USE_DIGITAL_WRITE
     pFlex->setIOPinToFlexMode(_rd_pin);
+#endif    
     pinMode(_wr_pin, OUTPUT);
     digitalWriteFast(_wr_pin, HIGH);
-#endif    
 }
 
 // If used this must be called before begin
@@ -449,12 +449,12 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_SnglBeat_Read() {
 
     /* Configure the timer for shift clock */
 #ifndef RA8876_CLOCK_READ
-#define RA8876_CLOCK_READ
+#define RA8876_CLOCK_READ 60
 #endif    
+
     p->TIMCMP[0] =
         (((1 * 2) - 1) << 8) /* TIMCMP[15:8] = number of beats x 2 – 1 */
         | ((RA8876_CLOCK_READ / 2) - 1);    /* TIMCMP[7:0] = baud rate divider / 2 – 1 */
-
     p->TIMCFG[0] =
         FLEXIO_TIMCFG_TIMOUT(0)       /* Timer output logic one when enabled and not affected by reset */
         | FLEXIO_TIMCFG_TIMDEC(0)     /* Timer decrement on FlexIO clock, shift clock equals timer output */
