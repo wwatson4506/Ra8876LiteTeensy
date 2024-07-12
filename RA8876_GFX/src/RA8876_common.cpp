@@ -150,7 +150,7 @@ void RA8876_common::setBusWidth(uint16_t buswidth) {
 //**************************************************************//
 boolean RA8876_common::ra8876Initialize() {
 
-    RA8876_SW_Reset();
+    //RA8876_SW_Reset();
 
     // Init PLL
     if (!ra8876PllInitial())
