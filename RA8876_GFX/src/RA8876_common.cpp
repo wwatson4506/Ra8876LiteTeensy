@@ -150,7 +150,7 @@ void RA8876_common::setBusWidth(uint16_t buswidth) {
 //**************************************************************//
 boolean RA8876_common::ra8876Initialize() {
 
-    //RA8876_SW_Reset();
+//    RA8876_SW_Reset();
 
     // Init PLL
     if (!ra8876PllInitial())
@@ -1295,6 +1295,27 @@ void RA8876_common::genitopCharacterRomParameter(ru8 scs_select, ru8 clk_div, ru
 
     lcdRegDataWrite(RA8876_GTFNT_SEL, rom_select << 5);                 // ceh
     lcdRegDataWrite(RA8876_GTFNT_CR, character_select << 3 | gt_width); // cfh
+}
+
+// Put a picture on the screen using raw picture data
+// This is a simplified wrapper - more advanced uses (such as putting data onto a page other than current) 
+//   should use the underlying BTE functions.
+void RA8876_common::putPicture(ru16 x, ru16 y, ru16 w, ru16 h, const unsigned char *data) {
+	//The putPicture_16bppData8 function in the base class is not ideal - it damages the activeWindow setting
+	//It also is harder to make it DMA.
+	//Ra8876_Lite::putPicture_16bppData8(x, y, w, h, data);
+	//Using the BTE function is faster and will use DMA if available
+  if(_bus_width == 16) {
+    bteMpuWriteWithROPData16(currentPage, width(), x, y,  //Source 1 is ignored for ROP 12
+                              currentPage, width(), x, y, w, h,     //destination address, pagewidth, x/y, width/height
+                              RA8876_BTE_ROP_CODE_12,
+                              (uint16_t *)data);
+  } else {
+    bteMpuWriteWithROPData8(currentPage, width(), x, y,  //Source 1 is ignored for ROP 12
+                              currentPage, width(), x, y, w, h,     //destination address, pagewidth, x/y, width/height
+                              RA8876_BTE_ROP_CODE_12,
+                              data);
+  }
 }
 
 //**************************************************************//
