@@ -173,6 +173,7 @@ class RA8876_common : public Print {
     /*****************************************************/
     void RA8876_GFX(uint16_t buswidth);
     void setBusWidth(uint16_t buswidth);
+    uint8_t getBusWidth() {return _bus_width;}
 
     /*  Picture Functions */
     void putPicture_16bpp(ru16 x, ru16 y, ru16 width, ru16 height) {};                                   // not recommended: use BTE instead
@@ -733,8 +734,7 @@ class RA8876_common : public Print {
   protected:
     int16_t _width, _height;
     uint8_t _rotation;
-    uint16_t BUS_WIDTH;
-
+    uint8_t _bus_width;
   private:
     //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     //    RA8876 Parameters

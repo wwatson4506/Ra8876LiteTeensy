@@ -4,13 +4,13 @@
 /*
  * Ra8876LiteTeensy.cpp
  * Modified Version of: File Name : RA8876_t41_p.cpp
- *			Author    : RAiO Application Team
- *			Edit Date : 09/13/2017
- *			Version   : v2.0  1.modify bte_DestinationMemoryStartAddr bug
- *                 			  2.modify ra8876SdramInitial Auto_Refresh
- *                 			  3.modify ra8876PllInitial
+ *          Author    : RAiO Application Team
+ *          Edit Date : 09/13/2017
+ *          Version   : v2.0  1.modify bte_DestinationMemoryStartAddr bug
+ *                            2.modify ra8876SdramInitial Auto_Refresh
+ *                            3.modify ra8876PllInitial
  ****************************************************************
- * 	  	              : New 8080 Parallel version
+ *                    : New 8080 Parallel version
  *                    : For MicroMod
  *                    : By Warren Watson
  *                    : 06/07/2018 - 05/03/2024
@@ -83,13 +83,16 @@ void inline VDBGPrintf(...){};
 //**************************************************************//
 // Create RA8876 driver instance 8080 IF
 //**************************************************************//
+#ifndef BUS_WIDTH
+#define BUS_WIDTH 8
+#endif
 RA8876_t41_p::RA8876_t41_p(const uint8_t DCp, const uint8_t CSp, const uint8_t RSTp) 
     : _dc(DCp), _cs(CSp), _rst(RSTp),
       _data_pins{DISPLAY_D0, DISPLAY_D1, DISPLAY_D2, DISPLAY_D3, DISPLAY_D4, DISPLAY_D5, DISPLAY_D6, DISPLAY_D7,
 #if defined(DISPLAY_D8)
-      DISPLAY_D8, DISPLAY_D9, DISPLAY_D10, DISPLAY_D11, DISPLAY_D12, DISPLAY_D13, DISPLAY_D14, DISPLAY_D15}, _bus_width(BUS_WIDTH),
+      DISPLAY_D8, DISPLAY_D9, DISPLAY_D10, DISPLAY_D11, DISPLAY_D12, DISPLAY_D13, DISPLAY_D14, DISPLAY_D15}, 
 #else
-      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, _bus_width(8),
+      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff},
 #endif      
       _wr_pin(DISPLAY_WR), _rd_pin(DISPLAY_RD) 
 {
@@ -155,7 +158,7 @@ FLASHMEM boolean RA8876_t41_p::begin(uint8_t baud_div) {
         return false;
 
     // read ID code must disable pll, 01h bit7 set 0
-    if (BUS_WIDTH == 16) {
+    if (_bus_width == 16) {
         lcdRegDataWrite(0x01, 0x09);
     } else {
         lcdRegDataWrite(0x01, 0x08);
@@ -195,20 +198,110 @@ FASTRUN void RA8876_t41_p::microSecondDelay() {
 }
 
 FASTRUN void RA8876_t41_p::gpioWrite() {
-#ifndef READS_USE_DIGITAL_WRITE
     pFlex->setIOPinToFlexMode(_wr_pin);
+#ifndef READS_USE_DIGITAL_WRITE
     pinMode(_rd_pin, OUTPUT);
-    digitalWriteFast(_rd_pin, HIGH);
 #endif    
+    digitalWriteFast(_rd_pin, HIGH);
 }
 
 FASTRUN void RA8876_t41_p::gpioRead() {
 #ifndef READS_USE_DIGITAL_WRITE
     pFlex->setIOPinToFlexMode(_rd_pin);
+#endif    
     pinMode(_wr_pin, OUTPUT);
     digitalWriteFast(_wr_pin, HIGH);
-#endif    
 }
+
+// If used this must be called before begin
+// Set the FlexIO pins.  The first version you can specify just the wr, and read and optionsl first Data.
+// it will use information in the Flexio library to fill in d1-d7
+FASTRUN bool RA8876_t41_p::setFlexIOPins(uint8_t write_pin, uint8_t rd_pin, uint8_t tft_d0) {
+    DBGPrintf("RA8876_t41_p::setFlexIOPins(%u, %u, %u) %u %u %u\n", write_pin, rd_pin, tft_d0, _data_pins[0], _wr_pin, _rd_pin);
+    DBGFlush();
+    if (tft_d0 != 0xff) {
+#ifdef FLEX_IO_HAS_FULL_PIN_MAPPING
+        DBGPrintf("\td0 != 0xff\n\n");
+
+        uint8_t flexio_pin;
+        pFlex = FlexIOHandler::mapIOPinToFlexIOHandler(tft_d0, flexio_pin);
+        if ((pFlex == nullptr) || (flexio_pin == 0xff))
+            return false;
+
+        uint8_t flexio_wr = pFlex->mapIOPinToFlexPin(write_pin);
+        if (flexio_wr == 0xff) {
+            // WR pin not valid on pFlex, see if maybe 2 versus 3 issue...
+            pFlex = FlexIOHandler::mapIOPinToFlexIOHandler(write_pin, flexio_wr);
+            if (pFlex == nullptr) {
+                Serial.printf("RA8876_t41_p::FlexIO_Init() wr:%u is not valid flexio pin\n", write_pin);
+                return false;            
+            }
+            flexio_pin = pFlex->mapIOPinToFlexPin(tft_d0);
+            if (flexio_pin == 0xff) {
+                Serial.printf("RA8876_t41_p::FlexIO_Init() D0:%u and WR:%u are not on same flexio object", tft_d0, write_pin);
+            }
+        }
+        _data_pins[0] = tft_d0;
+
+
+        // lets dos some quick validation of the pins.
+        for (uint8_t i = 1; i < _bus_width; i++) {
+            flexio_pin++; // lets look up the what pins come next.
+            _data_pins[i] = pFlex->mapFlexPinToIOPin(flexio_pin);
+            if (_data_pins[i] == 0xff) {
+                Serial.printf("Failed to find Teensy IO pin for Flexio pin %u\n", flexio_pin);
+                return false;
+            }
+        }
+#else
+        return false;
+#endif
+    }
+    // set the write and read pins and see if d0 is not 0xff set it and compute the others.
+    if (write_pin != 0xff)
+        _wr_pin = write_pin;
+    if (rd_pin != 0xff)
+        _rd_pin = rd_pin;
+
+    DBGPrintf("FlexIO pins: data: %u %u %u %u %u %u %u %u WR:%u RD:%u\n",
+              _data_pins[0], _data_pins[1], _data_pins[2], _data_pins[3], _data_pins[4], _data_pins[5], _data_pins[6], _data_pins[7],
+              _wr_pin, _rd_pin);
+    return true;
+}
+
+// Set the FlexIO pins.  Specify all of the pins for 8 bit mode. Must be called before begin
+FLASHMEM bool RA8876_t41_p::setFlexIOPins(uint8_t write_pin, uint8_t rd_pin, uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3,
+                                           uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7,
+                                            uint8_t d8, uint8_t d9, uint8_t d10, uint8_t d11,
+                                            uint8_t d12, uint8_t d13, uint8_t d14, uint8_t d15
+                                           ) {
+    _data_pins[0] = d0;
+    _data_pins[1] = d1;
+    _data_pins[2] = d2;
+    _data_pins[3] = d3;
+    _data_pins[4] = d4;
+    _data_pins[5] = d5;
+    _data_pins[6] = d6;
+    _data_pins[7] = d7;
+    _wr_pin = write_pin;
+    _rd_pin = rd_pin;
+
+    _data_pins[8] = d8;
+    _data_pins[9] = d9;
+    _data_pins[10] = d10;
+    _data_pins[11] = d11;
+    _data_pins[12] = d12;
+    _data_pins[13] = d13;
+    _data_pins[14] = d14;
+    _data_pins[15] = d15;
+    DBGPrintf("FlexIO pins: data: %u %u %u %u %u %u %u %u %u %u %u %u %u %u %u %u WR:%u RD:%u\n",
+              _data_pins[0], _data_pins[1], _data_pins[2], _data_pins[3], _data_pins[4], _data_pins[5], _data_pins[6], _data_pins[7],
+              _data_pins[8], _data_pins[9], _data_pins[10], _data_pins[11], _data_pins[12], _data_pins[13], _data_pins[14], _data_pins[15],
+              _wr_pin, _rd_pin);
+    // Note this does not verify the pins are valid.
+    return true;
+}
+
 
 
 FASTRUN void RA8876_t41_p::FlexIO_Init() {
@@ -344,7 +437,7 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_SnglBeat_Read() {
     /* Configure the shifters */
         FLEXIO_SHIFTCFG_SSTOP(0)                 /* Shifter stop bit disabled */
         | FLEXIO_SHIFTCFG_SSTART(0)              /* Shifter start bit disabled and loading data on enabled */
-        | FLEXIO_SHIFTCFG_PWIDTH(BUS_WIDTH - 1); /* Bus width */
+        | FLEXIO_SHIFTCFG_PWIDTH(_bus_width - 1); /* Bus width */
 
     p->SHIFTCTL[3] =
         FLEXIO_SHIFTCTL_TIMSEL(0)      /* Shifter's assigned timer index */
@@ -356,12 +449,12 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_SnglBeat_Read() {
 
     /* Configure the timer for shift clock */
 #ifndef RA8876_CLOCK_READ
-#define RA8876_CLOCK_READ
+#define RA8876_CLOCK_READ 60
 #endif    
+
     p->TIMCMP[0] =
         (((1 * 2) - 1) << 8) /* TIMCMP[15:8] = number of beats x 2 – 1 */
         | ((RA8876_CLOCK_READ / 2) - 1);    /* TIMCMP[7:0] = baud rate divider / 2 – 1 */
-
     p->TIMCFG[0] =
         FLEXIO_TIMCFG_TIMOUT(0)       /* Timer output logic one when enabled and not affected by reset */
         | FLEXIO_TIMCFG_TIMDEC(0)     /* Timer decrement on FlexIO clock, shift clock equals timer output */
@@ -421,7 +514,7 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_SnglBeat() {
         FLEXIO_SHIFTCFG_INSRC * (1)              /* Shifter input */
         | FLEXIO_SHIFTCFG_SSTOP(0)               /* Shifter stop bit disabled */
         | FLEXIO_SHIFTCFG_SSTART(0)              /* Shifter start bit disabled and loading data on enabled */
-        | FLEXIO_SHIFTCFG_PWIDTH(BUS_WIDTH - 1); // Was 7 for 8 bit bus         /* Bus width */
+        | FLEXIO_SHIFTCFG_PWIDTH(_bus_width - 1); // Was 7 for 8 bit bus         /* Bus width */
 
     p->SHIFTCTL[0] =
         FLEXIO_SHIFTCTL_TIMSEL(0)      /* Shifter's assigned timer index */
@@ -512,7 +605,7 @@ FASTRUN void RA8876_t41_p::FlexIO_Config_MultiBeat() {
             FLEXIO_SHIFTCFG_INSRC * (1U)             /* Shifter input from next shifter's output */
             | FLEXIO_SHIFTCFG_SSTOP(0U)              /* Shifter stop bit disabled */
             | FLEXIO_SHIFTCFG_SSTART(0U)             /* Shifter start bit disabled and loading data on enabled */
-            | FLEXIO_SHIFTCFG_PWIDTH(BUS_WIDTH - 1); /* 8 bit shift width */
+            | FLEXIO_SHIFTCFG_PWIDTH(_bus_width - 1); /* 8 bit shift width */
     }
 
     p->SHIFTCTL[0] =
@@ -677,7 +770,7 @@ FASTRUN void RA8876_t41_p::pushPixels16bitAsync(const uint16_t *pcolors, uint16_
 
 //**********************************************************************
 // This section defines the low level parallel 8080 access routines.
-// It uses "BUS_WIDTH" (8 or 16) to decide which drivers to use.
+// It uses "_bus_width" (8 or 16) to decide which drivers to use.
 //**********************************************************************
 void RA8876_t41_p::LCD_CmdWrite(unsigned char cmd) {
     //  startSend();
@@ -762,7 +855,7 @@ ru8 RA8876_t41_p::lcdDataRead(bool finalize) {
 
     // Set FlexIO back to Write mode
     FlexIO_Config_SnglBeat(); // Not sure if this is needed.
-    if (BUS_WIDTH == 8)
+    if (_bus_width == 8)
         return data;
     else
         return (data >> 8) & 0xff;
@@ -798,7 +891,7 @@ ru8 RA8876_t41_p::lcdStatusRead(bool finalize) {
     // Set FlexIO back to Write mode
     FlexIO_Config_SnglBeat();
 
-    if (BUS_WIDTH == 8)
+    if (_bus_width == 8)
         return data;
     else
         return (data >> 8) & 0xff;
@@ -827,7 +920,7 @@ ru8 RA8876_t41_p::lcdRegDataRead(ru8 reg, bool finalize) {
 //******************************************************************
 void RA8876_t41_p::lcdDataWrite16bbp(ru16 data, bool finalize) {
     //  while(digitalReadFast(WINT) == 0);  // If monitoring XnWAIT signal from RA8876.
-    if (BUS_WIDTH == 8) {
+    if (_bus_width == 8) {
         lcdDataWrite(data & 0xff);
         lcdDataWrite(data >> 8);
     } else {
@@ -848,7 +941,7 @@ void RA8876_t41_p::lcdDataWrite16(uint16_t data, bool finalize) {
     CSLow();
     DCHigh();
 
-    if (BUS_WIDTH == 16) {
+    if (_bus_width == 16) {
         p->SHIFTBUF[0] = data;
         while (0 == (p->SHIFTSTAT & (1 << 0))) {
         }
@@ -1126,7 +1219,7 @@ void RA8876_t41_p::write16BitColor(uint16_t color) {
     if (_rotation & 1)
         delayNanoseconds(20);
 
-    if (BUS_WIDTH == 8) {
+    if (_bus_width == 8) {
         while (0 == (p->SHIFTSTAT & (1 << 0))) {
         }
         p->SHIFTBUF[0] = color & 0xff;

@@ -65,7 +65,7 @@ RA8876_t3::RA8876_t3(const uint8_t CSp, const uint8_t RSTp, const uint8_t mosi_p
     _sclk = sclk_pin;
     _cs = CSp;
     _rst = RSTp;
-    RA8876_GFX(BUS_WIDTH);
+    RA8876_GFX(8);  // Assumes 8 bit 
 }
 
 //**************************************************************//
