@@ -132,14 +132,14 @@ int16_t SCREEN_HEIGHT = VDH;
 void RA8876_common::RA8876_GFX(uint16_t buswidth) {
     _width = SCREEN_WIDTH;
     _height = SCREEN_HEIGHT;
-    BUS_WIDTH = buswidth;
+    _bus_width = buswidth;
 }
 
 void RA8876_common::setBusWidth(uint16_t buswidth) {
     if (buswidth == 8 || buswidth == 16) {
-        BUS_WIDTH = buswidth;
+        _bus_width = buswidth;
     } else {
-        BUS_WIDTH = 8; // defaults to 8
+        _bus_width = 8; // defaults to 8
         Serial.println("BUSWIDTH NOT SUPPORTED!!!! Defaut used");
     }
 }
@@ -164,7 +164,7 @@ boolean RA8876_common::ra8876Initialize() {
     lcdDataWrite(RA8876_PLL_ENABLE << 7 | RA8876_WAIT_NO_MASK << 6 | RA8876_KEY_SCAN_DISABLE << 5 | RA8876_TFT_OUTPUT24 << 3 |
      RA8876_I2C_MASTER_DISABLE << 2 | RA8876_SERIAL_IF_ENABLE << 1 | RA8876_HOST_DATA_BUS_SERIAL);
 #else
-	if(BUS_WIDTH == 16) {
+	if(_bus_width == 16) {
 		lcdDataWrite(RA8876_PLL_ENABLE<<7|RA8876_WAIT_NO_MASK<<6|RA8876_KEY_SCAN_DISABLE<<5|RA8876_TFT_OUTPUT24<<3
 		|RA8876_I2C_MASTER_DISABLE<<2|RA8876_SERIAL_IF_ENABLE<<1|RA8876_HOST_DATA_BUS_16BIT);
 	} else {
@@ -4277,7 +4277,7 @@ void RA8876_common::writeRectImpl(int16_t x, int16_t y, int16_t w, int16_t h, co
 		case 0: // we will just hand off for now to 
 				// unrolled to bte call
 				//Using the BTE function is faster and will use DMA if available
-                if(BUS_WIDTH == 8) {
+                if(_bus_width == 8) {
 			    bteMpuWriteWithROPData8(currentPage, width(), start_x, start_y,  //Source 1 is ignored for ROP 12
                               currentPage, width(), start_x, start_y, w, h,     //destination address, pagewidth, x/y, width/height
                               RA8876_BTE_ROP_CODE_12,
@@ -4293,7 +4293,7 @@ void RA8876_common::writeRectImpl(int16_t x, int16_t y, int16_t w, int16_t h, co
 			{
 				while (h) {
 					//Serial.printf("DP %x, %d, %d %d\n", rotated_row, h, start_x, y);
-                if(BUS_WIDTH == 8) {
+                if(_bus_width == 8) {
 				    bteMpuWriteWithROPData8(currentPage, height(), start_y, start_x,  //Source 1 is ignored for ROP 12
 	                              currentPage, height(),  start_y, start_x, 1, w,     //destination address, pagewidth, x/y, width/height
 	                              RA8876_BTE_ROP_CODE_12,
@@ -4322,7 +4322,7 @@ void RA8876_common::writeRectImpl(int16_t x, int16_t y, int16_t w, int16_t h, co
 				// lets reverse data per row...
 				while (h) {
 					for (int i = 0; i < w; i++) rotated_buffer[w-i-1] = *pcolors++;
-                if(BUS_WIDTH == 8) {
+                if(_bus_width == 8) {
 				    bteMpuWriteWithROPData8(currentPage, width(), start_x, start_y,  //Source 1 is ignored for ROP 12
                               currentPage, width(), (width()- w) - start_x , start_y, w, 1,     //destination address, pagewidth, x/y, width/height
                               RA8876_BTE_ROP_CODE_12,
@@ -4351,7 +4351,7 @@ void RA8876_common::writeRectImpl(int16_t x, int16_t y, int16_t w, int16_t h, co
 			    start_y += h;
 				while (h) {
 					//Serial.printf("DP %x, %d, %d %d\n", rotated_row, h, start_x, y);
-                if(BUS_WIDTH == 8) {
+                if(_bus_width == 8) {
 				    bteMpuWriteWithROPData8(currentPage, height(), start_y, start_x,  //Source 1 is ignored for ROP 12
 	                              currentPage, height(), height() - start_y, start_x, 1, w,     //destination address, pagewidth, x/y, width/height
 	                              RA8876_BTE_ROP_CODE_12,
@@ -4427,7 +4427,7 @@ void RA8876_common::writeRotatedRect(int16_t x, int16_t y, int16_t w, int16_t h,
     switch (_rotation) {
     case 0:
         // Same as normal writeRect
-        if (BUS_WIDTH == 8) {
+        if (_bus_width == 8) {
             bteMpuWriteWithROPData8(currentPage, width(), start_x, start_y,       // Source 1 is ignored for ROP 12
                                     currentPage, width(), start_x, start_y, w, h, // destination address, pagewidth, x/y, width/height
                                     RA8876_BTE_ROP_CODE_12,
@@ -4441,7 +4441,7 @@ void RA8876_common::writeRotatedRect(int16_t x, int16_t y, int16_t w, int16_t h,
         break;
     case 2:
         // Same as normal writeRect
-        if (BUS_WIDTH == 8) {
+        if (_bus_width == 8) {
             bteMpuWriteWithROPData8(currentPage, width(), start_x, start_y,                       // Source 1 is ignored for ROP 12
                                     currentPage, width(), (width() - w) - start_x, start_y, w, h, // destination address, pagewidth, x/y, width/height
                                     RA8876_BTE_ROP_CODE_12,
@@ -4454,7 +4454,7 @@ void RA8876_common::writeRotatedRect(int16_t x, int16_t y, int16_t w, int16_t h,
         }
         break;
     case 1:
-        if (BUS_WIDTH == 8) {
+        if (_bus_width == 8) {
             bteMpuWriteWithROPData8(currentPage, height(), start_y, start_x,       // Source 1 is ignored for ROP 12
                                     currentPage, height(), start_y, start_x, h, w, // destination address, pagewidth, x/y, width/height
                                     RA8876_BTE_ROP_CODE_12,
@@ -4467,7 +4467,7 @@ void RA8876_common::writeRotatedRect(int16_t x, int16_t y, int16_t w, int16_t h,
         }
         break;
     case 3:
-        if (BUS_WIDTH == 8) {
+        if (_bus_width == 8) {
             bteMpuWriteWithROPData8(currentPage, height(), start_y, start_x,                        // Source 1 is ignored for ROP 12
                                     currentPage, height(), (height() - h) - start_y, start_x, h, w, // destination address, pagewidth, x/y, width/height
                                     RA8876_BTE_ROP_CODE_12,

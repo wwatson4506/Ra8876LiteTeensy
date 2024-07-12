@@ -92,7 +92,7 @@
 
 
 
-#define BUS_WIDTH 8 /*Available options are 8 or 16 */
+//#define BUS_WIDTH 8 /*Available options are 8 or 16 */
 #define SHIFTNUM 8  // number of shifters used (up to 8)
 #define BYTES_PER_BEAT (sizeof(uint8_t))
 #define BEATS_PER_SHIFTER (sizeof(uint32_t) / BYTES_PER_BEAT)
@@ -108,6 +108,22 @@ class RA8876_t41_p : public RA8876_common {
 
     /* Initialize RA8876 */
     boolean begin(uint8_t baud_div);
+
+    // If used this must be called before begin
+    // Set the FlexIO pins.  The first version you can specify just the wr, and read and optionsl first Data.
+    // it will use information in the Flexio library to fill in d1-d7
+    bool setFlexIOPins(uint8_t write_pin, uint8_t rd_pin, uint8_t tft_d0 = 0xff);
+
+    // Set the FlexIO pins.  Specify all of the pins for 8 (or 16) bit mode. Must be called before begin
+    bool setFlexIOPins(uint8_t write_pin, uint8_t rd_pin, 
+                      uint8_t d0, uint8_t d1, uint8_t d2, uint8_t d3,
+                      uint8_t d4, uint8_t d5, uint8_t d6, uint8_t d7,
+                      uint8_t d8=0xff, uint8_t d9=0xff, uint8_t d10=0xff, uint8_t d11=0xff,
+                      uint8_t d12=0xff, uint8_t d13=0xff, uint8_t d14=0xff, uint8_t d15=0xff
+                      );
+
+
+
 
     /*access*/
     void lcdRegWrite(ru8 reg, bool finalize = true);
@@ -209,7 +225,7 @@ class RA8876_t41_p : public RA8876_common {
     int _rst;
 
     // The Teensy IO pins used for data and Read and Write 
-    uint8_t _data_pins[16], _bus_width, _wr_pin, _rd_pin;  
+    uint8_t _data_pins[16], _wr_pin, _rd_pin;  
 
     uint8_t _flexio_D0, _flexio_WR, _flexio_RD; // which flexio pins do they map to
 

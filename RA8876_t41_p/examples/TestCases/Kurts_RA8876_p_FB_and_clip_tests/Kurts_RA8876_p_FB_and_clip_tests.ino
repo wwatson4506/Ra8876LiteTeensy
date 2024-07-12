@@ -104,9 +104,11 @@ void setup() {
 
 #if defined(use_spi)
     tft.begin();
+    tft.setBusWidth(8);
 #else
     tft.begin(20);
 #endif
+
     //  tft.setFrameBuffer(tft_frame_buffer);
     tft.backlight(true);
 
@@ -458,15 +460,14 @@ void drawTestScreen() {
 #define BAND_HEIGHT 20
 #define BAND_START_X 200
 #define BAND_START_Y 259
-
-    tft.fillRect(BAND_START_X + BAND_WIDTH * 0, BAND_START_Y, BAND_WIDTH, BAND_HEIGHT, RED);
-    tft.fillRect(BAND_START_X + BAND_WIDTH * 1, BAND_START_Y, BAND_WIDTH, BAND_HEIGHT, GREEN);
-    tft.fillRect(BAND_START_X + BAND_WIDTH * 2, BAND_START_Y, BAND_WIDTH, BAND_HEIGHT, BLUE);
-    tft.fillRect(BAND_START_X + BAND_WIDTH * 3, BAND_START_Y, BAND_WIDTH, BAND_HEIGHT, BLACK);
-    tft.fillRect(BAND_START_X + BAND_WIDTH * 4, BAND_START_Y, BAND_WIDTH, BAND_HEIGHT, WHITE);
-    tft.fillRect(BAND_START_X + BAND_WIDTH * 5, BAND_START_Y, BAND_WIDTH, BAND_HEIGHT, YELLOW);
-    tft.fillRect(BAND_START_X + BAND_WIDTH * 6, BAND_START_Y, BAND_WIDTH, BAND_HEIGHT, CYAN);
-    tft.fillRect(BAND_START_X + BAND_WIDTH * 7, BAND_START_Y, BAND_WIDTH, BAND_HEIGHT, PINK);
+    uint16_t band_colors[] = { RED, GREEN, PINK, DARKGREY, WHITE, YELLOW, CYAN, BLUE };
+#define COUNT_BANDS (sizeof(band_colors) / sizeof(band_colors[0]))
+    Serial.println("Band colors: ");
+    for (uint8_t i = 0; i < COUNT_BANDS; i++) {
+        tft.fillRect(BAND_START_X + BAND_WIDTH * i, BAND_START_Y, BAND_WIDTH, BAND_HEIGHT, band_colors[i]);
+        Serial.printf(" %x",  band_colors[i]);
+    }
+    Serial.println();
     memset(pixel_data, 0, sizeof(pixel_data));
     tft.readRect(BAND_START_X, BAND_START_Y, BAND_WIDTH * 8, BAND_HEIGHT, pixel_data);
     Serial.printf("%04X %04X %04X %04X %04X %04X %04X %04X\n",
@@ -523,6 +524,15 @@ void drawTestScreen() {
     memset(pb + MEMSET_CNT * 2, 2, MEMSET_CNT);
     memset(pb + MEMSET_CNT * 3, 3, MEMSET_CNT);
     tft.writeRect8BPP(100, 400, 100, (4 * MEMSET_CNT) / 100, pb, palette);
+
+
+    tft.writeRect8BPP(250, 400, 40, 25,  pb, palette);
+
+
+    for (int i = 0; i < 1000; i++) pixel_data[i] = BLUE;
+    tft.writeRect(400, 400, 40, 25,  pixel_data);
+
+
 
 
     tft.writeRect1BPP(75, 100, 16, 16, pict1bpp, palette);

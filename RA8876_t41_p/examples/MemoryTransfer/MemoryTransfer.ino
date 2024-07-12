@@ -75,7 +75,7 @@ void writeImage(int x, int y, int w, int h, const unsigned char *image) {
   //This code is identical to what's inside tft.putPicture()
   
   //Sending bytes individually, in normal byte order
-  if(BUS_WIDTH == 8) {
+  if(tft.getBusWidth() == 8) {
     tft.bteMpuWriteWithROPData8(tft.currentPage, tft.width(), x, y,  //Source 1 is ignored for now
                                 tft.currentPage, tft.width(), x, y, w, h,     //destination address, pagewidth, x/y, width/height
                                 RA8876_BTE_ROP_CODE_12,
@@ -94,7 +94,7 @@ void writeImage16(int x, int y, int w, int h, const unsigned char *image) {
   //Cast the data array pointer to insist that it contains 16-bit unsigned integers
   //The only benefit of this is if you already had your data in byte-reversed 16-bit form.
   //It's actually slower than the 8 bit version.
-  if(BUS_WIDTH == 16) {
+  if(tft.getBusWidth() == 16) {
     tft.bteMpuWriteWithROPData16(tft.currentPage, tft.width(), x, y,  //Source 1 is ignored for now
                                  tft.currentPage, tft.width(), x, y, w, h,     //destination address, pagewidth, x/y, width/height
                                  RA8876_BTE_ROP_CODE_12,
@@ -109,7 +109,7 @@ void writeImage16(int x, int y, int w, int h, const unsigned char *image) {
 
 void writeImageChromakey(int x, int y, int w, int h, ru16 chromakeyColor, const unsigned char *image) {
   //copy from the PROGMEM array to the screen, at the specified x/y location with one color transparent
-  if(BUS_WIDTH == 16) {
+  if(tft.getBusWidth() == 16) {
     tft.bteMpuWriteWithChromaKeyData16(//no source 1 for this operation
       tft.currentPage, tft.width(), x, y, w, h,     //destination address, x/y, width/height
       chromakeyColor,
@@ -233,7 +233,7 @@ void setup() {
   Serial.print((float)(end2Time - endTime) / 1000.0, 3);
   Serial.println("us because data transfer was still underway");
 
-  if(BUS_WIDTH == 16) {
+  if(tft.getBusWidth() == 16) {
     startTime = micros();
     writeImage16(20, 5, IMG_WIDTH, IMG_HEIGHT, image_565);  //basic send, using 16-bit byte-swapped data
     endTime = micros();
